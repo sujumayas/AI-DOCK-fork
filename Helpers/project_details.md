@@ -1,340 +1,199 @@
 ---
 
-## AI Dock App - Technical Project Details
+## AI Dock App - Project Overview
 
-### Project Overview
+### Project Summary
 
-**Name:** AI Dock App
-**Type:** Full-Stack Application
-**Purpose:** To provide a unified and secure interface for enterprise users to access multiple LLMs, featuring role-based access control, departmental usage quotas, and usage tracking.
-**Current State:** Full-stack application with a planned React frontend and a future backend.
+**Name:** AI Dock App  
+**Type:** Full-Stack Web Application  
+**Purpose:** Secure internal platform for enterprise users to access multiple LLMs through a unified interface  
+**Current State:** 🆕 **Fresh Start** - Clean project structure ready for development  
 
-### What This Application Does
+### What We're Building
 
-The AI Dock App is a secure internal web application designed for users within a bank (handling private information) to access various Large Language Models (LLMs) such as OpenAI, Claude, Mistral, etc., through a unified interface. It manages user access with role-based permissions, establishes and monitors departmental usage quotas, and tracks LLM usage. It will be hosted privately on an intranet or private cloud and is engineered for scalability and modularity.
+The AI Dock App is a secure internal web application designed for companies (especially those handling sensitive information like banks) to provide employees access to various Large Language Models (OpenAI, Claude, Mistral, etc.) through a single, controlled interface. The app features role-based access control, departmental usage quotas, comprehensive usage tracking, and is designed for private cloud or intranet deployment.
 
-### Core Workflow
-
-* **Hub Configuration:** The user (administrator) inputs a JSON configuration for enabled LLMs and departmental quotas. AI validates and suggests improvements.
-* **Access Control Setup:** The administrator defines departments, users, and roles with quota limits.
-* **Model Routing Logic:** AI sets up routing for LLM APIs (OpenAI, Claude, Mistral, etc.) based on the configuration.
-* **Usage Logging:** AI logs API usage by user, department, and timestamp.
-* **Quota Monitoring:** AI monitors usage and suggests quota adjustments or alerts when thresholds are reached.
+### Core Features
+- **🔐 User Authentication:** Secure login with JWT tokens and role-based access
+- **👥 User Management:** Admin interface for managing users, departments, and roles
+- **🤖 LLM Integration:** Connect to multiple AI providers (OpenAI, Claude, etc.)
+- **💬 Chat Interface:** Clean, unified chat interface for all LLM interactions
+- **📊 Usage Tracking:** Comprehensive logging of all interactions and usage
+- **⚖️ Quota Management:** Department-based usage limits and enforcement
+- **🛡️ Security:** Production-ready security measures for enterprise deployment
 
 ---
 
-### Technical Architecture
+### Technology Stack
 
 #### Frontend Stack
+- **Framework:** React 18 + TypeScript
+- **Build Tool:** Vite (fast development and building)
+- **Styling:** Tailwind CSS + shadcn/ui components
+- **Routing:** React Router DOM v6
+- **State Management:** React Query + React hooks
+- **Forms:** React Hook Form + Zod validation
+- **Icons:** Lucide React
 
-* **Framework:** React 18 + TypeScript + Vite
-* **UI Library:** Radix UI components via shadcn/ui + Tailwind CSS
-* **Routing:** React Router DOM v6
-* **State:** React Query for server state, React hooks for local state
-* **Forms:** React Hook Form + Zod validation
-* **Icons:** Lucide React
+#### Backend Stack
+- **API Framework:** FastAPI (Python)
+- **Database:** PostgreSQL with SQLAlchemy ORM
+- **Authentication:** JWT tokens with refresh mechanism
+- **Security:** bcrypt password hashing, rate limiting
+- **API Documentation:** Automatic OpenAPI/Swagger docs
+- **Background Tasks:** Celery + Redis (for cleanup, monitoring)
 
-#### Backend Stack (Future)
-
-* **API Framework:** FastAPI (Python)
-* **Database:** PostgreSQL with SQLAlchemy ORM
-* **Caching/Queue:** Redis + Celery for background tasks
-* **Authentication:** JWT with FastAPI-Users
-* **AI Integration:** OpenAI API / Anthropic Claude API (and other LLMs)
-* **Deployment:** Docker + Docker Compose
+#### Deployment
+- **Containerization:** Docker + Docker Compose
+- **Environment:** Designed for private cloud/intranet hosting
+- **Database:** PostgreSQL (production) or SQLite (development)
+- **Caching:** Redis for sessions and background tasks
 
 ---
 
 ### Project Structure
 
-#### Frontend (`/Users/blas/Desktop/INRE/INRE-AI-Dock/Front`)
-
 ```
-src/
-├── components/
-│   ├── Layout.tsx           # Main app shell with sidebar
-│   ├── Sidebar.tsx          # Left navigation menu
-│   ├── TopBar.tsx           # Header with breadcrumbs
-│   └── ui/                  # shadcn/ui components (40+ components)
-├── pages/
-│   ├── Login.tsx            # Login page
-│   ├── Dashboard.tsx        # Main application dashboard
-│   ├── ChatInterface.tsx    # Unified chat interface for LLMs
-│   └── AdminSettings.tsx    # User, department, quota management
-├── hooks/                   # Custom React hooks
-└── lib/utils.ts            # Utility functions
+/Users/blas/Desktop/INRE/INRE-DOCK-2/
+├── Front/                          # React frontend (empty - ready for setup)
+├── Back/                           # FastAPI backend (empty - ready for setup)
+└── Helpers/                        # Project documentation
+    ├── project_details.md          # This file
+    ├── backlog.md                  # Development backlog
+    └── assistant_prompt.md         # Claude assistant configuration
 ```
 
-#### Backend (Future) (`/Users/blas/Desktop/INRE/INRE-AI-Dock/Back`)
-
+#### Planned Frontend Structure
 ```
-app/
-├── api/                     # API route handlers
-├── core/
-│   └── config.py           # Application configuration
-├── models/                  # Database models (SQLAlchemy)
-├── services/                # Business logic and AI services
-└── main.py                 # FastAPI application entry point
-```
-
----
-
-### Data Models (Database Schema - Reference: `/Users/blas/Desktop/INRE/INRE-AI-Dock/Back/DATABASE_MODELS.md`)
-
-*The exact models will be detailed in `DATABASE_MODELS.md`, but key entities include:*
-
-**User**
-```json
-{
-  "id": "UUID",
-  "username": "string",
-  "email": "string",
-  "hashed_password": "string",
-  "role_id": "UUID",
-  "department_id": "UUID",
-  "is_active": "boolean"
-}
+Front/
+├── src/
+│   ├── components/                 # Reusable UI components
+│   │   ├── ui/                     # shadcn/ui base components
+│   │   ├── auth/                   # Authentication components
+│   │   ├── chat/                   # Chat interface components
+│   │   └── admin/                  # Admin management components
+│   ├── pages/                      # Page components
+│   │   ├── Login.tsx              # Authentication page
+│   │   ├── Dashboard.tsx          # Main user dashboard
+│   │   ├── ChatInterface.tsx      # LLM chat interface
+│   │   └── AdminSettings.tsx      # Admin management interface
+│   ├── services/                   # API integration services
+│   ├── hooks/                      # Custom React hooks
+│   ├── types/                      # TypeScript type definitions
+│   └── utils/                      # Utility functions
+├── package.json                    # Dependencies and scripts
+├── vite.config.ts                  # Vite configuration
+└── tailwind.config.js              # Tailwind CSS configuration
 ```
 
-**Role**
-```json
-{
-  "id": "UUID",
-  "name": "string",
-  "permissions": ["array of strings"]
-}
+#### Planned Backend Structure
 ```
-
-**Department**
-```json
-{
-  "id": "UUID",
-  "name": "string",
-  "description": "string"
-}
-```
-
-**LLMConfiguration**
-```json
-{
-  "id": "UUID",
-  "model_name": "string",
-  "provider": "string",
-  "api_key_encrypted": "string",
-  "enabled": "boolean",
-  "config_json": "JSONB"
-}
-```
-
-**DepartmentQuota**
-```json
-{
-  "id": "UUID",
-  "department_id": "UUID",
-  "llm_config_id": "UUID",
-  "monthly_limit_tokens": "integer",
-  "current_usage_tokens": "integer",
-  "last_reset": "timestamp"
-}
-```
-
-**UsageLog**
-```json
-{
-  "id": "UUID",
-  "user_id": "UUID",
-  "department_id": "UUID",
-  "llm_config_id": "UUID",
-  "timestamp": "timestamp",
-  "tokens_used": "integer",
-  "cost_estimated": "float",
-  "request_details": "JSONB"
-}
+Back/
+├── app/
+│   ├── api/                        # API route handlers
+│   │   ├── auth.py                # Authentication endpoints
+│   │   ├── chat.py                # Chat/LLM endpoints
+│   │   └── admin/                 # Admin endpoints
+│   ├── core/                       # Core configuration
+│   │   ├── config.py              # App configuration
+│   │   ├── database.py            # Database setup
+│   │   └── security.py            # Security utilities
+│   ├── models/                     # SQLAlchemy database models
+│   │   ├── user.py                # User model
+│   │   ├── role.py                # Role model
+│   │   ├── department.py          # Department model
+│   │   ├── llm_config.py          # LLM configuration model
+│   │   └── usage_log.py           # Usage tracking model
+│   ├── services/                   # Business logic services
+│   │   ├── auth_service.py        # Authentication logic
+│   │   ├── llm_service.py         # LLM integration
+│   │   └── admin_service.py       # Admin operations
+│   ├── schemas/                    # Pydantic data validation
+│   └── main.py                     # FastAPI application entry
+├── requirements.txt                # Python dependencies
+└── .env.example                    # Environment variables template
 ```
 
 ---
 
-### Key Features
+### Data Models
 
-#### Access & Configuration Management
+#### User Management
+- **User:** Core user account with authentication
+- **Role:** User roles (admin, user, analyst, etc.)
+- **Department:** Organizational departments for quota management
 
-* **Basic User Authentication & Session Management:** Core user and session handling.
-* **Admin Interface for User & Department Management:** CRUD operations for users and departments.
-* **Admin Configuration of Enabled LLMs:** Manual JSON input for LLM setup and enablement.
-* **Department-Based Usage Quotas:** Setting and enforcing usage limits per department.
+#### LLM Management
+- **LLMConfiguration:** Store API keys and settings for different LLM providers
+- **UsageLog:** Track every LLM interaction (user, model, tokens, cost, timestamp)
+- **DepartmentQuota:** Usage limits and enforcement for each department
 
-#### LLM Interaction
-
-* **Unified Chat Interface:** For interacting with configured LLMs.
-* **Dynamic Model Selection and Routing:** Logic to select and route requests to the appropriate LLM.
-* **AI-Powered Validation & Suggestions:** AI validates and suggests improvements for LLM configurations.
-
-#### Monitoring & Auditing
-
-* **Basic Usage Logging:** Detailed API usage logs by user, department, timestamp, and model.
-* **Real-time Quota Monitoring with Automated Alerts:** Live tracking with threshold alerts.
-* **Comprehensive Usage Tracking Dashboard:** An all-encompassing dashboard for administrators.
-
-#### Scalability & Security
-
-* **Advanced Role-Based Access Control (RBAC):** Granular permissions.
-* **Secure Hosting Setup Guidance & Documentation:** Guidelines for private cloud/intranet deployment.
-* **Scalable Architecture Review and Initial Optimizations:** Ensuring the application's growth potential.
-
----
-
-### Current Implementation Details (Frontend)
-
-Currently, the focus is on building the frontend and simulating functionalities to validate the user flow.
-
-#### AI Simulation Method
-
-All AI features are **simulated** using `setTimeout()` with 2-3 second delays. Mock responses are hardcoded within components. For example, in the future `AdminSettings.tsx` for LLM configuration:
-
-```typescript
-const handleLLMConfigSubmit = async () => {
-  setIsValidating(true);
-  setTimeout(() => {
-    const mockSuggestions = [/* mock AI validation suggestions */];
-    setValidationSuggestions(mockSuggestions);
-    setIsValidating(false);
-    // Logic to display suggestions or proceed to next step
-  }, 2000);
-};
-```
-
-#### State Management Pattern
-
-* **Server State:** React Query (prepared for future backend integrations).
-* **Local State:** React hooks (`useState`, `useEffect`).
-* **Form State:** React Hook Form with Zod schemas.
-* **No Global State:** Each page currently manages its own state.
-
-#### Component Patterns
-
-* **Compound Components:** E.g., Cards with Header/Content structure.
-* **Render Props:** For form components with validation.
-* **Custom Hooks:** Reusable stateful logic (e.g., `use-toast`).
-* **Conditional Rendering:** Based on loading/error/success states.
-
-#### Key File Locations (Frontend)
-
-* `src/pages/Dashboard.tsx` - Main application dashboard.
-* `src/pages/AdminSettings.tsx` - Interface for user, department, and LLM/quota configuration.
-* `src/pages/ChatInterface.tsx` - Primary interface for interacting with models.
-* `src/pages/Login.tsx` - Authentication page.
-
-#### Configuration Files
-
-* `components.json` - shadcn/ui configuration.
-* `tailwind.config.ts` - Tailwind CSS setup.
-* `vite.config.ts` - Build configuration.
-* `tsconfig.json` - TypeScript configuration.
-
----
-
-### Current Implementation Status
-
-* **✅ Full-Stack Application:** Complete frontend and backend integration
-* **✅ Real Authentication:** JWT-based authentication with refresh tokens
-* **✅ Real AI Integration:** Multi-LLM provider support (OpenAI, Claude, etc.)
-* **✅ Database Ready:** SQLAlchemy models and schema defined (persistence optional)
-* **✅ Production Features:** Rate limiting, security headers, usage tracking
-
-#### Data Persistence (Optional)
-* Database models are defined but PostgreSQL setup is optional for demo
-* In-memory mock data provides full functionality for testing and demos
-* Can be easily switched to persistent storage when needed
-
-#### Mock Data
-
-* Hardcoded user, department, and LLM configuration data in components.
-* Simulated AI responses with `setTimeout`.
-* No real validation or business logic implemented yet.
-
-#### Missing Features (Refer to High-Level User Stories for the complete list)
-
-* Real-time collaboration.
-* File uploads or attachments.
-* Integration with external tools.
-* Reporting or analytics.
+#### Key Relationships
+- Users belong to Departments and have Roles
+- UsageLogs track which User used which LLMConfiguration
+- DepartmentQuotas limit usage per Department per LLMConfiguration
 
 ---
 
 ### Development Workflow
 
-#### Running the Application
-
-Both frontend and backend are fully functional.
-
-**Backend Setup:**
-
+#### Getting Started (After Setup)
 ```bash
-# Backend setup (from /Users/blas/Desktop/INRE/INRE-AI-Dock/Back)
-cd /Users/blas/Desktop/INRE/INRE-AI-Dock/Back
+# Backend development
+cd /Users/blas/Desktop/INRE/INRE-DOCK-2/Back
 pip install -r requirements.txt
-
-# Option 1 (Recommended - FastAPI Best Practice):
 uvicorn app.main:app --reload --port 8000
 
-# Option 2 (Alternative - Direct Python):
-python app/main.py
-```
-
-**Frontend Setup:**
-
-```bash
-# Frontend setup (from /Users/blas/Desktop/INRE/INRE-AI-Dock/Front)
-cd /Users/blas/Desktop/INRE/INRE-AI-Dock/Front
+# Frontend development  
+cd /Users/blas/Desktop/INRE/INRE-DOCK-2/Front
 npm install
 npm run dev
 ```
 
-**Application URLs:**
-- **Frontend:** `http://localhost:8080`
-- **Backend API:** `http://localhost:8000`
-- **API Documentation:** `http://localhost:8000/docs`
-
-#### Code Organization
-
-* Each page is self-contained with its own mock data.
-* Shared UI components in `components/ui/`.
-* Layout components handle navigation and structure.
-* No global state management needed due to mock data.
-
-#### Styling Approach
-
-* Tailwind utility classes for all styling.
-* shadcn/ui components for a consistent design system.
-* Responsive design with a mobile-first approach.
-* Dark mode support available but not implemented.
+#### Application URLs (After Setup)
+- **Frontend:** http://localhost:8080
+- **Backend API:** http://localhost:8000
+- **API Documentation:** http://localhost:8000/docs
 
 ---
 
-### Integration Points (Future)
+### Current Implementation Status
 
-#### AI Services
+**🆕 PROJECT STATUS: Fresh Start**
 
-* Ready for OpenAI API, Claude API, or local LLM integration.
-* Mock functions can be replaced with real API calls.
-* Error handling prepared for network failures.
+All directories are clean and ready for development. This is a complete restart with:
+- ✅ Clean project structure established
+- ✅ Fresh backlog with learning-focused approach
+- ✅ Updated assistant prompt for educational development
+- ⏳ Ready to begin with frontend setup (AID-001-A)
 
-#### Backend API
+**📚 Learning Journey Ahead:**
+- **Phase 1:** Project setup and basic structure
+- **Phase 2:** Authentication system (login, JWT, protected routes)
+- **Phase 3:** User management (admin interface, roles, departments)
+- **Phase 4:** LLM integration (chat interface, provider configuration)
+- **Phase 5:** Usage tracking and quota management
+- **Phase 6:** Production readiness (security, deployment, monitoring)
 
-* React Query setup ready for REST API integration.
-* Components structured for easy data fetching integration.
-* Form submissions prepared for API endpoints.
-
-#### Database Schema
-
-* Data models defined and ready for the persistence layer.
-* Relationships between User, Role, Department, LLMConfiguration, DepartmentQuota, and UsageLog established.
-* User management and permissions structure planned.
+**🎯 Immediate Next Steps:**
+1. Set up React frontend with TypeScript and Tailwind CSS
+2. Create FastAPI backend with basic health check endpoint
+3. Establish database connection and basic models
+4. Implement JWT authentication system
+5. Build first working feature: user login
 
 ---
 
-This document serves as a detailed description of the AI Dock App project, its architecture, features, and current implementation status, acting as a functional prototype for future backend integrations and real AI service implementation.
+### Development Philosophy
+
+This project follows a **learning-first approach** where each feature is:
+- **Broken into small steps** (30 minutes or less each)
+- **Thoroughly explained** (why we're doing it, how it works)
+- **Immediately testable** (see results in browser/API)
+- **Connected to bigger picture** (how it fits in the overall app)
+
+The goal is not just to build an app, but to **learn fullstack development** through building a real, production-quality application.
 
 ---
 
-Now that this technical details document is tailored to your project, which of the high-level User Stories would you like to work on first?
+*Ready to start building! 🚀*
