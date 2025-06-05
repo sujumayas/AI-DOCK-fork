@@ -178,8 +178,8 @@ class Department(Base):
     # We'll add this after we update the User model with foreign keys
     # users = relationship("User", back_populates="department")
     
-    # One department can have many usage logs
-    # usage_logs = relationship("UsageLog", back_populates="department")
+    # One department can have many usage logs (for tracking departmental AI usage)
+    usage_logs = relationship("UsageLog", back_populates="department", lazy="dynamic")
     
     # One department can have many quota configurations
     # quotas = relationship("DepartmentQuota", back_populates="department")

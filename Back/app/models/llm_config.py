@@ -2,6 +2,7 @@
 # This defines how we store LLM provider configurations (OpenAI, Claude, etc.)
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, Numeric, Enum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Optional, Dict, Any, List
@@ -281,8 +282,10 @@ class LLMConfiguration(Base):
     # RELATIONSHIPS
     # =============================================================================
     
+    # Usage tracking relationship - shows all usage logs for this configuration
+    usage_logs = relationship("UsageLog", back_populates="llm_config", lazy="dynamic")
+    
     # Future relationships to add:
-    # usage_logs = relationship("UsageLog", back_populates="llm_config")
     # department_restrictions = relationship("DepartmentLLMAccess", back_populates="llm_config")
     
     # =============================================================================

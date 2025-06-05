@@ -142,6 +142,9 @@ def get_sync_db() -> Generator[Session, None, None]:
 # Default to sync for backward compatibility with existing code
 get_db = get_sync_db
 
+# Export engines for scripts that need direct access
+engine = sync_engine  # For backward compatibility
+
 # =============================================================================
 # DATABASE INITIALIZATION
 # =============================================================================

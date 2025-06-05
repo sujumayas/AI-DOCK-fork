@@ -198,8 +198,10 @@ class User(Base):
         lazy="select"               # Load department data on demand (async compatible)
     )
     
-    # Future relationships to add as we build more features:
-    # usage_logs = relationship("UsageLog", back_populates="user")
+    # Usage tracking relationship - shows all LLM interactions by this user
+    usage_logs = relationship("UsageLog", back_populates="user", lazy="dynamic")
+    
+    # Future relationships to add:
     # quota_overrides = relationship("UserQuotaOverride", back_populates="user")
     
     # =============================================================================

@@ -46,11 +46,15 @@ from .department import Department
 
 # Additional models will be imported as we create them:  
 from .llm_config import LLMConfiguration, LLMProvider
-# from .usage_log import UsageLog
+from .usage_log import UsageLog
 # from .quota import DepartmentQuota
+
+# Import Base from database for schema operations
+from ..core.database import Base
 
 # Export all models for easy importing
 __all__ = [
+    "Base",  # Add Base for schema operations
     "User",
     "Role",
     "RoleType", 
@@ -58,7 +62,7 @@ __all__ = [
     "Department", 
     "LLMConfiguration",
     "LLMProvider",
-    # "UsageLog",
+    "UsageLog",
     # "DepartmentQuota",
 ]
 
@@ -73,6 +77,7 @@ def get_all_models():
         Role,
         Department,
         LLMConfiguration,
+        UsageLog,
         # Add other models as we create them
     ]
 

@@ -13,6 +13,8 @@ from .core.database import startup_database, shutdown_database, check_database_c
 # Import our API routers
 from .api.auth import router as auth_router
 from .api.admin.users import router as admin_users_router
+from .api.admin.llm_configs import router as admin_llm_configs_router
+from .api.chat import router as chat_router
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -80,6 +82,18 @@ app.include_router(
     tags=["Admin"]
 )
 
+# Include admin LLM configuration endpoints
+# This adds all /admin/llm-configs/* endpoints to our application
+app.include_router(
+    admin_llm_configs_router,
+    prefix="/admin",
+    tags=["Admin LLM"]
+)
+
+# Include chat endpoints
+# This adds all /chat/* endpoints to our application
+app.include_router(chat_router)
+
 # Root endpoint - what users see when they visit the API directly
 @app.get("/")
 def read_root():
@@ -104,6 +118,14 @@ def read_root():
                 "search_users": "/admin/users/search",
                 "user_statistics": "/admin/users/statistics",
                 "bulk_operations": "/admin/users/bulk"
+            },
+            "chat": {
+                "send_message": "/chat/send",
+                "get_configurations": "/chat/configurations",
+                "test_configuration": "/chat/test-configuration",
+                "estimate_cost": "/chat/estimate-cost",
+                "get_models": "/chat/models/{config_id}",
+                "chat_health": "/chat/health"
             }
         }
     }

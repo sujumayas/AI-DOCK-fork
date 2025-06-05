@@ -336,6 +336,55 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         )
 
 
+def get_current_admin_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> "User":
+    """
+    FastAPI dependency to get the current authenticated ADMIN user.
+    
+    This function is like get_current_user but adds an extra check:
+    the user must have admin role to access the endpoint.
+    
+    How it works:
+    1. First authenticates the user (same as get_current_user)
+    2. Then checks if the user has admin role
+    3. Raises 403 Forbidden if user is not an admin
+    
+    Args:
+        credentials: JWT token from Authorization header (injected by FastAPI)
+        
+    Returns:
+        User object from database (guaranteed to be an admin)
+        
+    Raises:
+        HTTPException: 401 if token is invalid/missing or user not found
+        HTTPException: 403 if user is not an admin
+        
+    Example endpoint usage:
+    ```python
+    @app.get("/admin/users")
+    def admin_only_route(current_admin: User = Depends(get_current_admin_user)):
+        return {"message": f"Hello admin {current_admin.username}!"}
+    ```
+    
+    Learning: This is the "dependency injection" pattern again, but with
+    role-based access control (RBAC). Only admins can access these endpoints!
+    """
+    # First, get the current user using the standard authentication
+    # This handles all the token validation and user lookup
+    current_user = get_current_user(credentials)
+    
+    # Now check if this user has admin privileges
+    if not current_user.is_admin:
+        # User is authenticated but not an admin
+        # Return 403 Forbidden instead of 401 Unauthorized
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    
+    # User is authenticated AND is an admin
+    return current_user
+
+
 def get_optional_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))) -> Optional["User"]:
     """
     Optional version of get_current_user.
