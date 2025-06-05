@@ -16,7 +16,7 @@ async def setup_openai_config():
     
     # 🔑 PASTE YOUR OPENAI API KEY HERE:
     # Get your key from: https://platform.openai.com/api-keys
-    OPENAI_API_KEY = "***REMOVED***"  # 👈 REPLACE THIS
+    OPENAI_API_KEY = "sk-your-openai-api-key-here"  # 👈 REPLACE THIS
     
     if OPENAI_API_KEY == "sk-your-openai-api-key-here":
         print("❌ Please replace 'sk-your-openai-api-key-here' with your actual OpenAI API key!")

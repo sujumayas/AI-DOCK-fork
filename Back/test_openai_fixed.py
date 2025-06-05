@@ -9,7 +9,7 @@ import asyncio
 
 # ✅ Modern OpenAI library format (v1.0+)
 # Replace with your actual API key
-API_KEY = "***REMOVED***"
+API_KEY = "sk-your-openai-api-key-here"
 
 def test_openai_sync():
     """Test OpenAI API with synchronous client (simpler)"""
