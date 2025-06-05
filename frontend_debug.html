@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dock Frontend Debug Tool</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2563eb; margin-bottom: 30px; }
+        h2 { color: #1f2937; margin-top: 30px; }
+        .test-section {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .status { 
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #dcfce7; color: #166534; }
+        .error { background: #fef2f2; color: #dc2626; }
+        .warning { background: #fef3c7; color: #d97706; }
+        .info { background: #e0f2fe; color: #0369a1; }
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 AI Dock Frontend Debug Tool</h1>
+        
+        <div class="test-section">
+            <h2>Step 1: Backend Connectivity Test</h2>
+            <p>Let's check if the frontend can reach the backend server.</p>
+            <button onclick="testBackendHealth()">Test Backend Health</button>
+            <button onclick="testAuthEndpoint()">Test Auth Endpoint</button>
+            <div id="connectivity-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 2: CORS Test</h2>
+            <p>Check if Cross-Origin Resource Sharing is configured correctly.</p>
+            <button onclick="testCORS()">Test CORS</button>
+            <div id="cors-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 3: Login Test</h2>
+            <p>Try a login request and see what happens.</p>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="test-email" value="admin@example.com" placeholder="Enter test email">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="test-password" value="admin123" placeholder="Enter test password">
+            </div>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="login-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 4: Browser Console Logs</h2>
+            <p>Check for JavaScript errors in the browser console.</p>
+            <button onclick="showConsoleLogs()">Capture Console Output</button>
+            <div id="console-output"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 5: Network Analysis</h2>
+            <p>View detailed request/response information.</p>
+            <div id="network-analysis"></div>
+        </div>
+    </div>
+
+    <script>
+        // Capture console logs
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+        
+        const capturedLogs = [];
+        
+        // Override console methods to capture output
+        console.log = function(...args) {
+            capturedLogs.push({type: 'log', message: args.join(' '), timestamp: new Date()});
+            originalConsole.log.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            capturedLogs.push({type: 'error', message: args.join(' '), timestamp: new Date()});
+            originalConsole.error.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            capturedLogs.push({type: 'warn', message: args.join(' '), timestamp: new Date()});
+            originalConsole.warn.apply(console, args);
+        };
+
+        function showStatus(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function showDetailedStatus(elementId, type, title, details) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `
+                <div class="status ${type}">
+                    <strong>${title}</strong>
+                    <pre>${JSON.stringify(details, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        async function testBackendHealth() {
+            showStatus('connectivity-status', 'info', '🔄 Testing backend health...');
+            
+            try {
+                const response = await fetch('http://localhost:8000/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showDetailedStatus('connectivity-status', 'success', '✅ Backend is healthy!', data);
+                } else {
+                    showDetailedStatus('connectivity-status', 'error', `❌ Backend returned status ${response.status}`, {
+                        status: response.status,
+                        statusText: response.statusText
+                    });
+                }
+            } catch (error) {
+                showDetailedStatus('connectivity-status', 'error', '❌ Cannot reach backend', {
+                    error: error.message,
+                    type: error.name,
+                    suggestion: 'Make sure backend is running on http://localhost:8000'
+                });
+            }
+        }
+
+        async function testAuthEndpoint() {
+            showStatus('connectivity-status', 'info', '🔄 Testing auth endpoint...');
+            
+            try {
+                const response = await fetch('http://localhost:8000/auth/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showDetailedStatus('connectivity-status', 'success', '✅ Auth endpoint is accessible!', data);
+                } else {
+                    showDetailedStatus('connectivity-status', 'error', `❌ Auth endpoint error ${response.status}`, data);
+                }
+            } catch (error) {
+                showDetailedStatus('connectivity-status', 'error', '❌ Auth endpoint unreachable', {
+                    error: error.message,
+                    suggestion: 'Check if /auth routes are configured in backend'
+                });
+            }
+        }
+
+        async function testCORS() {
+            showStatus('cors-status', 'info', '🔄 Testing CORS configuration...');
+            
+            try {
+                const response = await fetch('http://localhost:8000/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+                
+                if (response.ok) {
+                    showDetailedStatus('cors-status', 'success', '✅ CORS is working!', corsHeaders);
+                } else {
+                    showDetailedStatus('cors-status', 'warning', '⚠️ CORS headers received but request failed', corsHeaders);
+                }
+            } catch (error) {
+                if (error.message.includes('CORS')) {
+                    showDetailedStatus('cors-status', 'error', '❌ CORS Error', {
+                        error: error.message,
+                        suggestion: 'Check CORS middleware configuration in FastAPI backend'
+                    });
+                } else {
+                    showDetailedStatus('cors-status', 'error', '❌ Network Error (might be CORS related)', {
+                        error: error.message
+                    });
+                }
+            }
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            
+            showStatus('login-status', 'info', '🔄 Testing login request...');
+            
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch('http://localhost:8000/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showDetailedStatus('login-status', 'success', '✅ Login successful!', {
+                        responseTime: `${responseTime}ms`,
+                        tokenReceived: !!data.access_token,
+                        userInfo: data.user_info || 'Not provided'
+                    });
+                } else {
+                    showDetailedStatus('login-status', 'warning', `⚠️ Login failed (status ${response.status})`, {
+                        responseTime: `${responseTime}ms`,
+                        error: data,
+                        suggestion: response.status === 401 ? 'Wrong credentials (expected)' : 'Check backend logs'
+                    });
+                }
+            } catch (error) {
+                showDetailedStatus('login-status', 'error', '❌ Login request failed', {
+                    error: error.message,
+                    suggestion: 'This is likely the cause of your infinite loading!'
+                });
+            }
+        }
+
+        function showConsoleLogs() {
+            const output = document.getElementById('console-output');
+            
+            if (capturedLogs.length === 0) {
+                output.innerHTML = '<div class="status info">No console logs captured yet. Try using the login form first.</div>';
+                return;
+            }
+            
+            const logHtml = capturedLogs.map(log => {
+                const typeClass = log.type === 'error' ? 'error' : log.type === 'warn' ? 'warning' : 'info';
+                return `<div class="status ${typeClass}">
+                    <strong>[${log.type.toUpperCase()}]</strong> ${log.message}
+                    <small> - ${log.timestamp.toLocaleTimeString()}</small>
+                </div>`;
+            }).join('');
+            
+            output.innerHTML = logHtml;
+        }
+
+        // Add network monitoring
+        window.addEventListener('load', function() {
+            const networkDiv = document.getElementById('network-analysis');
+            networkDiv.innerHTML = `
+                <div class="status info">
+                    <strong>💡 Debug Tips:</strong><br>
+                    1. Open browser Developer Tools (F12)<br>
+                    2. Go to Network tab<br>
+                    3. Try logging in from your main app<br>
+                    4. Look for failed requests to localhost:8000<br>
+                    5. Check the Console tab for JavaScript errors
+                </div>
+            `;
+        });
+
+        // Run initial health check
+        window.addEventListener('load', function() {
+            setTimeout(testBackendHealth, 1000);
+        });
+    </script>
+</body>
+</html>
