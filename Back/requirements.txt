@@ -1,0 +1,41 @@
+# AI Dock Backend Dependencies
+# Core web framework - like Flask but faster and with automatic docs
+fastapi==0.104.1
+
+# ASGI server to run our FastAPI app - like a web server
+uvicorn[standard]==0.24.0
+
+# Database toolkit - like pandas but for web apps with databases
+sqlalchemy==2.0.23
+
+# Async database support
+aiosqlite==0.19.0              # Async SQLite support
+greenlet==3.0.3                # Required for async SQLAlchemy
+
+# Database migration tool - helps update database structure safely
+alembic==1.12.1
+
+# PostgreSQL database driver - connects Python to PostgreSQL
+psycopg2-binary==2.9.9
+
+# Data validation and parsing - ensures incoming data is correct
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Authentication and security
+PyJWT==2.8.0                      # JWT token creation/validation (better than python-jose)
+passlib[bcrypt]==1.7.4            # Password hashing
+python-multipart==0.0.6           # Handle form data and file uploads
+
+# HTTP client for calling external APIs (OpenAI, Claude, etc.)
+httpx==0.25.2
+
+# Environment variable management - keeps secrets safe
+python-dotenv==1.0.0
+
+# CORS middleware is built into FastAPI - no separate package needed
+
+# Development and testing tools
+pytest==7.4.3                     # Testing framework
+pytest-asyncio==0.21.1           # Async testing support
+black==23.11.0                    # Code formatter
