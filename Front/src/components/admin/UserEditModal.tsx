@@ -460,9 +460,9 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
               
               {renderSelectField('department_id', 'Department', [
                 { value: 1, label: 'Engineering' },
-                { value: 2, label: 'Sales' },
-                { value: 3, label: 'Marketing' },
-                { value: 4, label: 'HR' },
+                { value: 2, label: 'Marketing' },
+                { value: 3, label: 'Human Resources' },
+                { value: 4, label: 'Sales' },
                 { value: 5, label: 'Finance' }
               ])}
             </div>

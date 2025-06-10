@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Home } from 'lucide-react';
 import { authService } from '../services/authService';
 import { adminService } from '../services/adminService';
 import { UserStatistics } from '../types/admin';
@@ -13,8 +14,10 @@ import { UserStatistics } from '../types/admin';
 // Component imports
 import { UserManagement } from '../components/admin/UserManagement';
 import LLMConfiguration from '../components/admin/LLMConfiguration';
-// import { DepartmentManagement } from '../components/admin/DepartmentManagement';
-// import { SystemSettings } from '../components/admin/SystemSettings';
+import UsageDashboard from '../components/admin/UsageDashboard';
+import QuotaManagement from '../components/admin/QuotaManagement';
+import DepartmentManagement from '../components/admin/DepartmentManagement';
+import AuthDebugger from '../components/AuthDebugger';
 
 /**
  * AdminSettings Component
@@ -36,7 +39,7 @@ const AdminSettings: React.FC = () => {
   const navigate = useNavigate();
   
   // Active tab state
-  const [activeTab, setActiveTab] = useState<'users' | 'llm-configs' | 'departments' | 'settings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'llm-configs' | 'usage-analytics' | 'quota-management' | 'departments' | 'settings'>('users');
   
   // Loading and error states - more granular for better UX
   const [isInitializing, setIsInitializing] = useState(true);
@@ -89,16 +92,30 @@ const AdminSettings: React.FC = () => {
       icon: '🤖'
     },
     { 
+      id: 'usage-analytics' as const, 
+      name: 'Usage Analytics', 
+      count: null,
+      icon: '📊'
+    },
+    { 
+      id: 'quota-management' as const, 
+      name: 'Quota Management', 
+      count: null,
+      icon: '🎯'
+    },
+    { 
       id: 'departments' as const, 
       name: 'Departments', 
-      count: null 
+      count: Object.keys(statistics?.users_by_department || {}).length,
+      icon: '🏢'
     },
     { 
       id: 'settings' as const, 
       name: 'System Settings', 
-      count: null 
+      count: null,
+      icon: '⚙️'
     },
-  ], [statistics?.total_users]);
+  ], [statistics?.total_users, statistics?.users_by_department]);
 
   /**
    * Load dashboard statistics with deduplication
@@ -115,6 +132,14 @@ const AdminSettings: React.FC = () => {
     setIsLoadingStats(true);
 
     try {
+      // First, test backend connectivity
+      console.log('🔌 Testing backend connectivity before loading stats...');
+      const isBackendConnected = await adminService.testBackendConnection();
+      
+      if (!isBackendConnected) {
+        throw new Error('Backend is not accessible. Please check if the server is running on http://localhost:8000');
+      }
+      
       const stats = await adminService.getUserStatistics();
       
       // Only update state if component is still mounted
@@ -125,6 +150,16 @@ const AdminSettings: React.FC = () => {
       
     } catch (err) {
       console.warn('⚠️ Failed to load statistics, using defaults:', err);
+      
+      // Log detailed error information for debugging
+      if (err instanceof Error) {
+        console.error('Statistics error details:', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name,
+          cause: err.cause
+        });
+      }
       
       // Set default statistics so the UI still works
       if (mountedRef.current) {
@@ -201,7 +236,7 @@ const AdminSettings: React.FC = () => {
   /**
    * Handle tab change with error clearing
    */
-  const handleTabChange = useCallback((tab: 'users' | 'llm-configs' | 'departments' | 'settings') => {
+  const handleTabChange = useCallback((tab: 'users' | 'llm-configs' | 'usage-analytics' | 'quota-management' | 'departments' | 'settings') => {
     console.log('📄 Switching to tab:', tab);
     setActiveTab(tab);
     setError(null); // Clear any errors when switching tabs
@@ -214,6 +249,14 @@ const AdminSettings: React.FC = () => {
     console.log('🚪 Logging out...');
     authService.logout();
     navigate('/login');
+  }, [navigate]);
+  
+  /**
+   * Handle back to dashboard
+   */
+  const handleBackToDashboard = useCallback(() => {
+    console.log('🏠 Navigating back to dashboard');
+    navigate('/');
   }, [navigate]);
 
   // =============================================================================
@@ -297,37 +340,48 @@ const AdminSettings: React.FC = () => {
    * Render admin header with user info and navigation
    */
   const renderHeader = useCallback(() => (
-    <div className="bg-white shadow-sm border-b">
+    <div className="bg-white/10 backdrop-blur-sm shadow-sm border-b border-white/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           {/* Left side - Title and admin info */}
           <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
             {currentAdmin && (
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-blue-200">
                 Welcome, {currentAdmin.full_name || currentAdmin.username}
               </span>
             )}
           </div>
 
-          {/* Right side - Quick stats and logout */}
+          {/* Right side - Quick stats, dashboard link, and logout */}
           <div className="flex items-center space-x-6">
             {statistics && (
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
+              <div className="flex items-center space-x-4 text-sm text-blue-100">
                 <span className="flex items-center space-x-1">
-                  <span>{statistics.total_users || 0}</span>
+                  <span className="text-white font-medium">{statistics.total_users || 0}</span>
                   <span>Users</span>
                   {isLoadingStats && (
-                    <div className="w-3 h-3 border border-gray-300 border-t-blue-500 rounded-full animate-spin ml-1"></div>
+                    <div className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin ml-1"></div>
                   )}
                 </span>
-                <span>{statistics.active_users || 0} Active</span>
-                <span>{statistics.admin_users || 0} Admins</span>
+                <span><span className="text-white font-medium">{statistics.active_users || 0}</span> Active</span>
+                <span><span className="text-white font-medium">{statistics.admin_users || 0}</span> Admins</span>
               </div>
             )}
+            
+            {/* Dashboard navigation button */}
+            <button
+              onClick={handleBackToDashboard}
+              className="flex items-center space-x-2 px-3 py-1.5 text-sm font-medium text-white bg-white/20 hover:bg-white/30 rounded-md transition-all duration-200 backdrop-blur-sm"
+              title="Back to Dashboard"
+            >
+              <Home className="w-4 h-4" />
+              <span>Dashboard</span>
+            </button>
+            
             <button
               onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700 font-medium transition-colors"
+              className="text-blue-200 hover:text-white font-medium transition-colors"
             >
               Logout
             </button>
@@ -341,7 +395,7 @@ const AdminSettings: React.FC = () => {
    * Render tab navigation
    */
   const renderTabs = useCallback(() => (
-    <div className="bg-white border-b">
+    <div className="bg-white/5 backdrop-blur-sm border-b border-white/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex space-x-8">
           {tabs.map((tab) => (
@@ -350,8 +404,8 @@ const AdminSettings: React.FC = () => {
               onClick={() => handleTabChange(tab.id)}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-blue-200 hover:text-white hover:border-white/50'
               }`}
             >
               {tab.name}
@@ -359,7 +413,11 @@ const AdminSettings: React.FC = () => {
                 <span className="ml-1">{tab.icon}</span>
               )}
               {tab.count !== null && tab.count !== undefined && (
-                <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                  activeTab === tab.id 
+                    ? 'bg-white/20 text-white' 
+                    : 'bg-white/10 text-blue-200'
+                }`}>
                   {tab.count}
                 </span>
               )}
@@ -383,25 +441,119 @@ const AdminSettings: React.FC = () => {
         <LLMConfiguration />
       )}
 
+      {activeTab === 'usage-analytics' && (
+        <UsageDashboard />
+      )}
+
+      {activeTab === 'quota-management' && (
+        <QuotaManagement 
+          onCreateQuota={() => {
+            console.log('🎯 Create quota button clicked from admin settings');
+            // The QuotaManagement component handles the modal internally
+          }}
+          onEditQuota={(quota) => {
+            console.log('✏️ Edit quota button clicked:', quota.name);
+            // The QuotaManagement component handles the edit modal internally
+          }}
+        />
+      )}
+
       {activeTab === 'departments' && (
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Department Management</h2>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600">
-              Department management coming in a future update! 📋
-            </p>
-          </div>
-        </div>
+        <DepartmentManagement />
       )}
 
       {activeTab === 'settings' && (
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">System Settings</h2>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600">
-              System settings panel coming in a future update! ⚙️
-            </p>
+        <div className="space-y-8">
+          {/* System Settings - moved to top */}
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+              <span>⚙️</span>
+              <span>System Settings</span>
+            </h2>
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6">
+              <div className="space-y-6">
+                
+                {/* Server Configuration Section */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                    <span>🖥️</span>
+                    <span>Server Configuration</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-500 mb-1">API Base URL</label>
+                      <div className="text-sm text-gray-400">http://localhost:8000</div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-500 mb-1">Environment</label>
+                      <div className="text-sm text-gray-400">Development</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Security Settings Section */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                    <span>🔒</span>
+                    <span>Security Settings</span>
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <div className="text-sm font-medium text-gray-500">Session Timeout</div>
+                        <div className="text-xs text-gray-400">Auto-logout after inactivity</div>
+                      </div>
+                      <div className="text-sm text-gray-400">24 hours</div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <div className="text-sm font-medium text-gray-500">Two-Factor Authentication</div>
+                        <div className="text-xs text-gray-400">Require 2FA for admin accounts</div>
+                      </div>
+                      <div className="text-sm text-gray-400">Disabled</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* System Monitoring Section */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                    <span>📊</span>
+                    <span>System Monitoring</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="text-lg font-semibold text-gray-400">--</div>
+                      <div className="text-xs text-gray-500">CPU Usage</div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="text-lg font-semibold text-gray-400">--</div>
+                      <div className="text-xs text-gray-500">Memory Usage</div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <div className="text-lg font-semibold text-gray-400">--</div>
+                      <div className="text-xs text-gray-500">Active Connections</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coming Soon Notice */}
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-lg">⚙️</span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Configuration Panel Coming Soon</h4>
+                  <p className="text-xs text-gray-500">
+                    These settings will be configurable in a future update
+                  </p>
+                </div>
+                
+              </div>
+            </div>
           </div>
+          
+          {/* Authentication Debugger - moved to bottom */}
+          <AuthDebugger />
         </div>
       )}
     </div>
@@ -423,7 +575,7 @@ const AdminSettings: React.FC = () => {
 
   // Main admin interface
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
       {renderHeader()}
       {renderTabs()}
       {renderTabContent()}

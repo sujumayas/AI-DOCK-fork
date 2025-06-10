@@ -1,9 +1,10 @@
-// 🔐 Login Page Component - Updated for React Router
+// 🔐 Login Page Component - Professional Blue Aesthetic
 // This is where users enter their credentials to access AI Dock
+// Updated to match the Dashboard's beautiful blue gradient theme
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle, Sparkles } from 'lucide-react';
 import { authService } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
 import { LoginCredentials } from '../types/auth';
@@ -86,21 +87,25 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header Section */}
+        {/* Header Section with Glassmorphism */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-full">
+          <div className="flex items-center justify-center space-x-2 mb-6">
+            <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
               <Shield className="h-8 w-8 text-white" />
             </div>
+            <Sparkles className="h-6 w-6 text-yellow-300" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to AI Dock</h1>
-          <p className="text-gray-600">Sign in to access your secure AI gateway</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome to AI Dock</h1>
+          <p className="text-blue-100">Sign in to access your secure AI gateway</p>
+          <p className="text-blue-200 text-sm mt-2">
+            <span className="font-medium">InDigital XP Platform</span> • Intercorp Retail
+          </p>
         </div>
 
-        {/* Login Form Card */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        {/* Login Form Card with Glassmorphism */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
@@ -125,7 +130,7 @@ export const LoginPage: React.FC = () => {
                   type="email"
                   value={credentials.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
                   placeholder="Enter your email"
                   autoComplete="email"
                   disabled={isLoading}
@@ -148,7 +153,7 @@ export const LoginPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={credentials.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={isLoading}
@@ -169,11 +174,11 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Button with Gradient */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white py-3 px-4 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center space-x-2">
@@ -194,12 +199,12 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Development Note */}
-        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            <strong>Development Mode:</strong> Use the test account created in your backend
+        {/* Development Note with Glassmorphism */}
+        <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+          <p className="text-sm text-blue-100">
+            <strong className="text-white">Development Mode:</strong> Use the test account created in your backend
           </p>
-          <p className="text-xs text-yellow-700 mt-1">
+          <p className="text-xs text-blue-200 mt-1">
             🚀 Router-enabled login with automatic redirect to dashboard
           </p>
         </div>

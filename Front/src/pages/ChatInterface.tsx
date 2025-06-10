@@ -3,6 +3,7 @@
 // Manages conversation state, LLM selection, and backend integration
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MessageList } from '../components/chat/MessageList';
 import { MessageInput } from '../components/chat/MessageInput';
 import { chatService } from '../services/chatService';
@@ -12,10 +13,13 @@ import {
   LLMConfigurationSummary, 
   ChatServiceError 
 } from '../types/chat';
-import { Settings, Zap, AlertCircle, CheckCircle, Loader2, Bug } from 'lucide-react';
+import { Settings, Zap, AlertCircle, CheckCircle, Loader2, Bug, Home } from 'lucide-react';
 import { AuthDebugger } from '../utils/debugAuth';
 
 export const ChatInterface: React.FC = () => {
+  // 🧭 Navigation hook for routing
+  const navigate = useNavigate();
+  
   // 🔐 Authentication state
   const { user } = useAuth();
   
@@ -163,56 +167,66 @@ export const ChatInterface: React.FC = () => {
     console.log('🆕 Started new conversation');
   };
   
+  // 🏠 Navigate back to dashboard
+  const handleBackToDashboard = () => {
+    console.log('🏠 Navigating back to dashboard');
+    navigate('/');
+  };
+  
   // 🎨 Get selected configuration details
   const selectedConfig = availableConfigs.find(c => c.id === selectedConfigId);
   
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* 🎛️ Header with LLM selection and controls */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-gray-900">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
+      {/* 🎛️ Header with LLM selection and controls - Glassmorphism */}
+      <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 px-3 md:px-4 py-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <h1 className="text-lg md:text-xl font-semibold text-white">
               AI Chat
             </h1>
             
             {/* 📊 Connection status indicator */}
             <div className="flex items-center space-x-2">
               {connectionStatus === 'checking' && (
-                <div className="flex items-center text-gray-500 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                  Connecting...
+                <div className="flex items-center text-blue-200 text-xs md:text-sm">
+                  <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-1" />
+                  <span className="hidden sm:inline">Connecting...</span>
+                  <span className="sm:hidden">...</span>
                 </div>
               )}
               {connectionStatus === 'connected' && (
-                <div className="flex items-center text-green-600 text-sm">
-                  <CheckCircle className="w-4 h-4 mr-1" />
-                  Connected
+                <div className="flex items-center text-green-300 text-xs md:text-sm">
+                  <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                  <span className="hidden sm:inline">Connected</span>
+                  <span className="sm:hidden">✓</span>
                 </div>
               )}
               {connectionStatus === 'error' && (
-                <div className="flex items-center text-red-600 text-sm">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  Connection Error
+                <div className="flex items-center text-red-300 text-xs md:text-sm">
+                  <AlertCircle className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                  <span className="hidden sm:inline">Connection Error</span>
+                  <span className="sm:hidden">Error</span>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             {/* 🎯 LLM Provider Selection */}
             {!configsLoading && availableConfigs.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">
-                  AI Provider:
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+                <label className="text-xs md:text-sm font-medium text-white whitespace-nowrap">
+                  <span className="hidden sm:inline">AI Provider:</span>
+                  <span className="sm:hidden">Provider:</span>
                 </label>
                 <select
                   value={selectedConfigId || ''}
                   onChange={(e) => handleConfigChange(Number(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-2 md:px-3 py-1.5 md:py-1 bg-white/90 backdrop-blur-sm border border-white/30 rounded-md text-xs md:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white min-w-0 max-w-[200px] md:max-w-none"
                 >
                   {availableConfigs.map((config) => (
-                    <option key={config.id} value={config.id}>
+                    <option key={config.id} value={config.id} className="text-gray-700 bg-white">
                       {config.name} ({config.provider_name})
                     </option>
                   ))}
@@ -220,53 +234,68 @@ export const ChatInterface: React.FC = () => {
               </div>
             )}
             
+            {/* 🏠 Back to Dashboard button */}
+            <button
+              onClick={handleBackToDashboard}
+              className="px-2 md:px-3 py-1.5 md:py-1 text-xs md:text-sm bg-white/20 hover:bg-white/30 text-white rounded-md transition-all duration-200 flex items-center backdrop-blur-sm touch-manipulation"
+              title="Back to Dashboard"
+            >
+              <Home className="w-3 h-3 md:w-4 md:h-4 md:mr-1" />
+              <span className="hidden md:inline ml-1">Dashboard</span>
+            </button>
+            
             {/* 🆕 New conversation button */}
             <button
               onClick={handleNewConversation}
-              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+              className="px-2 md:px-3 py-1.5 md:py-1 text-xs md:text-sm bg-white/20 hover:bg-white/30 text-white rounded-md transition-all duration-200 backdrop-blur-sm touch-manipulation whitespace-nowrap"
               title="Start new conversation"
             >
-              New Chat
+              <span className="md:hidden">New</span>
+              <span className="hidden md:inline">New Chat</span>
             </button>
             
             {/* 🔍 Debug button - temporary for troubleshooting */}
             <button
               onClick={() => AuthDebugger.runFullDebug()}
-              className="px-3 py-1 text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-md transition-colors flex items-center"
+              className="px-2 md:px-3 py-1.5 md:py-1 text-xs md:text-sm bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 rounded-md transition-all duration-200 flex items-center backdrop-blur-sm touch-manipulation"
               title="Debug authentication (check console)"
             >
-              <Bug className="w-3 h-3 mr-1" />
-              Debug Auth
+              <Bug className="w-3 h-3 md:w-4 md:h-4 md:mr-1" />
+              <span className="hidden md:inline ml-1">Debug Auth</span>
             </button>
           </div>
         </div>
         
         {/* 💡 Current provider info */}
         {selectedConfig && (
-          <div className="mt-2 text-sm text-gray-600">
-            <span className="inline-flex items-center">
-              <Zap className="w-4 h-4 mr-1" />
-              Using <strong className="mx-1">{selectedConfig.name}</strong> 
-              with model <strong>{selectedConfig.default_model}</strong>
+          <div className="mt-2 text-xs md:text-sm text-blue-100">
+            <div className="flex flex-wrap items-center gap-1 md:gap-2">
+              <div className="flex items-center">
+                <Zap className="w-3 h-3 md:w-4 md:h-4 mr-1 text-yellow-300 flex-shrink-0" />
+                <span className="whitespace-nowrap">Using <strong className="text-white">{selectedConfig.name}</strong></span>
+              </div>
+              <div className="flex items-center">
+                <span className="whitespace-nowrap">with model <strong className="text-white">{selectedConfig.default_model}</strong></span>
+              </div>
               {selectedConfig.estimated_cost_per_request && (
-                <span className="ml-2 text-gray-500">
-                  (~${selectedConfig.estimated_cost_per_request.toFixed(4)} per request)
+                <span className="text-blue-200 text-xs whitespace-nowrap">
+                  (~${selectedConfig.estimated_cost_per_request.toFixed(4)}/req)
                 </span>
               )}
-            </span>
+            </div>
           </div>
         )}
       </div>
       
-      {/* 🚨 Error display */}
+      {/* 🚨 Error display with glassmorphism */}
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-4 mt-4">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
-            <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-red-500/20 backdrop-blur-sm border-l-4 border-red-300 p-3 md:p-4 mx-3 md:mx-4 mt-4 rounded-lg">
+          <div className="flex items-start md:items-center gap-2">
+            <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-red-200 flex-shrink-0 mt-0.5 md:mt-0" />
+            <p className="text-red-100 text-xs md:text-sm flex-1 leading-relaxed">{error}</p>
             <button 
               onClick={() => setError(null)}
-              className="ml-auto text-red-400 hover:text-red-600"
+              className="text-red-200 hover:text-red-100 text-lg md:text-xl font-bold flex-shrink-0 touch-manipulation p-1"
             >
               ×
             </button>
@@ -277,8 +306,8 @@ export const ChatInterface: React.FC = () => {
       {/* 📋 Loading state for configurations */}
       {configsLoading && (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" />
-          <span className="text-gray-600">Loading AI providers...</span>
+          <Loader2 className="w-6 h-6 animate-spin mr-2 text-white" />
+          <span className="text-white">Loading AI providers...</span>
         </div>
       )}
       
@@ -309,18 +338,18 @@ export const ChatInterface: React.FC = () => {
       {/* 🚫 No configurations available */}
       {!configsLoading && availableConfigs.length === 0 && (
         <div className="flex items-center justify-center flex-1">
-          <div className="text-center max-w-md">
-            <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-700 mb-2">
+          <div className="text-center max-w-md bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+            <Settings className="w-12 h-12 text-white/60 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white mb-2">
               No AI Providers Available
             </h3>
-            <p className="text-gray-500 text-sm mb-4">
+            <p className="text-blue-100 text-sm mb-4">
               No LLM configurations are currently available for your account. 
               Please contact your administrator to set up AI providers.
             </p>
             <button
               onClick={loadAvailableConfigurations}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white rounded-md transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Retry
             </button>

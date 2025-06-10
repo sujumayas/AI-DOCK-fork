@@ -82,17 +82,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const canSend = message.trim().length > 0 && !isLoading && !disabled && !isOverLimit;
   
   return (
-    <div className={`border-t bg-white ${className}`}>
-      <div className="p-4">
+    <div className={`border-t border-white/20 bg-white/10 backdrop-blur-sm ${className}`}>
+      <div className="p-3 md:p-4">
         {/* 📊 Character counter (only show when approaching limit) */}
         {isNearLimit && (
-          <div className={`text-xs mb-2 text-right ${isOverLimit ? 'text-red-500' : 'text-amber-500'}`}>
-            {characterCount}/{characterLimit} characters
-            {isOverLimit && ' (too long)'}
+          <div className={`text-xs mb-2 text-right ${isOverLimit ? 'text-red-300' : 'text-yellow-300'}`}>
+            <span className="hidden sm:inline">{characterCount}/{characterLimit} characters</span>
+            <span className="sm:hidden">{characterCount}/{characterLimit}</span>
+            {isOverLimit && <span className="block sm:inline"> (too long)</span>}
           </div>
         )}
         
-        <div className="flex items-end space-x-3">
+        <div className="flex items-end gap-2 md:gap-3">
           {/* ✍️ Message input textarea */}
           <div className="flex-1 relative">
             <textarea
@@ -103,22 +104,29 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               placeholder={placeholder}
               disabled={isLoading || disabled}
               className={`
-                w-full px-4 py-3 border border-gray-300 rounded-lg resize-none
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                disabled:bg-gray-50 disabled:cursor-not-allowed
-                ${isOverLimit ? 'border-red-300 focus:ring-red-500' : ''}
-                transition-colors duration-200
+                w-full px-3 md:px-4 py-2.5 md:py-3 bg-white/90 backdrop-blur-sm border border-white/30 rounded-lg resize-none text-gray-800 text-sm md:text-base
+                focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:bg-white
+                disabled:bg-white/50 disabled:cursor-not-allowed disabled:text-gray-500
+                ${isOverLimit ? 'border-red-300 focus:ring-red-400' : ''}
+                transition-all duration-200 shadow-sm hover:shadow-md touch-manipulation
               `}
               style={{ 
-                minHeight: '44px',
-                maxHeight: '120px'
+                minHeight: '40px',
+                maxHeight: '100px'
               }}
               rows={1}
             />
             
             {/* 💡 Keyboard shortcut hint */}
-            <div className="absolute bottom-1 right-2 text-xs text-gray-400 pointer-events-none">
-              {isLoading ? 'Please wait...' : 'Enter to send, Shift+Enter for new line'}
+            <div className="absolute bottom-1 right-2 text-xs text-gray-500 pointer-events-none">
+              {isLoading ? (
+                'Please wait...'
+              ) : (
+                <>
+                  <span className="hidden md:inline">Enter to send, Shift+Enter for new line</span>
+                  <span className="md:hidden">Enter → send</span>
+                </>
+              )}
             </div>
           </div>
           
@@ -127,29 +135,34 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onClick={handleSend}
             disabled={!canSend}
             className={`
-              p-3 rounded-lg transition-all duration-200 flex items-center justify-center
+              p-2.5 md:p-3 rounded-lg transition-all duration-200 flex items-center justify-center touch-manipulation
               ${canSend
-                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 active:from-blue-700 active:to-teal-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95'
+                : 'bg-white/20 text-white/40 cursor-not-allowed backdrop-blur-sm'
               }
-              min-w-[44px] h-[44px]
+              min-w-[40px] md:min-w-[44px] h-[40px] md:h-[44px]
             `}
             title={canSend ? 'Send message (Enter)' : 'Type a message to send'}
           >
             {isLoading ? (
               // 🔄 Loading spinner when AI is responding
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
             ) : (
               // 📤 Send icon
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4 md:w-5 md:h-5" />
             )}
           </button>
         </div>
         
         {/* ℹ️ Help text for new users */}
         {message.length === 0 && !isLoading && (
-          <div className="mt-2 text-xs text-gray-500 text-center">
-            💡 Pro tip: You can use <kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Shift + Enter</kbd> to add line breaks
+          <div className="mt-2 text-xs text-blue-200 text-center">
+            <span className="hidden md:inline">
+              💡 Pro tip: You can use <kbd className="px-1 py-0.5 bg-white/20 backdrop-blur-sm rounded text-xs text-white">Shift + Enter</kbd> to add line breaks
+            </span>
+            <span className="md:hidden">
+              💡 Tap to type, then tap send
+            </span>
           </div>
         )}
       </div>

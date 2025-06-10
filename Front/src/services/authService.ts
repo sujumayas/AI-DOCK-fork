@@ -68,15 +68,7 @@ class AuthService {
     // In a real app, you might also call a logout endpoint
   }
 
-  // ✅ Check if user is currently authenticated
-  isAuthenticated(): boolean {
-    const token = this.getToken();
-    if (!token) return false;
-    
-    // TODO: In production, you'd also check if token is expired
-    // For now, we just check if a token exists
-    return true;
-  }
+  // This method is now replaced by the enhanced version above
 
   // 🔒 Get authorization headers for protected API calls
   getAuthHeaders(): HeadersInit {
@@ -85,6 +77,48 @@ class AuthService {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
     };
+  }
+
+  // 🔍 Check if token is expired
+  isTokenExpired(): boolean {
+    const token = this.getToken();
+    if (!token) return true;
+    
+    try {
+      // JWT tokens have 3 parts separated by dots
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) return true;
+      
+      // Decode the payload (middle part)
+      const payload = JSON.parse(atob(tokenParts[1]));
+      
+      // Check if token has expiration and if it's expired
+      if (payload.exp) {
+        const currentTime = Date.now() / 1000; // Convert to seconds
+        return payload.exp < currentTime;
+      }
+      
+      // If no expiration, assume it's valid
+      return false;
+    } catch (error) {
+      console.error('Error checking token expiration:', error);
+      return true; // If we can't parse it, assume it's expired
+    }
+  }
+
+  // ✅ Enhanced authentication check with token validation
+  isAuthenticated(): boolean {
+    const token = this.getToken();
+    if (!token) return false;
+    
+    // Check if token is expired
+    if (this.isTokenExpired()) {
+      console.log('🔑 Token is expired, clearing it');
+      this.logout(); // Clear expired token
+      return false;
+    }
+    
+    return true;
   }
 
   // 👤 Get current user info (from backend using stored token)
@@ -103,6 +137,83 @@ class AuthService {
     }
 
     return response.json();
+  }
+
+  // 📝 Update user profile (including password change)
+  async updateProfile(updateData: {
+    full_name?: string;
+    email?: string;
+    current_password?: string;
+    new_password?: string;
+  }): Promise<any> {
+    const token = this.getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    // 🎓 LEARNING: Profile Update API Design
+    // =====================================
+    // We use PUT method for profile updates because:
+    // - PUT is for updating a resource
+    // - We're updating the user's profile
+    // - This is a standard RESTful pattern
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(updateData),
+      });
+
+      // Check if request was successful
+      if (!response.ok) {
+        // Extract error message from response
+        const errorData = await response.json();
+        const errorMessage = errorData.detail?.message || errorData.detail || 'Profile update failed';
+        throw new Error(errorMessage);
+      }
+
+      // Parse and return the successful response
+      return response.json();
+    } catch (error) {
+      // Convert any error to our standardized format
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('An unexpected error occurred during profile update');
+    }
+  }
+
+  // 🔐 Change password only (dedicated method)
+  async changePassword(currentPassword: string, newPassword: string): Promise<any> {
+    const token = this.getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.detail?.message || errorData.detail || 'Password change failed';
+        throw new Error(errorMessage);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('An unexpected error occurred during password change');
+    }
   }
 }
 

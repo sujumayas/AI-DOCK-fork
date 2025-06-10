@@ -365,8 +365,8 @@ const LLMConfiguration: React.FC = () => {
     <div className="mb-6">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">LLM Provider Configurations</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-white">LLM Provider Configurations</h2>
+          <p className="text-blue-100 mt-1">
             Manage API connections to different LLM providers (OpenAI, Claude, etc.)
           </p>
         </div>
@@ -384,7 +384,7 @@ const LLMConfiguration: React.FC = () => {
 
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-4 border border-white/20">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -392,7 +392,7 @@ const LLMConfiguration: React.FC = () => {
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Configurations</p>
+              <p className="text-sm font-medium text-gray-700">Total Configurations</p>
               <p className="text-2xl font-bold text-gray-900">{statistics.total}</p>
             </div>
           </div>
@@ -406,7 +406,7 @@ const LLMConfiguration: React.FC = () => {
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Active</p>
+              <p className="text-sm font-medium text-gray-700">Active</p>
               <p className="text-2xl font-bold text-gray-900">{statistics.active}</p>
             </div>
           </div>
@@ -420,7 +420,7 @@ const LLMConfiguration: React.FC = () => {
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Inactive</p>
+              <p className="text-sm font-medium text-gray-700">Inactive</p>
               <p className="text-2xl font-bold text-gray-900">{statistics.inactive}</p>
             </div>
           </div>
@@ -434,7 +434,7 @@ const LLMConfiguration: React.FC = () => {
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Providers</p>
+              <p className="text-sm font-medium text-gray-700">Providers</p>
               <p className="text-2xl font-bold text-gray-900">{statistics.providers}</p>
             </div>
           </div>
@@ -450,7 +450,7 @@ const LLMConfiguration: React.FC = () => {
             onChange={(e) => setIncludeInactive(e.target.checked)}
             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
           />
-          <span className="text-sm text-gray-700">Show inactive configurations</span>
+          <span className="text-sm text-blue-100">Show inactive configurations</span>
         </label>
       </div>
     </div>
@@ -506,8 +506,8 @@ const LLMConfiguration: React.FC = () => {
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No LLM configurations</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <h3 className="mt-2 text-sm font-medium text-white">No LLM configurations</h3>
+          <p className="mt-1 text-sm text-blue-200">
             Get started by adding your first LLM provider configuration.
           </p>
           <div className="mt-6">
@@ -523,7 +523,7 @@ const LLMConfiguration: React.FC = () => {
     }
 
     return (
-      <div className="bg-white shadow overflow-hidden rounded-lg">
+      <div className="bg-white/95 backdrop-blur-sm shadow-2xl overflow-hidden rounded-2xl border border-white/20">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">

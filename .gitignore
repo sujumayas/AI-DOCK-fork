@@ -263,6 +263,16 @@ fix_*.py
 setup_*.py
 reset_*.py
 
+# Additional debug patterns
+test_manager_setup.sh
+cleanup_debug_files.py
+git_cleanup_commands.sh
+
+# React debug components
+AuthDebugger.tsx
+ManagerButtonDiagnostic.tsx
+ManagerServiceTest.tsx
+
 # Backup files
 *.bak
 *.backup

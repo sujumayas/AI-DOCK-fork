@@ -392,7 +392,7 @@ export const UserManagement: React.FC = () => {
    * Render search and filter controls
    */
   const renderSearchAndFilters = useCallback(() => (
-    <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 mb-6">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         
         {/* Search Input */}
@@ -442,7 +442,7 @@ export const UserManagement: React.FC = () => {
             
             {/* Status Filter */}
             <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-800 mb-1">Status</label>
               <select
                 id="status-filter"
                 name="status-filter"
@@ -460,7 +460,7 @@ export const UserManagement: React.FC = () => {
 
             {/* Admin Filter */}
             <div>
-              <label htmlFor="type-filter" className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <label htmlFor="type-filter" className="block text-sm font-medium text-gray-800 mb-1">Type</label>
               <select
                 id="type-filter"
                 name="type-filter"
@@ -478,7 +478,7 @@ export const UserManagement: React.FC = () => {
 
             {/* Sort By */}
             <div>
-              <label htmlFor="sort-by-filter" className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+              <label htmlFor="sort-by-filter" className="block text-sm font-medium text-gray-800 mb-1">Sort By</label>
               <select
                 id="sort-by-filter"
                 name="sort-by-filter"
@@ -495,7 +495,7 @@ export const UserManagement: React.FC = () => {
 
             {/* Sort Order */}
             <div>
-              <label htmlFor="sort-order-filter" className="block text-sm font-medium text-gray-700 mb-1">Order</label>
+              <label htmlFor="sort-order-filter" className="block text-sm font-medium text-gray-800 mb-1">Order</label>
               <select
                 id="sort-order-filter"
                 name="sort-order-filter"
@@ -544,7 +544,7 @@ export const UserManagement: React.FC = () => {
    * Render users table
    */
   const renderUsersTable = useCallback(() => (
-    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -676,7 +676,7 @@ export const UserManagement: React.FC = () => {
     if (totalPages <= 1) return null;
 
     return (
-      <div className="bg-white px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+      <div className="bg-white/95 backdrop-blur-sm px-6 py-3 border-t border-white/20 flex items-center justify-between">
         <div className="flex-1 flex justify-between sm:hidden">
           {/* Mobile pagination */}
           <button
@@ -767,12 +767,12 @@ export const UserManagement: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-          <p className="text-gray-600">
+          <h2 className="text-2xl font-bold text-white">User Management</h2>
+          <p className="text-blue-100">
             Manage user accounts, roles, and permissions
           </p>
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-blue-200">
           {totalUsers} total users
         </div>
       </div>
@@ -782,9 +782,9 @@ export const UserManagement: React.FC = () => {
 
       {/* Bulk Actions */}
       {selectedUsers.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-white/20 backdrop-blur-sm border border-white/30 rounded-2xl p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-800">
+            <span className="text-sm font-medium text-white">
               {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
             </span>
             <div className="flex items-center space-x-2">

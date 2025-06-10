@@ -416,8 +416,8 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   // =============================================================================
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border border-white/20 w-full max-w-2xl shadow-2xl rounded-2xl bg-white/95 backdrop-blur-sm">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between mb-6">
@@ -461,9 +461,9 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
               
               {renderSelectField('department_id', 'Department', [
                 { value: 1, label: 'Engineering' },
-                { value: 2, label: 'Sales' },
-                { value: 3, label: 'Marketing' },
-                { value: 4, label: 'HR' },
+                { value: 2, label: 'Marketing' },
+                { value: 3, label: 'Human Resources' },
+                { value: 4, label: 'Sales' },
                 { value: 5, label: 'Finance' }
               ])}
             </div>
@@ -482,18 +482,8 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
               />
             </div>
 
-            {/* User Settings */}
+            {/* Admin Settings */}
             <div className="flex items-center space-x-6">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => handleInputChange('is_active', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-700">Active Account</span>
-              </label>
-              
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -504,6 +494,9 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                 <span className="ml-2 text-sm text-gray-700">Admin Privileges</span>
               </label>
             </div>
+
+            {/* UX Note: New users are active by default. 
+                Account status can be managed later via the user dashboard. */}
 
             {/* Form-level error */}
             {formState.errors.submit && (

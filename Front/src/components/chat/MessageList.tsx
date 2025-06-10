@@ -25,24 +25,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast }) => {
   
   return (
     <div 
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isLast ? 'mb-4' : 'mb-6'}`}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isLast ? 'mb-3 md:mb-4' : 'mb-4 md:mb-6'}`}
     >
       <div 
         className={`
-          max-w-[85%] px-4 py-3 rounded-2xl break-words
+          max-w-[90%] md:max-w-[85%] px-3 md:px-4 py-2.5 md:py-3 rounded-2xl break-words text-sm md:text-base
           ${isUser 
-            ? 'bg-blue-600 text-white rounded-br-md' 
+            ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-br-md shadow-lg' 
             : isSystem
-            ? 'bg-gray-100 text-gray-700 italic text-sm border-l-4 border-gray-400'
-            : 'bg-gray-100 text-gray-900 rounded-bl-md'
+            ? 'bg-white/20 backdrop-blur-sm text-blue-100 italic text-xs md:text-sm border-l-4 border-blue-300'
+            : 'bg-white/90 backdrop-blur-sm text-gray-800 rounded-bl-md shadow-lg border border-white/30'
           }
-          ${isUser ? 'ml-12' : 'mr-12'}
+          ${isUser ? 'ml-8 md:ml-12' : 'mr-8 md:mr-12'}
         `}
       >
         {/* 👤 Message sender indicator (only for non-user messages) */}
         {!isUser && !isSystem && (
           <div className="text-xs text-gray-500 mb-1 font-medium">
-            AI Assistant
+            <span className="hidden sm:inline">AI Assistant</span>
+            <span className="sm:hidden">AI</span>
           </div>
         )}
         
@@ -65,20 +66,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLast }) => {
 // 💭 Typing indicator component (shows when AI is thinking)
 const TypingIndicator: React.FC = () => {
   return (
-    <div className="flex justify-start mb-6">
-      <div className="max-w-[85%] mr-12">
-        <div className="bg-gray-100 text-gray-900 px-4 py-3 rounded-2xl rounded-bl-md">
+    <div className="flex justify-start mb-4 md:mb-6">
+      <div className="max-w-[90%] md:max-w-[85%] mr-8 md:mr-12">
+        <div className="bg-white/90 backdrop-blur-sm text-gray-800 px-3 md:px-4 py-2.5 md:py-3 rounded-2xl rounded-bl-md shadow-lg border border-white/30">
           <div className="text-xs text-gray-500 mb-1 font-medium">
-            AI Assistant
+            <span className="hidden sm:inline">AI Assistant</span>
+            <span className="sm:hidden">AI</span>
           </div>
           <div className="flex items-center space-x-1">
             <div className="flex space-x-1">
               {/* 🔄 Animated dots to show AI is typing */}
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-400 rounded-full animate-bounce"></div>
+              <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
             </div>
-            <span className="text-gray-500 text-sm ml-2">Thinking...</span>
+            <span className="text-gray-600 text-xs md:text-sm ml-2">
+              <span className="hidden sm:inline">Thinking...</span>
+              <span className="sm:hidden">...</span>
+            </span>
           </div>
         </div>
       </div>
@@ -106,18 +111,23 @@ export const MessageList: React.FC<MessageListProps> = ({
   }, [messages, isLoading]);
   
   return (
-    <div className={`flex-1 overflow-y-auto px-4 py-4 ${className}`}>
+    <div className={`flex-1 overflow-y-auto px-3 md:px-4 py-3 md:py-4 ${className}`}>
       {/* 📝 Display all messages */}
       {messages.length === 0 ? (
         // 🌟 Welcome message when no conversation yet
         <div className="flex items-center justify-center h-full">
-          <div className="text-center text-gray-500 max-w-md">
-            <h3 className="text-lg font-medium text-gray-700 mb-2">
+          <div className="text-center max-w-xs md:max-w-md bg-white/10 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/20 mx-3">
+            <h3 className="text-base md:text-lg font-medium text-white mb-2">
               Welcome to AI Dock! 👋
             </h3>
-            <p className="text-sm">
-              Start a conversation with your AI assistant. 
-              Choose an LLM provider and ask anything you'd like to know.
+            <p className="text-xs md:text-sm text-blue-100 leading-relaxed">
+              <span className="hidden md:inline">
+                Start a conversation with your AI assistant. 
+                Choose an LLM provider and ask anything you'd like to know.
+              </span>
+              <span className="md:hidden">
+                Choose an AI provider above and start chatting!
+              </span>
             </p>
           </div>
         </div>

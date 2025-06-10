@@ -3,7 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { LoginPage } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { ChatInterface } from './pages/ChatInterface'
+import { UserSettings } from './pages/UserSettings'
 import AdminSettings from './pages/AdminSettings'
+import ManagerDashboard from './pages/ManagerDashboard'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 // 🚀 Main App Component - Now using React Router!
@@ -43,6 +45,26 @@ function App() {
           element={
             <ProtectedRoute>
               <ChatInterface />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* ⚙️ User Settings Route: Protected route for user profile management */}
+        <Route 
+          path="/settings" 
+          element={
+            <ProtectedRoute>
+              <UserSettings />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* 🏢 Manager Route: Protected route for department managers */}
+        <Route 
+          path="/manager" 
+          element={
+            <ProtectedRoute>
+              <ManagerDashboard />
             </ProtectedRoute>
           } 
         />
