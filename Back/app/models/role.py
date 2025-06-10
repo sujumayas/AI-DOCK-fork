@@ -307,6 +307,14 @@ class PermissionConstants:
     CAN_OVERRIDE_QUOTAS = "can_override_quotas"
     
     # =============================================================================
+    # DEPARTMENT-SCOPED PERMISSIONS (for managers)
+    # =============================================================================
+    CAN_MANAGE_DEPARTMENT_QUOTAS = "can_manage_department_quotas"
+    CAN_VIEW_DEPARTMENT_USAGE = "can_view_department_usage"
+    CAN_CREATE_DEPARTMENT_USERS = "can_create_department_users"
+    CAN_RESET_DEPARTMENT_QUOTAS = "can_reset_department_quotas"
+    
+    # =============================================================================
     # SYSTEM ADMINISTRATION PERMISSIONS
     # =============================================================================
     CAN_VIEW_ADMIN_PANEL = "can_view_admin_panel"
@@ -352,6 +360,12 @@ class PermissionConstants:
                 cls.CAN_MANAGE_QUOTAS,
                 cls.CAN_OVERRIDE_QUOTAS,
             ],
+            "Department Management (Manager-Only)": [
+                cls.CAN_MANAGE_DEPARTMENT_QUOTAS,
+                cls.CAN_VIEW_DEPARTMENT_USAGE,
+                cls.CAN_CREATE_DEPARTMENT_USERS,
+                cls.CAN_RESET_DEPARTMENT_QUOTAS,
+            ],
             "System Administration": [
                 cls.CAN_VIEW_ADMIN_PANEL,
                 cls.CAN_MANAGE_SYSTEM_SETTINGS,
@@ -387,24 +401,34 @@ def create_default_roles() -> List[Role]:
     roles.append(admin_role)
     
     # =============================================================================
-    # MANAGER ROLE - Can manage department and view reports
+    # MANAGER ROLE - Can manage department users and quotas
     # =============================================================================
     manager_role = Role(
         name=RoleType.MANAGER.value,
         display_name="Department Manager",
-        description="Can manage department users and view usage reports",
+        description="Can manage department users, quotas, and view usage reports",
         level=4,
         is_system_role=True,
         permissions={
+            # User management (department-scoped)
             PermissionConstants.CAN_VIEW_USERS: True,
             PermissionConstants.CAN_EDIT_USERS: True,
+            PermissionConstants.CAN_CREATE_DEPARTMENT_USERS: True,
             PermissionConstants.CAN_MANAGE_DEPARTMENT_USERS: True,
             PermissionConstants.CAN_VIEW_DEPARTMENTS: True,
+            
+            # Quota management (department-scoped)
+            PermissionConstants.CAN_MANAGE_DEPARTMENT_QUOTAS: True,
+            PermissionConstants.CAN_VIEW_DEPARTMENT_USAGE: True,
+            PermissionConstants.CAN_RESET_DEPARTMENT_QUOTAS: True,
+            
+            # AI access
             PermissionConstants.CAN_USE_AI_CHAT: True,
             PermissionConstants.CAN_USE_ADVANCED_AI: True,
             PermissionConstants.CAN_ACCESS_AI_HISTORY: True,
+            
+            # Reporting
             PermissionConstants.CAN_VIEW_USAGE_STATS: True,
-            PermissionConstants.CAN_VIEW_ALL_USAGE: True,
         },
         created_by="system"
     )

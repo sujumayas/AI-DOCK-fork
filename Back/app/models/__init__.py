@@ -47,7 +47,7 @@ from .department import Department
 # Additional models will be imported as we create them:  
 from .llm_config import LLMConfiguration, LLMProvider
 from .usage_log import UsageLog
-# from .quota import DepartmentQuota
+from .quota import DepartmentQuota, QuotaType, QuotaPeriod, QuotaStatus
 
 # Import Base from database for schema operations
 from ..core.database import Base
@@ -63,7 +63,10 @@ __all__ = [
     "LLMConfiguration",
     "LLMProvider",
     "UsageLog",
-    # "DepartmentQuota",
+    "DepartmentQuota",
+    "QuotaType",
+    "QuotaPeriod", 
+    "QuotaStatus",
 ]
 
 # Model registry information (useful for debugging)
@@ -78,7 +81,7 @@ def get_all_models():
         Department,
         LLMConfiguration,
         UsageLog,
-        # Add other models as we create them
+        DepartmentQuota,
     ]
 
 def get_model_names():

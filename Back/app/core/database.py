@@ -295,7 +295,8 @@ async def get_async_session() -> AsyncSession:
     
     Remember to close the session when done!
     """
-    return AsyncSessionLocal()
+    session = AsyncSessionLocal()
+    return session
 
 # =============================================================================
 # DEBUGGING INFORMATION

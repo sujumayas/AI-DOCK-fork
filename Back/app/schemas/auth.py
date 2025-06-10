@@ -89,9 +89,18 @@ class LoginResponse(BaseModel):
                 "user": {
                     "id": 123,
                     "email": "john.doe@company.com",
+                    "username": "john.doe",
                     "full_name": "John Doe",
-                    "role": "user",
-                    "department": "Engineering"
+                    "role": {
+                        "id": 2,
+                        "name": "User",
+                        "description": "Regular user role"
+                    },
+                    "department": {
+                        "id": 1,
+                        "name": "Engineering",
+                        "code": "ENG"
+                    }
                 }
             }
         }
@@ -101,18 +110,52 @@ class LoginResponse(BaseModel):
 # USER INFORMATION SCHEMAS
 # =============================================================================
 
+class RoleInfo(BaseModel):
+    """
+    Role information for user data.
+    
+    🎓 LEARNING: Nested Objects in APIs
+    ===================================
+    The frontend expects role as an object with a 'name' property.
+    This schema defines the structure for role data in user responses.
+    """
+    id: int = Field(..., description="Role ID")
+    name: str = Field(..., description="Role name (Admin, User, Manager, etc.)")
+    description: Optional[str] = Field(None, description="Role description")
+
+
+class DepartmentInfo(BaseModel):
+    """
+    Department information for user data.
+    
+    🎓 LEARNING: Consistent Data Structure
+    ====================================
+    Like roles, departments should be objects with proper structure
+    rather than simple strings for better frontend data handling.
+    """
+    id: int = Field(..., description="Department ID")
+    name: str = Field(..., description="Department name")
+    code: Optional[str] = Field(None, description="Department code")
+
+
 class UserInfo(BaseModel):
     """
     Basic user information included in authentication responses.
     
     This is a subset of user data that's safe to send to the frontend.
     Never include sensitive data like password hashes here!
+    
+    🎓 LEARNING: Updated Structure
+    =============================
+    Now properly represents role and department as objects
+    to match frontend expectations (currentUser.role.name).
     """
     id: int = Field(..., description="User's unique ID")
     email: EmailStr = Field(..., description="User's email address")
+    username: str = Field(..., description="User's username")
     full_name: str = Field(..., description="User's full name")
-    role: str = Field(..., description="User's role (admin, user, etc.)")
-    department: Optional[str] = Field(None, description="User's department")
+    role: Optional[RoleInfo] = Field(None, description="User's role object")
+    department: Optional[DepartmentInfo] = Field(None, description="User's department object")
     is_active: bool = Field(default=True, description="Whether user account is active")
     is_admin: bool = Field(default=False, description="Whether user has admin privileges")
     created_at: datetime = Field(..., description="Account creation timestamp")
@@ -282,6 +325,147 @@ class LogoutResponse(BaseModel):
         schema_extra = {
             "example": {
                 "message": "Successfully logged out"
+            }
+        }
+
+
+# =============================================================================
+# PASSWORD CHANGE SCHEMAS
+# =============================================================================
+
+class ChangePasswordRequest(BaseModel):
+    """
+    Schema for password change requests.
+    
+    🎓 LEARNING: Password Security
+    =============================
+    - Always require current password (prevents unauthorized changes)
+    - Validate new password strength
+    - Never log or store passwords in plain text
+    - Hash passwords immediately on receipt
+    """
+    current_password: str = Field(
+        ...,
+        description="User's current password for verification"
+    )
+    new_password: str = Field(
+        ..., 
+        min_length=6, 
+        max_length=100,
+        description="New password (min 6 characters)"
+    )
+    
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        """Validate new password strength."""
+        if len(v) < 6:
+            raise ValueError('New password must be at least 6 characters long')
+        if v.isspace() or not v.strip():
+            raise ValueError('Password cannot be empty or just whitespace')
+        return v
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "current_password": "CurrentPassword123",
+                "new_password": "NewSecurePassword456"
+            }
+        }
+
+
+class UpdateProfileRequest(BaseModel):
+    """
+    Schema for user profile update requests.
+    
+    🎓 LEARNING: Partial Updates
+    ===========================
+    - Use Optional fields for data that might not be updated
+    - Separate password changes from profile updates for security
+    - Include password validation only when password is being changed
+    """
+    full_name: Optional[str] = Field(
+        None,
+        min_length=2,
+        max_length=100,
+        description="Updated full name"
+    )
+    email: Optional[EmailStr] = Field(
+        None,
+        description="Updated email address"
+    )
+    # Password change fields (optional)
+    current_password: Optional[str] = Field(
+        None,
+        description="Current password (required if changing password)"
+    )
+    new_password: Optional[str] = Field(
+        None,
+        min_length=6,
+        max_length=100,
+        description="New password (optional)"
+    )
+    
+    @validator('new_password')
+    def validate_password_change(cls, v, values):
+        """Validate password change logic."""
+        if v is not None:  # If new password provided
+            if not values.get('current_password'):
+                raise ValueError('Current password is required when changing password')
+            if len(v) < 6:
+                raise ValueError('New password must be at least 6 characters long')
+        return v
+    
+    @validator('full_name')
+    def validate_name(cls, v):
+        """Validate full name if provided."""
+        if v is not None and not v.strip():
+            raise ValueError('Full name cannot be empty')
+        return v.strip() if v else v
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "full_name": "John Updated Doe",
+                "email": "john.updated@company.com",
+                "current_password": "CurrentPassword123",
+                "new_password": "NewSecurePassword456"
+            }
+        }
+
+
+class UpdateProfileResponse(BaseModel):
+    """
+    Schema for successful profile update responses.
+    """
+    message: str = Field(
+        default="Profile updated successfully",
+        description="Success confirmation message"
+    )
+    user: UserInfo = Field(
+        ...,
+        description="Updated user information"
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "message": "Profile updated successfully",
+                "user": {
+                    "id": 123,
+                    "email": "john.updated@company.com",
+                    "username": "john.doe",
+                    "full_name": "John Updated Doe",
+                    "role": {
+                        "id": 2,
+                        "name": "User",
+                        "description": "Regular user role"
+                    },
+                    "department": {
+                        "id": 1,
+                        "name": "Engineering",
+                        "code": "ENG"
+                    }
+                }
             }
         }
 

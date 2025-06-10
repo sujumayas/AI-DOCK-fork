@@ -84,8 +84,8 @@ async def authenticate_user(login_data: LoginRequest) -> LoginResponse:
     # This is how we connect to the database to query data
     async with AsyncSessionLocal() as db:
         
-        # Step 2: Find the user by email
-        user = await find_user_by_email(db, login_data.email)
+        # Step 2: Find the user by email (include relationships for complete user info)
+        user = await find_user_by_email(db, login_data.email, include_relationships=True)
         if not user:
             # Security: Don't reveal whether email exists or not
             # Always say "invalid credentials" to prevent email enumeration
@@ -171,7 +171,7 @@ async def logout_user(user_id: int) -> Dict[str, str]:
 # HELPER FUNCTIONS
 # =============================================================================
 
-async def find_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
+async def find_user_by_email(db: AsyncSession, email: str, include_relationships: bool = False) -> Optional[User]:
     """
     Find a user by their email address.
     
@@ -183,20 +183,35 @@ async def find_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     Raw SQL: SELECT * FROM users WHERE email = 'user@example.com'
     SQLAlchemy: db.query(User).filter(User.email == email).first()
     
+    🎓 LEARNING: Loading Relationships
+    =================================
+    When include_relationships=True, we use selectinload() to eagerly load
+    the user's role and department data in a single query. This prevents
+    the N+1 query problem and ensures the data is available.
+    
     Args:
         db: Database session
         email: Email address to search for
+        include_relationships: Whether to load role and department data
         
     Returns:
         User object if found, None if not found
     """
     try:
-        # Use SQLAlchemy to query the database
-        # .filter() adds a WHERE clause
-        # .first() returns the first match (or None if no matches)
-        result = await db.execute(
-            select(User).where(User.email == email.lower())
-        )
+        from sqlalchemy.orm import selectinload
+        
+        # Build the query
+        query = select(User).where(User.email == email.lower())
+        
+        # Include relationships if requested
+        if include_relationships:
+            query = query.options(
+                selectinload(User.role),
+                selectinload(User.department)
+            )
+        
+        # Execute the query
+        result = await db.execute(query)
         user = result.scalar_one_or_none()
         return user
     
@@ -298,20 +313,46 @@ def create_user_info(user: User) -> UserInfo:
     
     UserInfo is a "clean" version with only safe, necessary data.
     
+    🎓 LEARNING: Proper Relationship Handling
+    ========================================
+    Now properly extracts role and department objects from the user model
+    and creates the nested structure the frontend expects.
+    
     Args:
-        user: User model from database
+        user: User model from database (with relationships loaded)
         
     Returns:
         UserInfo object safe for API responses
     """
+    from app.schemas.auth import RoleInfo, DepartmentInfo
+    
+    # Create role info if user has a role
+    role_info = None
+    if user.role:
+        role_info = RoleInfo(
+            id=user.role.id,
+            name=user.role.name,
+            description=user.role.description
+        )
+    
+    # Create department info if user has a department
+    department_info = None
+    if user.department:
+        department_info = DepartmentInfo(
+            id=user.department.id,
+            name=user.department.name,
+            code=user.department.code
+        )
+    
     return UserInfo(
         id=user.id,
         email=user.email,
+        username=user.username,
         full_name=user.full_name or user.username,
-        role="admin" if user.is_admin else "user",
-        department=user.job_title,  # Using job_title as department for now
+        role=role_info,
+        department=department_info,
         is_active=user.is_active,
-        is_admin=user.is_admin,  # Include the is_admin field
+        is_admin=user.is_admin,
         created_at=user.created_at
     )
 
@@ -335,6 +376,11 @@ async def get_current_user_from_token(token: str) -> Optional[User]:
     This function handles authentication - it tells us WHO is making
     the request based on their token.
     
+    🎓 LEARNING: Loading User Relationships
+    ======================================
+    When fetching user from token, we now include role and department
+    relationships so the frontend gets complete user data.
+    
     Args:
         token: JWT access token from Authorization header
         
@@ -342,6 +388,7 @@ async def get_current_user_from_token(token: str) -> Optional[User]:
         User object if token is valid, None if invalid
     """
     from app.core.security import verify_token
+    from sqlalchemy.orm import selectinload
     
     try:
         # Step 1: Verify and decode the token
@@ -354,10 +401,15 @@ async def get_current_user_from_token(token: str) -> Optional[User]:
         if not user_id:
             return None
         
-        # Step 3: Find user in database
+        # Step 3: Find user in database with relationships
         async with AsyncSessionLocal() as db:
             result = await db.execute(
-                select(User).where(User.id == user_id)
+                select(User)
+                .where(User.id == user_id)
+                .options(
+                    selectinload(User.role),
+                    selectinload(User.department)
+                )
             )
             user = result.scalar_one_or_none()
             
@@ -400,6 +452,152 @@ def validate_refresh_token(refresh_token: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         print(f"Error validating refresh token: {e}")
         return None
+
+
+# =============================================================================
+# PROFILE UPDATE FUNCTIONS
+# =============================================================================
+
+async def update_user_profile(user_id: int, profile_data) -> Dict[str, Any]:
+    """
+    Update user profile information including optional password change.
+    
+    🎓 LEARNING: Profile Update Security
+    ===================================
+    When updating profiles, we need to:
+    - Verify current password before any password change
+    - Check email uniqueness if email is changing
+    - Hash new passwords properly
+    - Return updated user info
+    
+    Args:
+        user_id: ID of user to update
+        profile_data: UpdateProfileRequest with update fields
+        
+    Returns:
+        Dict with success message and updated user info
+        
+    Raises:
+        ValueError: For validation errors (wrong password, duplicate email)
+    """
+    async with AsyncSessionLocal() as db:
+        # Get current user with relationships
+        from sqlalchemy.orm import selectinload
+        
+        result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .options(
+                selectinload(User.role),
+                selectinload(User.department)
+            )
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            raise ValueError("User not found")
+        
+        # Track what we're updating
+        updates_made = []
+        
+        # Update full name if provided
+        if profile_data.full_name is not None:
+            user.full_name = profile_data.full_name.strip()
+            updates_made.append("name")
+        
+        # Update email if provided
+        if profile_data.email is not None:
+            # Check if email is already in use by another user
+            existing_user = await find_user_by_email(db, profile_data.email)
+            if existing_user and existing_user.id != user_id:
+                raise ValueError("Email address is already in use")
+            
+            user.email = profile_data.email.lower()
+            updates_made.append("email")
+        
+        # Handle password change if provided
+        if profile_data.new_password is not None:
+            if not profile_data.current_password:
+                raise ValueError("Current password is required to change password")
+            
+            # Verify current password
+            if not verify_password(profile_data.current_password, user.password_hash):
+                raise ValueError("Current password is incorrect")
+            
+            # Hash and store new password
+            from app.core.security import get_password_hash
+            user.password_hash = get_password_hash(profile_data.new_password)
+            updates_made.append("password")
+        
+        # Update timestamp
+        user.updated_at = datetime.utcnow()
+        
+        try:
+            # Save changes
+            await db.commit()
+            await db.refresh(user)
+            
+            # Create response
+            return {
+                "message": f"Profile updated successfully ({', '.join(updates_made)})",
+                "user": create_user_info(user)
+            }
+            
+        except Exception as e:
+            await db.rollback()
+            print(f"Error updating user profile: {e}")
+            raise ValueError("Failed to update profile. Please try again.")
+
+
+async def change_user_password(user_id: int, current_password: str, new_password: str) -> None:
+    """
+    Change user password (dedicated function for password-only changes).
+    
+    🎓 LEARNING: Dedicated Password Change
+    =====================================
+    This function focuses only on password changes, making it:
+    - Simpler to test
+    - More secure (less attack surface)
+    - Easier to add extra security measures (like password history)
+    
+    Args:
+        user_id: ID of user changing password
+        current_password: Current password for verification
+        new_password: New password to set
+        
+    Raises:
+        ValueError: If current password is wrong or user not found
+    """
+    async with AsyncSessionLocal() as db:
+        # Get user with relationships
+        from sqlalchemy.orm import selectinload
+        
+        result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .options(
+                selectinload(User.role),
+                selectinload(User.department)
+            )
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            raise ValueError("User not found")
+        
+        # Verify current password
+        if not verify_password(current_password, user.password_hash):
+            raise ValueError("Current password is incorrect")
+        
+        # Hash and store new password
+        from app.core.security import get_password_hash
+        user.password_hash = get_password_hash(new_password)
+        user.updated_at = datetime.utcnow()
+        
+        try:
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            print(f"Error changing password: {e}")
+            raise ValueError("Failed to change password. Please try again.")
 
 
 # =============================================================================

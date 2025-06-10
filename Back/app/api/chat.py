@@ -15,7 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 # Import our LLM service and schemas
-from ..services.llm_service import llm_service, LLMServiceError, LLMProviderError, LLMConfigurationError, LLMQuotaExceededError
+from ..services.llm_service import (
+    llm_service, 
+    LLMServiceError, 
+    LLMProviderError, 
+    LLMConfigurationError, 
+    LLMQuotaExceededError,
+    LLMDepartmentQuotaExceededError  # NEW: Department quota exception
+)
 from ..schemas.llm_config import LLMConfigurationSummary
 
 # Pydantic schemas for API requests/responses
@@ -226,11 +233,17 @@ async def send_chat_message(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Configuration error: {str(e)}"
         )
-    except LLMQuotaExceededError as e:
-        logger.error(f"Quota exceeded: {str(e)}")
+    except LLMDepartmentQuotaExceededError as e:
+        logger.error(f"Department quota exceeded: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Quota exceeded: {str(e)}"
+            detail=f"Department quota exceeded: {str(e)}"
+        )
+    except LLMQuotaExceededError as e:
+        logger.error(f"Provider quota exceeded: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Provider quota exceeded: {str(e)}"
         )
     except LLMProviderError as e:
         logger.error(f"Provider error: {str(e)}")

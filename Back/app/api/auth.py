@@ -24,7 +24,10 @@ from app.schemas.auth import (
     LoginRequest, 
     LoginResponse, 
     LogoutResponse,
-    AuthErrorResponse
+    AuthErrorResponse,
+    UpdateProfileRequest,
+    UpdateProfileResponse,
+    ChangePasswordRequest
 )
 
 # Import our authentication service (business logic)
@@ -53,6 +56,69 @@ router = APIRouter(
 # Security scheme for protected endpoints
 # This tells FastAPI to expect "Authorization: Bearer <token>" headers
 security = HTTPBearer()
+
+
+# =============================================================================
+# DEPENDENCY FUNCTIONS (MUST BE DEFINED BEFORE THEY'RE USED)
+# =============================================================================
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Dependency function to get current user from token.
+    
+    🎓 LEARNING: FastAPI Dependencies
+    ================================
+    This function can be used as a dependency in other endpoints:
+    
+    @router.get("/protected")
+    async def protected_endpoint(current_user = Depends(get_current_user)):
+        # current_user is automatically populated from the token
+        return {"message": f"Hello {current_user.username}!"}
+    
+    FastAPI will automatically:
+    1. Extract the Authorization header
+    2. Validate the token
+    3. Get the user from database
+    4. Pass user object to the endpoint function
+    
+    If any step fails → automatic 401 error
+    """
+    token = credentials.credentials
+    user = await get_current_user_from_token(token)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": "invalid_token",
+                "message": "Could not validate credentials"
+            }
+        )
+    
+    return user
+
+
+async def get_current_admin_user(current_user = Depends(get_current_user)):
+    """
+    Dependency function to get current user and verify admin access.
+    
+    Use this for admin-only endpoints:
+    
+    @router.get("/admin/users")
+    async def list_users(admin_user = Depends(get_current_admin_user)):
+        # Only admins can reach this endpoint
+        return {"users": [...]}
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "insufficient_permissions",
+                "message": "Admin access required"
+            }
+        )
+    
+    return current_user
 
 
 # =============================================================================
@@ -282,6 +348,132 @@ async def auth_health_check():
 
 
 # =============================================================================
+# PROFILE UPDATE ENDPOINTS
+# =============================================================================
+
+@router.put("/profile", response_model=UpdateProfileResponse)
+async def update_profile(
+    profile_data: UpdateProfileRequest,
+    current_user = Depends(get_current_user)
+) -> UpdateProfileResponse:
+    """
+    Update user profile information and/or password.
+    
+    🎓 LEARNING: Profile Updates
+    ============================
+    This endpoint handles both profile updates (name, email) and password changes.
+    
+    Security considerations:
+    - Requires valid authentication token
+    - Requires current password for any password change
+    - Validates email uniqueness if email is being changed
+    - Hashes new password before storing
+    
+    Args:
+        profile_data: Profile update data (optional fields)
+        current_user: Authenticated user from token
+        
+    Returns:
+        UpdateProfileResponse with success message and updated user info
+        
+    Raises:
+        HTTPException: 400 for validation errors, 401 for auth errors
+    """
+    try:
+        # Import here to avoid circular imports
+        from app.services.auth_service import update_user_profile
+        
+        # Call service to handle the update
+        result = await update_user_profile(current_user.id, profile_data)
+        
+        return UpdateProfileResponse(
+            message=result["message"],
+            user=result["user"]
+        )
+    
+    except ValueError as e:
+        # Validation errors (wrong current password, duplicate email, etc.)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "validation_error",
+                "message": str(e)
+            }
+        )
+    
+    except Exception as e:
+        # Unexpected error
+        print(f"Unexpected error in update_profile endpoint: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "internal_error",
+                "message": "An unexpected error occurred. Please try again."
+            }
+        )
+
+
+@router.post("/change-password")
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Change user password (dedicated endpoint for password-only changes).
+    
+    🎓 LEARNING: Dedicated Password Endpoint
+    ==========================================
+    While the profile endpoint can handle password changes, this dedicated
+    endpoint provides a focused API for password-only operations.
+    
+    Args:
+        password_data: Current and new password
+        current_user: Authenticated user from token
+        
+    Returns:
+        Success message
+        
+    Raises:
+        HTTPException: 400 for wrong current password, 401 for auth errors
+    """
+    try:
+        # Import here to avoid circular imports
+        from app.services.auth_service import change_user_password
+        
+        # Call service to handle password change
+        await change_user_password(
+            current_user.id, 
+            password_data.current_password, 
+            password_data.new_password
+        )
+        
+        return {
+            "message": "Password changed successfully"
+        }
+    
+    except ValueError as e:
+        # Wrong current password or validation error
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "validation_error",
+                "message": str(e)
+            }
+        )
+    
+    except Exception as e:
+        # Unexpected error
+        print(f"Unexpected error in change_password endpoint: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "internal_error",
+                "message": "An unexpected error occurred. Please try again."
+            }
+        )
+
+
+# =============================================================================
 # FUTURE ENDPOINTS (TODO)
 # =============================================================================
 
@@ -302,70 +494,5 @@ async def auth_health_check():
 #     """Reset password using reset token."""
 #     pass
 
-# @router.post("/change-password")
-# async def change_password(password_data: ChangePasswordRequest, current_user = Depends(get_current_user)):
-#     """Change password for authenticated user."""
-#     pass
 
 
-# =============================================================================
-# UTILITY FUNCTIONS FOR DEPENDENCY INJECTION
-# =============================================================================
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    Dependency function to get current user from token.
-    
-    🎓 LEARNING: FastAPI Dependencies
-    ================================
-    This function can be used as a dependency in other endpoints:
-    
-    @router.get("/protected")
-    async def protected_endpoint(current_user = Depends(get_current_user)):
-        # current_user is automatically populated from the token
-        return {"message": f"Hello {current_user.username}!"}
-    
-    FastAPI will automatically:
-    1. Extract the Authorization header
-    2. Validate the token
-    3. Get the user from database
-    4. Pass user object to the endpoint function
-    
-    If any step fails → automatic 401 error
-    """
-    token = credentials.credentials
-    user = await get_current_user_from_token(token)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "error": "invalid_token",
-                "message": "Could not validate credentials"
-            }
-        )
-    
-    return user
-
-
-async def get_current_admin_user(current_user = Depends(get_current_user)):
-    """
-    Dependency function to get current user and verify admin access.
-    
-    Use this for admin-only endpoints:
-    
-    @router.get("/admin/users")
-    async def list_users(admin_user = Depends(get_current_admin_user)):
-        # Only admins can reach this endpoint
-        return {"users": [...]}
-    """
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "insufficient_permissions",
-                "message": "Admin access required"
-            }
-        )
-    
-    return current_user

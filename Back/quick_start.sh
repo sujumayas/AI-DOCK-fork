@@ -1,9 +1,5 @@
 #!/bin/bash
 # Quick start script for AI Dock backend server
-
-echo "🚀 AI Dock Backend Startup Script"
-echo "=================================="
-
 # Check if we're in the right directory
 if [ ! -f "app/main.py" ]; then
     echo "❌ Error: Not in the correct directory"
@@ -17,9 +13,6 @@ if [ ! -d "ai_dock_env" ]; then
     echo "   Expected: ai_dock_env/"
     exit 1
 fi
-
-echo "✅ Directory check passed"
-echo "🔧 Activating virtual environment..."
 
 # Activate virtual environment
 source ai_dock_env/bin/activate

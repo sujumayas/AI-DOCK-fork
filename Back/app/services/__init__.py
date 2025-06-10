@@ -16,6 +16,9 @@ from .auth_service import (
 # Import admin service factory function
 from .admin_service import get_admin_service
 
+# Import quota service factory function
+from .quota_service import get_quota_service
+
 # Import LLM service (assuming it follows a similar pattern)
 # TODO: Check and update when LLM service is implemented
 try:
@@ -32,6 +35,8 @@ __all__ = [
     "AuthenticationError",
     # Admin service
     "get_admin_service",
+    # Quota service
+    "get_quota_service",
     # LLM service (if available)
     "llm_service"
 ]

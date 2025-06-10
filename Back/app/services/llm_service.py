@@ -1,5 +1,5 @@
-# AI Dock LLM Integration Service
-# This service handles communication with external LLM providers (OpenAI, Claude, etc.)
+# AI Dock LLM Integration Service WITH QUOTA ENFORCEMENT
+# This service handles communication with external LLM providers AND enforces department quotas
 
 import asyncio
 import httpx
@@ -9,15 +9,23 @@ from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 import logging
 from abc import ABC, abstractmethod
+from decimal import Decimal
 
 # Database and configuration imports
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..core.database import get_async_session
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from ..core.database import get_async_session, get_db
 from ..models.llm_config import LLMConfiguration, LLMProvider
+from ..models.user import User
+from ..models.department import Department
 from ..schemas.llm_config import LLMConfigurationResponse
 
-# Import usage service for logging (added in AID-005-A)
+# Import usage service for logging (existing)
 from .usage_service import usage_service
+
+# Import quota service for enforcement (NEW!)
+from .quota_service import get_quota_service, QuotaService, QuotaCheckResult, QuotaViolationType
 
 # =============================================================================
 # EXCEPTIONS AND ERROR HANDLING
@@ -42,6 +50,27 @@ class LLMConfigurationError(LLMServiceError):
 
 class LLMQuotaExceededError(LLMServiceError):
     """Error when usage quota is exceeded."""
+    pass
+
+# =============================================================================
+# NEW QUOTA-RELATED EXCEPTIONS
+# =============================================================================
+
+class LLMDepartmentQuotaExceededError(LLMServiceError):
+    """Error when department quota is exceeded."""
+    
+    def __init__(
+        self, 
+        message: str, 
+        department_id: int,
+        quota_check_result: Optional[QuotaCheckResult] = None
+    ):
+        super().__init__(message)
+        self.department_id = department_id
+        self.quota_check_result = quota_check_result
+
+class LLMUserNotFoundError(LLMServiceError):
+    """Error when user is not found or has no department."""
     pass
 
 # =============================================================================
@@ -686,7 +715,15 @@ class LLMService:
     """
     Main LLM service that manages all providers and handles chat requests.
     
-    This is the main class that our API endpoints will use.
+    This service now includes quota enforcement to ensure departments
+    don't exceed their spending/usage limits.
+    
+    Flow:
+    1. User makes chat request
+    2. Look up user's department
+    3. Check if department has quota remaining
+    4. If yes: proceed with LLM request and record usage
+    5. If no: block request and return quota error
     """
     
     def __init__(self):
@@ -717,6 +754,286 @@ class LLMService:
             raise LLMServiceError(f"Unsupported provider: {provider_type}")
         
         return provider_class
+    
+    def _create_config_from_data(self, config_data: Dict[str, Any]) -> LLMConfiguration:
+        """
+        Create a temporary LLMConfiguration object from extracted data.
+        
+        This avoids SQLAlchemy session issues by creating a detached object
+        that doesn't need database access.
+        
+        Args:
+            config_data: Dictionary with configuration data
+            
+        Returns:
+            LLMConfiguration object populated with data
+        """
+        config = LLMConfiguration()
+        
+        # Set all the attributes from the data
+        for key, value in config_data.items():
+            setattr(config, key, value)
+        
+        return config
+    
+    # =============================================================================
+    # USER AND DEPARTMENT LOOKUP METHODS (NEW!)
+    # =============================================================================
+    
+    async def _get_user_with_department(self, user_id: int, db_session: Session) -> tuple[User, Department]:
+        """
+        Get user and their department for quota checking.
+        
+        Args:
+            user_id: ID of the user making the request
+            db_session: Database session
+            
+        Returns:
+            Tuple of (user, department)
+            
+        Raises:
+            LLMUserNotFoundError: If user not found or has no department
+        """
+        # Get user from database
+        user = db_session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise LLMUserNotFoundError(f"User {user_id} not found")
+        
+        # Get user's department
+        if not user.department_id:
+            raise LLMUserNotFoundError(f"User {user_id} has no department assigned")
+        
+        department = db_session.query(Department).filter(Department.id == user.department_id).first()
+        if not department:
+            raise LLMUserNotFoundError(f"Department {user.department_id} not found for user {user_id}")
+        
+        return user, department
+    
+    # =============================================================================
+    # QUOTA CHECKING METHODS (NEW!)
+    # =============================================================================
+    
+    async def _check_quotas_before_request(
+        self,
+        user_id: int,
+        config_id: int,
+        request: ChatRequest,
+        db_session: Session,
+        config_data: Dict[str, Any]
+    ) -> QuotaCheckResult:
+        """
+        Check if the user's department can make this LLM request.
+        
+        Args:
+            user_id: User making the request
+            config_id: LLM configuration being used
+            request: The chat request to check
+            db_session: Database session
+            
+        Returns:
+            QuotaCheckResult indicating if request is allowed
+            
+        Raises:
+            LLMDepartmentQuotaExceededError: If quota is exceeded
+            LLMUserNotFoundError: If user/department not found
+        """
+        self.logger.info(f"Checking quotas for user {user_id}, config {config_id}")
+        
+        # Get user and department
+        user, department = await self._get_user_with_department(user_id, db_session)
+        
+        # LLM configuration already retrieved and validated above
+        # Use the extracted config_data to avoid session issues
+        
+        # Get quota service
+        quota_service = get_quota_service(db_session)
+        
+        # Create a temporary config object for estimation (avoiding detached instance)
+        temp_config = self._create_config_from_data(config_data)
+        provider = self._get_provider(temp_config)
+        estimated_cost = provider.estimate_cost(request)
+        
+        # Estimate tokens (rough calculation)
+        total_chars = sum(len(msg.content) for msg in request.messages)
+        estimated_tokens = total_chars // 4  # Rough estimate: 1 token ≈ 4 chars
+        
+        # Add estimated output tokens
+        model_params = config_data.get('model_parameters') or {}
+        max_tokens = request.max_tokens or model_params.get("max_tokens", 1000)
+        estimated_total_tokens = estimated_tokens + min(max_tokens, estimated_tokens)
+        
+        # Check quotas
+        quota_result = await quota_service.check_department_quotas(
+            department_id=department.id,
+            llm_config_id=config_id,
+            estimated_cost=Decimal(str(estimated_cost)) if estimated_cost else None,
+            estimated_tokens=estimated_total_tokens,
+            request_count=1
+        )
+        
+        # If quota check failed, raise appropriate error
+        if quota_result.is_blocked:
+            self.logger.warning(f"Quota blocked request for user {user_id}: {quota_result.message}")
+            raise LLMDepartmentQuotaExceededError(
+                f"Department '{department.name}' quota exceeded: {quota_result.message}",
+                department_id=department.id,
+                quota_check_result=quota_result
+            )
+        
+        self.logger.info(f"Quota check passed for user {user_id}")
+        return quota_result
+    
+    def _record_quota_usage_improved(
+        self,
+        user_id: int,
+        config_id: int,
+        response: ChatResponse,
+        db_session: Session
+    ) -> Dict[str, Any]:
+        """
+        IMPROVED: Record actual usage against department quotas (RELIABLE).
+        
+        This version fixes quota recording by using direct database operations
+        without async complications.
+        """
+        self.logger.info(f"🎯 Recording quota usage for user {user_id} (IMPROVED)")
+        
+        try:
+            # Get user and department with explicit error handling
+            user = db_session.query(User).filter(User.id == user_id).first()
+            if not user:
+                self.logger.error(f"User {user_id} not found for quota recording")
+                return {"success": False, "error": "User not found"}
+            
+            if not user.department_id:
+                self.logger.error(f"User {user_id} has no department")
+                return {"success": False, "error": "User has no department"}
+            
+            department = db_session.query(Department).filter(Department.id == user.department_id).first()
+            if not department:
+                self.logger.error(f"Department {user.department_id} not found")
+                return {"success": False, "error": "Department not found"}
+            
+            # Get applicable quotas directly
+            from ..models.quota import DepartmentQuota, QuotaStatus, QuotaType
+            
+            applicable_quotas = db_session.query(DepartmentQuota).filter(
+                DepartmentQuota.department_id == department.id,
+                or_(
+                    DepartmentQuota.llm_config_id == config_id,
+                    DepartmentQuota.llm_config_id.is_(None)
+                ),
+                DepartmentQuota.status == QuotaStatus.ACTIVE
+            ).all()
+            
+            if not applicable_quotas:
+                self.logger.info(f"No applicable quotas for department {department.name}")
+                return {"success": True, "updated_quotas": []}
+            
+            # Extract usage data
+            actual_cost = Decimal(str(response.cost)) if response.cost else None
+            total_tokens = response.usage.get("total_tokens")
+            
+            updated_quotas = []
+            
+            # Update each applicable quota
+            for quota in applicable_quotas:
+                usage_amount = Decimal('0')
+                
+                if quota.quota_type == QuotaType.COST and actual_cost is not None:
+                    usage_amount = actual_cost
+                elif quota.quota_type == QuotaType.TOKENS and total_tokens is not None:
+                    usage_amount = Decimal(str(total_tokens))
+                elif quota.quota_type == QuotaType.REQUESTS:
+                    usage_amount = Decimal('1')
+                
+                if usage_amount > 0:
+                    old_usage = quota.current_usage
+                    quota.current_usage += usage_amount
+                    
+                    # Update status if exceeded
+                    if quota.current_usage >= quota.limit_value:
+                        quota.status = QuotaStatus.EXCEEDED
+                    
+                    updated_quotas.append({
+                        "quota_id": quota.id,
+                        "quota_name": quota.name,
+                        "usage_before": float(old_usage),
+                        "usage_after": float(quota.current_usage),
+                        "usage_added": float(usage_amount)
+                    })
+                    
+                    self.logger.info(f"✅ Updated quota {quota.name}: {old_usage} → {quota.current_usage}")
+            
+            # Commit changes
+            db_session.commit()
+            
+            self.logger.info(f"🎉 Successfully updated {len(updated_quotas)} quota(s)")
+            
+            return {
+                "success": True,
+                "updated_quotas": updated_quotas,
+                "department_id": department.id
+            }
+            
+        except Exception as e:
+            db_session.rollback()
+            self.logger.error(f"❌ Quota recording error: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+
+    async def _record_quota_usage(
+        self,
+        user_id: int,
+        config_id: int,
+        response: ChatResponse,
+        db_session: Session
+    ) -> Dict[str, Any]:
+        """
+        Record actual usage against department quotas.
+        
+        Args:
+            user_id: User who made the request
+            config_id: LLM configuration used
+            response: The chat response with actual usage data
+            db_session: Database session
+            
+        Returns:
+            Dictionary with quota update results
+        """
+        self.logger.info(f"Recording quota usage for user {user_id}")
+        
+        try:
+            # Get user and department
+            user, department = await self._get_user_with_department(user_id, db_session)
+            
+            # Get quota service
+            quota_service = get_quota_service(db_session)
+            
+            # Extract actual usage from response
+            actual_cost = Decimal(str(response.cost)) if response.cost else None
+            total_tokens = response.usage.get("total_tokens")
+            
+            # Record usage
+            usage_result = await quota_service.record_usage(
+                department_id=department.id,
+                llm_config_id=config_id,
+                actual_cost=actual_cost,
+                total_tokens=total_tokens,
+                request_count=1
+            )
+            
+            if usage_result["success"]:
+                self.logger.info(f"Quota usage recorded for user {user_id}: cost=${actual_cost}, tokens={total_tokens}")
+            else:
+                self.logger.error(f"Failed to record quota usage: {usage_result.get('error')}")
+            
+            return usage_result
+            
+        except Exception as e:
+            self.logger.error(f"Error recording quota usage: {str(e)}")
+            # Don't fail the request if quota recording fails
+            return {"success": False, "error": str(e)}
     
     def _get_provider(self, config: LLMConfiguration) -> BaseLLMProvider:
         """
@@ -756,17 +1073,14 @@ class LLMService:
         request_id: Optional[str] = None,  # Added for request tracing
         ip_address: Optional[str] = None,  # Added for client tracking
         user_agent: Optional[str] = None,  # Added for client info
+        bypass_quota: bool = False,  # NEW: Allow admins to bypass quotas
         **kwargs
     ) -> ChatResponse:
         """
-        Send a chat request using the specified configuration.
+        Send a chat request with quota enforcement.
         
-        This method now includes comprehensive usage logging to track:
-        - Who made the request (user_id)
-        - What was requested (messages, model, parameters)
-        - How much it cost (tokens and USD)
-        - How long it took (performance metrics)
-        - Whether it succeeded or failed
+        This method now includes quota checking BEFORE the LLM request
+        and quota usage recording AFTER the LLM request.
         
         Args:
             config_id: ID of the LLM configuration to use
@@ -779,186 +1093,349 @@ class LLMService:
             request_id: Unique request identifier for tracing (optional)
             ip_address: Client IP address (optional)
             user_agent: Client user agent string (optional)
+            bypass_quota: If True, skip quota checking (admin only)
             **kwargs: Additional provider-specific parameters
             
         Returns:
             Chat response from the LLM
             
         Raises:
+            LLMDepartmentQuotaExceededError: If quota is exceeded
+            LLMUserNotFoundError: If user/department not found
             LLMServiceError: If configuration not found or request fails
-            
-        Note: Usage logging failures will not cause the request to fail.
-        The chat functionality is prioritized over logging.
         """
-        # Get configuration from database
-        session = await get_async_session()
-        try:
-            config = await session.get(LLMConfiguration, config_id)
+        self.logger.info(f"Processing chat request for user {user_id}, config {config_id}")
+        
+        # =============================================================================
+        # STEP 1: GET CONFIGURATION AND VALIDATE (WITHIN SESSION CONTEXT)
+        # =============================================================================
+        
+        # Get database session
+        with next(get_db()) as db_session:
+            
+            # Get configuration and ensure it's loaded within the session
+            config = db_session.query(LLMConfiguration).filter(LLMConfiguration.id == config_id).first()
             if not config:
                 raise LLMServiceError(f"LLM configuration {config_id} not found")
             
             if not config.is_active:
                 raise LLMServiceError(f"LLM configuration '{config.name}' is not active")
-        finally:
-            await session.close()
-        
-        # Convert message dictionaries to ChatMessage objects
-        chat_messages = [
-            ChatMessage(role=msg["role"], content=msg["content"], name=msg.get("name"))
-            for msg in messages
-        ]
-        
-        # Create chat request
-        request = ChatRequest(
-            messages=chat_messages,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            **kwargs
-        )
-        
-        # Get provider and send request
-        provider = self._get_provider(config)
-        
-        # =============================================================================
-        # PREPARE USAGE LOGGING DATA
-        # =============================================================================
-        
-        # Calculate request data for logging
-        total_chars = sum(len(msg["content"]) for msg in messages)
-        request_data = {
-            "messages_count": len(messages),
-            "total_chars": total_chars,
-            "parameters": {
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "model_override": model,
+            
+            # Extract config data while in session to avoid detached instance issues
+            config_data = {
+                'id': config.id,
+                'name': config.name,
+                'provider': config.provider,
+                'api_endpoint': config.api_endpoint,
+                'api_key_encrypted': config.api_key_encrypted,
+                'default_model': config.default_model,
+                'model_parameters': config.model_parameters,
+                'cost_per_1k_input_tokens': config.cost_per_1k_input_tokens,
+                'cost_per_1k_output_tokens': config.cost_per_1k_output_tokens,
+                'cost_per_request': config.cost_per_request,
+                'custom_headers': config.custom_headers,
+                'is_active': config.is_active,
+                'updated_at': config.updated_at
+            }
+            
+            # =============================================================================
+            # STEP 2: QUOTA CHECKING (NEW!)
+            # =============================================================================
+            
+            quota_check_result = None
+            if not bypass_quota:
+                try:
+                    # Convert messages to ChatMessage objects for quota checking
+                    chat_messages = [
+                        ChatMessage(role=msg["role"], content=msg["content"], name=msg.get("name"))
+                        for msg in messages
+                    ]
+                    
+                    request = ChatRequest(
+                        messages=chat_messages,
+                        model=model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        **kwargs
+                    )
+                    
+                    # Check quotas BEFORE making the expensive LLM call
+                    quota_check_result = await self._check_quotas_before_request(
+                        user_id, config_id, request, db_session, config_data
+                    )
+                    
+                except LLMDepartmentQuotaExceededError:
+                    # Re-raise quota errors immediately
+                    raise
+                except Exception as e:
+                    # For other errors, log but continue (graceful degradation)
+                    self.logger.error(f"Quota check failed (allowing request): {str(e)}")
+            else:
+                self.logger.info(f"Bypassing quota check for user {user_id} (admin override)")
+            
+            # =============================================================================
+            # STEP 3: PREPARE AND SEND LLM REQUEST
+            # =============================================================================
+            
+            # Convert message dictionaries to ChatMessage objects
+            chat_messages = [
+                ChatMessage(role=msg["role"], content=msg["content"], name=msg.get("name"))
+                for msg in messages
+            ]
+            
+            # Create chat request
+            request = ChatRequest(
+                messages=chat_messages,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
                 **kwargs
+            )
+            
+            # Get provider using config_data to avoid session issues
+            final_config = self._create_config_from_data(config_data)
+            provider = self._get_provider(final_config)
+            
+            # =============================================================================
+            # STEP 4: PREPARE USAGE LOGGING DATA
+            # =============================================================================
+            
+            total_chars = sum(len(msg["content"]) for msg in messages)
+            request_data = {
+                "messages_count": len(messages),
+                "total_chars": total_chars,
+                "parameters": {
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "model_override": model,
+                    "bypass_quota": bypass_quota,
+                    **kwargs
+                }
             }
-        }
-        
-        # Record request start time for performance tracking
-        request_started_at = datetime.utcnow()
-        
-        # Initialize response and performance data
-        response_data = {}
-        performance_data = {
-            "request_started_at": request_started_at.isoformat(),
-        }
-        
-        # =============================================================================
-        # SEND REQUEST TO LLM PROVIDER
-        # =============================================================================
-        
-        try:
-            self.logger.info(f"Sending chat request via {provider.provider_name} (config: {config.name})")
             
-            # Send the actual request
-            response = await provider.send_chat_request(request)
-            
-            # Record completion time
-            request_completed_at = datetime.utcnow()
-            performance_data.update({
-                "request_completed_at": request_completed_at.isoformat(),
-                "response_time_ms": response.response_time_ms
-            })
-            
-            # Prepare successful response data for logging
-            response_data = {
-                "success": True,
-                "content": response.content,
-                "content_length": len(response.content),
-                "model": response.model,
-                "provider": response.provider,
-                "token_usage": response.usage,
-                "cost": response.cost,
-                "error_type": None,
-                "error_message": None,
-                "http_status_code": 200,
-                "raw_metadata": response.raw_response or {}
+            # Record request start time
+            request_started_at = datetime.utcnow()
+            performance_data = {
+                "request_started_at": request_started_at.isoformat(),
             }
             
             # =============================================================================
-            # LOG SUCCESSFUL USAGE (ASYNC TO NOT BLOCK RESPONSE)
+            # STEP 5: SEND REQUEST TO LLM PROVIDER
             # =============================================================================
             
             try:
-                # Log usage asynchronously so it doesn't slow down the response
-                await usage_service.log_llm_request_async(
-                    user_id=user_id,
-                    llm_config_id=config_id,
-                    request_data=request_data,
-                    response_data=response_data,
-                    performance_data=performance_data,
-                    session_id=session_id,
-                    request_id=request_id,
-                    ip_address=ip_address,
-                    user_agent=user_agent
-                )
-                self.logger.debug(f"Usage logged for user {user_id}: {response.usage.get('total_tokens', 0)} tokens, ${response.cost:.4f if response.cost else 0:.4f}")
+                self.logger.info(f"Sending chat request via {provider.provider_name} (config: {config_data['name']})")
                 
-            except Exception as logging_error:
-                # Log the error but don't fail the request
-                self.logger.error(f"Failed to log usage (non-critical): {str(logging_error)}")
+                # Send the actual request
+                response = await provider.send_chat_request(request)
+                
+                # Record completion time
+                request_completed_at = datetime.utcnow()
+                performance_data.update({
+                    "request_completed_at": request_completed_at.isoformat(),
+                    "response_time_ms": response.response_time_ms
+                })
+                
+                # =============================================================================
+                # STEP 6: RECORD QUOTA USAGE (NEW!)
+                # =============================================================================
+                
+                if not bypass_quota:
+                    try:
+                        quota_usage_result = self._record_quota_usage_improved(
+                            user_id, config_id, response, db_session
+                        )
+                        
+                        if quota_usage_result["success"]:
+                            self.logger.info(f"Quota usage recorded: {quota_usage_result.get('updated_quotas', [])} quotas updated")
+                        
+                    except Exception as quota_error:
+                        # Log error but don't fail the request
+                        self.logger.error(f"Failed to record quota usage (non-critical): {str(quota_error)}")
+                
+                # =============================================================================
+                # STEP 7: LOG SUCCESSFUL USAGE
+                # =============================================================================
+                
+                response_data = {
+                    "success": True,
+                    "content": response.content,
+                    "content_length": len(response.content),
+                    "model": response.model,
+                    "provider": response.provider,
+                    "token_usage": response.usage,
+                    "cost": response.cost,
+                    "error_type": None,
+                    "error_message": None,
+                    "http_status_code": 200,
+                    "raw_metadata": response.raw_response or {},
+                    "quota_check_passed": quota_check_result is not None,
+                    "quota_details": quota_check_result.quota_details if quota_check_result else {}
+                }
+                
+                try:
+                    await usage_service.log_llm_request_async(
+                        user_id=user_id,
+                        llm_config_id=config_id,
+                        request_data=request_data,
+                        response_data=response_data,
+                        performance_data=performance_data,
+                        session_id=session_id,
+                        request_id=request_id,
+                        ip_address=ip_address,
+                        user_agent=user_agent
+                    )
+                    self.logger.debug(f"Usage logged for user {user_id}: {response.usage.get('total_tokens', 0)} tokens, ${response.cost:.4f if response.cost else 0:.4f}")
+                    
+                except Exception as logging_error:
+                    self.logger.error(f"Failed to log usage (non-critical): {str(logging_error)}")
+                
+                return response
+                
+            except Exception as e:
+                # =============================================================================
+                # STEP 8: HANDLE ERRORS AND LOG FAILED USAGE
+                # =============================================================================
+                
+                request_completed_at = datetime.utcnow()
+                performance_data.update({
+                    "request_completed_at": request_completed_at.isoformat(),
+                    "response_time_ms": int((request_completed_at - request_started_at).total_seconds() * 1000)
+                })
+                
+                # Determine error type and status code
+                error_type = type(e).__name__
+                http_status_code = None
+                
+                if isinstance(e, LLMProviderError):
+                    http_status_code = e.status_code
+                elif isinstance(e, LLMDepartmentQuotaExceededError):
+                    http_status_code = 429  # Too Many Requests
+                
+                response_data = {
+                    "success": False,
+                    "content": "",
+                    "content_length": 0,
+                    "model": model or config_data['default_model'],
+                    "provider": provider.provider_name,
+                    "token_usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+                    "cost": None,
+                    "error_type": error_type,
+                    "error_message": str(e),
+                    "http_status_code": http_status_code,
+                    "raw_metadata": {},
+                    "quota_check_passed": False,
+                    "quota_details": quota_check_result.quota_details if quota_check_result else {}
+                }
+                
+                # Log failed usage
+                try:
+                    await usage_service.log_llm_request_async(
+                        user_id=user_id,
+                        llm_config_id=config_id,
+                        request_data=request_data,
+                        response_data=response_data,
+                        performance_data=performance_data,
+                        session_id=session_id,
+                        request_id=request_id,
+                        ip_address=ip_address,
+                        user_agent=user_agent
+                    )
+                    self.logger.debug(f"Failed usage logged for user {user_id}: {error_type}")
+                    
+                except Exception as logging_error:
+                    self.logger.error(f"Failed to log error usage (non-critical): {str(logging_error)}")
+                
+                # Re-raise the original error
+                self.logger.error(f"Chat request failed: {str(e)}")
+                raise
+    
+    # =============================================================================
+    # QUOTA STATUS METHODS (NEW!)
+    # =============================================================================
+    
+    async def get_user_quota_status(self, user_id: int) -> Dict[str, Any]:
+        """
+        Get quota status for a user's department.
+        
+        Args:
+            user_id: User to get quota status for
             
-            return response
-            
-        except Exception as e:
-            # Record completion time even for errors
-            request_completed_at = datetime.utcnow()
-            performance_data.update({
-                "request_completed_at": request_completed_at.isoformat(),
-                "response_time_ms": int((request_completed_at - request_started_at).total_seconds() * 1000)
-            })
-            
-            # Prepare error response data for logging
-            error_type = type(e).__name__
-            http_status_code = None
-            
-            # Extract HTTP status code if it's a provider error
-            if isinstance(e, LLMProviderError):
-                http_status_code = e.status_code
-            
-            response_data = {
-                "success": False,
-                "content": "",
-                "content_length": 0,
-                "model": model or config.default_model,
-                "provider": provider.provider_name,
-                "token_usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
-                "cost": None,
-                "error_type": error_type,
-                "error_message": str(e),
-                "http_status_code": http_status_code,
-                "raw_metadata": {}
-            }
-            
-            # =============================================================================
-            # LOG FAILED USAGE (ASYNC TO NOT BLOCK ERROR RESPONSE)
-            # =============================================================================
-            
+        Returns:
+            Dictionary with quota status information
+        """
+        with next(get_db()) as db_session:
             try:
-                # Log failed usage asynchronously
-                await usage_service.log_llm_request_async(
-                    user_id=user_id,
-                    llm_config_id=config_id,
-                    request_data=request_data,
-                    response_data=response_data,
-                    performance_data=performance_data,
-                    session_id=session_id,
-                    request_id=request_id,
-                    ip_address=ip_address,
-                    user_agent=user_agent
-                )
-                self.logger.debug(f"Failed usage logged for user {user_id}: {error_type}")
+                # Get user and department
+                user, department = await self._get_user_with_department(user_id, db_session)
                 
-            except Exception as logging_error:
-                # Log the error but don't affect the main error flow
-                self.logger.error(f"Failed to log error usage (non-critical): {str(logging_error)}")
+                # Get quota service
+                quota_service = get_quota_service(db_session)
+                
+                # Get comprehensive quota status
+                status = await quota_service.get_department_quota_status(department.id)
+                
+                # Add user-specific information
+                status["user_id"] = user_id
+                status["user_email"] = user.email
+                status["user_name"] = f"{user.first_name} {user.last_name}".strip()
+                
+                return status
+                
+            except LLMUserNotFoundError as e:
+                return {
+                    "user_id": user_id,
+                    "error": str(e),
+                    "department_id": None,
+                    "overall_status": "error"
+                }
+    
+    async def check_user_can_use_config(self, user_id: int, config_id: int) -> Dict[str, Any]:
+        """
+        Check if a user can use a specific LLM configuration based on quotas.
+        
+        Args:
+            user_id: User to check
+            config_id: LLM configuration to check
             
-            # Re-raise the original error
-            self.logger.error(f"Chat request failed: {str(e)}")
-            raise
+        Returns:
+            Dictionary with availability information
+        """
+        with next(get_db()) as db_session:
+            try:
+                # Create a minimal test request
+                test_messages = [ChatMessage("user", "test")]
+                test_request = ChatRequest(messages=test_messages, max_tokens=100)
+                
+                # Check quotas
+                quota_result = await self._check_quotas_before_request(
+                    user_id, config_id, test_request, db_session
+                )
+                
+                return {
+                    "user_id": user_id,
+                    "config_id": config_id,
+                    "can_use": quota_result.allowed,
+                    "message": quota_result.message,
+                    "quota_details": quota_result.quota_details
+                }
+                
+            except LLMDepartmentQuotaExceededError as e:
+                return {
+                    "user_id": user_id,
+                    "config_id": config_id,
+                    "can_use": False,
+                    "message": str(e),
+                    "quota_details": e.quota_check_result.quota_details if e.quota_check_result else {}
+                }
+            except Exception as e:
+                return {
+                    "user_id": user_id,
+                    "config_id": config_id,
+                    "can_use": False,
+                    "message": f"Error checking availability: {str(e)}",
+                    "quota_details": {}
+                }
     
     async def test_configuration(
         self, 
@@ -984,29 +1461,25 @@ class LLMService:
             if config_id is None:
                 raise LLMServiceError("Either config or config_id must be provided")
                 
-            session = await get_async_session()
-            try:
-                config = await session.get(LLMConfiguration, config_id)
+            with next(get_db()) as db_session:
+                config = db_session.query(LLMConfiguration).filter(LLMConfiguration.id == config_id).first()
                 if not config:
                     raise LLMServiceError(f"LLM configuration {config_id} not found")
-            finally:
-                await session.close()
         
         # Get provider and test
         provider = self._get_provider(config)
         
         try:
-            # Create a simple test request
             test_request = ChatRequest(
                 messages=[ChatMessage("user", test_message)],
-                max_tokens=50  # Keep test responses short
+                max_tokens=50
             )
             
             start_time = time.time()
             response = await provider.send_chat_request(test_request)
             response_time = int((time.time() - start_time) * 1000)
             
-            result = {
+            return {
                 "success": True,
                 "message": "Test successful - provider is responding correctly",
                 "response_time_ms": response_time,
@@ -1018,15 +1491,13 @@ class LLMService:
             }
             
         except Exception as e:
-            result = {
+            return {
                 "success": False,
                 "message": f"Test failed: {str(e)}",
                 "error_type": type(e).__name__,
                 "tested_at": datetime.utcnow(),
                 "error_details": {"error": str(e)}
             }
-        
-        return result
     
     async def get_available_models(self, config_id: int) -> List[str]:
         """
@@ -1038,15 +1509,12 @@ class LLMService:
         Returns:
             List of available model names
         """
-        session = await get_async_session()
-        try:
-            config = await session.get(LLMConfiguration, config_id)
+        with next(get_db()) as db_session:
+            config = db_session.query(LLMConfiguration).filter(LLMConfiguration.id == config_id).first()
             if not config:
                 raise LLMServiceError(f"LLM configuration {config_id} not found")
             
             return config.get_model_list()
-        finally:
-            await session.close()
     
     async def estimate_request_cost(
         self,
@@ -1067,13 +1535,10 @@ class LLMService:
         Returns:
             Estimated cost in USD, or None if cost tracking not available
         """
-        session = await get_async_session()
-        try:
-            config = await session.get(LLMConfiguration, config_id)
+        with next(get_db()) as db_session:
+            config = db_session.query(LLMConfiguration).filter(LLMConfiguration.id == config_id).first()
             if not config:
                 raise LLMServiceError(f"LLM configuration {config_id} not found")
-        finally:
-            await session.close()
         
         # Convert to chat messages
         chat_messages = [

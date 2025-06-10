@@ -23,6 +23,33 @@ from .llm_config import (
     LLMProviderInfo,
     get_provider_info_list
 )
+from .quota import (
+    QuotaCreateRequest,
+    QuotaUpdateRequest,
+    QuotaFilterRequest,
+    QuotaResponse,
+    QuotaListResponse,
+    DepartmentQuotaStatusResponse,
+    QuotaResetResponse,
+    BulkQuotaOperationResponse,
+    QuotaErrorResponse,
+    ValidationErrorResponse,
+    convert_quota_to_response
+)
+from .department import (
+    DepartmentCreate,
+    DepartmentUpdate,
+    DepartmentResponse,
+    DepartmentWithStats,
+    DepartmentListResponse,
+    DepartmentSearchFilters,
+    DepartmentBudgetUpdate,
+    DepartmentBulkAction,
+    DepartmentDropdownOption,
+    DepartmentHierarchy,
+    DepartmentOperationResponse,
+    DepartmentInitializationResponse
+)
 
 __all__ = [
     # Auth schemas
@@ -48,4 +75,31 @@ __all__ = [
     "LLMConfigurationTestResult",
     "LLMProviderInfo",
     "get_provider_info_list",
+    
+    # Quota schemas
+    "QuotaCreateRequest",
+    "QuotaUpdateRequest",
+    "QuotaFilterRequest",
+    "QuotaResponse",
+    "QuotaListResponse",
+    "DepartmentQuotaStatusResponse",
+    "QuotaResetResponse",
+    "BulkQuotaOperationResponse",
+    "QuotaErrorResponse",
+    "ValidationErrorResponse",
+    "convert_quota_to_response",
+    
+    # Department schemas
+    "DepartmentCreate",
+    "DepartmentUpdate",
+    "DepartmentResponse",
+    "DepartmentWithStats",
+    "DepartmentListResponse",
+    "DepartmentSearchFilters",
+    "DepartmentBudgetUpdate",
+    "DepartmentBulkAction",
+    "DepartmentDropdownOption",
+    "DepartmentHierarchy",
+    "DepartmentOperationResponse",
+    "DepartmentInitializationResponse",
 ]

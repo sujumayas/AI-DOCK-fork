@@ -14,7 +14,7 @@ from ..models.usage_log import UsageLog
 from ..models.user import User
 from ..models.department import Department
 from ..models.llm_config import LLMConfiguration
-from ..core.database import get_async_session
+from ..core.database import AsyncSessionLocal
 
 class UsageService:
     """
@@ -62,79 +62,56 @@ class UsageService:
         This is the main method that gets called after every LLM interaction.
         It captures all the important details we need for tracking and billing.
         
-        Args:
-            user_id: ID of user who made the request
-            llm_config_id: ID of LLM configuration used
-            request_data: Information about the request sent to LLM
-            response_data: Information about the LLM response
-            performance_data: Timing and performance metrics
-            session_id: Optional session identifier for grouping requests
-            request_id: Optional unique request identifier for tracing
-            ip_address: Client IP address
-            user_agent: Client user agent string
-            
-        Returns:
-            Created UsageLog object
-            
-        Request Data Format:
-        {
-            "messages_count": 3,
-            "total_chars": 150,
-            "parameters": {"temperature": 0.7, "max_tokens": 1000},
-            "model_override": "gpt-4-turbo"
-        }
-        
-        Response Data Format:
-        {
-            "success": True,
-            "content": "AI response text...",
-            "content_length": 245,
-            "model": "gpt-4",
-            "provider": "OpenAI",
-            "token_usage": {
-                "input_tokens": 120,
-                "output_tokens": 85,
-                "total_tokens": 205
-            },
-            "cost": 0.0041,
-            "error_type": None,
-            "error_message": None,
-            "http_status_code": 200,
-            "raw_metadata": {"openai_request_id": "req_123"}
-        }
-        
-        Performance Data Format:
-        {
-            "request_started_at": "2024-01-01T12:00:00Z",
-            "request_completed_at": "2024-01-01T12:00:02Z", 
-            "response_time_ms": 2150
-        }
+        FIXED: Prevents duplicate logging by tracking success state properly.
         """
         
-        # Get database session
-        async with get_async_session() as session:
-            try:
-                # Load user and related data
-                user = await self._get_user_with_details(session, user_id)
-                if not user:
-                    self.logger.error(f"User {user_id} not found for usage logging")
-                    # Create a minimal log entry even if user lookup fails
-                    return await self._create_minimal_usage_log(
-                        session, user_id, llm_config_id, request_data, response_data, performance_data
+        # DEDUPLICATION: Check if this request has already been logged
+        if request_id:
+            async with AsyncSessionLocal() as check_session:
+                try:
+                    existing_log_result = await check_session.execute(
+                        select(UsageLog).where(UsageLog.request_id == request_id)
                     )
+                    existing_log = existing_log_result.scalar_one_or_none()
+                    if existing_log:
+                        self.logger.info(f"Request {request_id} already logged - returning existing log ID {existing_log.id}")
+                        return existing_log
+                except Exception as dedup_error:
+                    self.logger.warning(f"Deduplication check failed: {str(dedup_error)}")
+        
+        # Track whether we successfully created the main log
+        main_log_created = False
+        main_log = None
+        
+        # Get database session for main logging
+        async with AsyncSessionLocal() as session:
+            try:
+                self.logger.debug(f"Starting usage log creation for user {user_id}, request {request_id}")
+                
+                # Load user and related data with better error handling
+                user = await self._get_user_with_details(session, user_id)
+                user_email = "unknown"
+                user_role = "unknown"
+                department_id = None
+                
+                if user:
+                    user_email = user.email
+                    user_role = user.role.name if user.role else "unknown"
+                    department_id = user.department_id
+                    self.logger.debug(f"User lookup successful: {user_email}")
+                else:
+                    self.logger.warning(f"User {user_id} not found for logging - using placeholder")
                 
                 # Load LLM configuration
                 llm_config = await session.get(LLMConfiguration, llm_config_id)
                 if not llm_config:
-                    self.logger.error(f"LLM configuration {llm_config_id} not found for usage logging")
-                    # Continue anyway - we can still log most of the data
+                    self.logger.warning(f"LLM configuration {llm_config_id} not found for usage logging")
                 
-                # Parse request data
+                # Parse all the data safely
                 messages_count = request_data.get("messages_count", 0)
                 total_chars = request_data.get("total_chars", 0)
                 request_parameters = request_data.get("parameters", {})
                 
-                # Parse response data
                 success = response_data.get("success", False)
                 content_length = response_data.get("content_length", 0)
                 model = response_data.get("model", "unknown")
@@ -146,31 +123,34 @@ class UsageService:
                 http_status_code = response_data.get("http_status_code")
                 raw_metadata = response_data.get("raw_metadata", {})
                 
-                # Parse performance data
+                # Parse performance data safely
                 request_started_at = None
                 request_completed_at = None
-                if performance_data.get("request_started_at"):
-                    request_started_at = datetime.fromisoformat(
-                        performance_data["request_started_at"].replace("Z", "+00:00")
-                    )
-                if performance_data.get("request_completed_at"):
-                    request_completed_at = datetime.fromisoformat(
-                        performance_data["request_completed_at"].replace("Z", "+00:00")
-                    )
+                try:
+                    if performance_data.get("request_started_at"):
+                        request_started_at = datetime.fromisoformat(
+                            performance_data["request_started_at"].replace("Z", "+00:00")
+                        )
+                    if performance_data.get("request_completed_at"):
+                        request_completed_at = datetime.fromisoformat(
+                            performance_data["request_completed_at"].replace("Z", "+00:00")
+                        )
+                except Exception as time_error:
+                    self.logger.warning(f"Failed to parse timestamps: {str(time_error)}")
                 
                 response_time_ms = performance_data.get("response_time_ms")
                 
-                # Get response preview (first 500 chars)
+                # Get response preview safely
                 response_content = response_data.get("content", "")
                 response_preview = response_content[:500] if response_content else None
                 
                 # Create usage log entry
                 usage_log = UsageLog(
                     # User and context
-                    user_id=user.id,
-                    department_id=user.department_id,
-                    user_email=user.email,
-                    user_role=user.role.name if user.role else "unknown",
+                    user_id=user_id,
+                    department_id=department_id,
+                    user_email=user_email,
+                    user_role=user_role,
                     
                     # LLM configuration
                     llm_config_id=llm_config_id,
@@ -190,7 +170,7 @@ class UsageService:
                     
                     # Cost tracking
                     estimated_cost=cost,
-                    actual_cost=None,  # Will be filled in later if available
+                    actual_cost=None,
                     cost_currency="USD",
                     
                     # Performance metrics
@@ -220,26 +200,61 @@ class UsageService:
                 session.add(usage_log)
                 await session.commit()
                 
+                # Mark successful creation BEFORE any potential errors
+                main_log_created = True
+                main_log = usage_log
+                
                 self.logger.info(
-                    f"Usage logged: user={user.email}, provider={provider}, "
+                    f"Usage logged successfully: user={user_email}, provider={provider}, "
                     f"model={model}, tokens={usage_log.total_tokens}, "
-                    f"cost=${cost:.4f if cost else 0:.4f}, success={success}"
+                    f"cost=${cost:.4f if cost else 0:.4f}, success={success}, "
+                    f"request_id={request_id}, log_id={usage_log.id}"
                 )
                 
                 return usage_log
                 
-            except Exception as e:
-                self.logger.error(f"Failed to log usage: {str(e)}", exc_info=True)
+            except Exception as main_error:
+                self.logger.error(f"Main logging failed for user {user_id}: {str(main_error)}", exc_info=True)
                 await session.rollback()
                 
-                # Create a minimal log entry so we don't lose the data completely
-                try:
-                    return await self._create_minimal_usage_log(
-                        session, user_id, llm_config_id, request_data, response_data, performance_data
-                    )
-                except Exception as fallback_error:
-                    self.logger.error(f"Failed to create fallback usage log: {str(fallback_error)}")
-                    raise e  # Re-raise original error
+                # Only create emergency log if main log was NOT successfully created
+                if not main_log_created:
+                    try:
+                        self.logger.warning(f"Creating emergency log for user {user_id} due to main logging failure")
+                        
+                        # Use a NEW session for emergency logging
+                        async with AsyncSessionLocal() as emergency_session:
+                            emergency_log = UsageLog(
+                                user_id=user_id,
+                                department_id=None,
+                                user_email="error_fallback",
+                                user_role="unknown",
+                                llm_config_id=llm_config_id,
+                                llm_config_name="unknown",
+                                provider=response_data.get("provider", "unknown"),
+                                model=response_data.get("model", "unknown"),
+                                request_messages_count=request_data.get("messages_count", 0),
+                                total_tokens=response_data.get("token_usage", {}).get("total_tokens", 0),
+                                estimated_cost=response_data.get("cost"),
+                                success=response_data.get("success", False),
+                                error_type="logging_error",
+                                error_message=f"Emergency log due to: {str(main_error)}",
+                                request_id=request_id,
+                                session_id=session_id
+                            )
+                            emergency_session.add(emergency_log)
+                            await emergency_session.commit()
+                            
+                            self.logger.warning(f"Emergency log created for user {user_id}, request_id={request_id}, log_id={emergency_log.id}")
+                            return emergency_log
+                            
+                    except Exception as emergency_error:
+                        self.logger.error(f"Emergency logging also failed: {str(emergency_error)}")
+                        raise main_error  # Re-raise the original error
+                else:
+                    # Main log was successfully created, don't create emergency log
+                    self.logger.info(f"Main log was successful, not creating emergency log for request {request_id}")
+                    return main_log
     
     async def _get_user_with_details(self, session: AsyncSession, user_id: int) -> Optional[User]:
         """
@@ -260,48 +275,8 @@ class UsageService:
             self.logger.error(f"Error loading user {user_id}: {str(e)}")
             return None
     
-    async def _create_minimal_usage_log(
-        self,
-        session: AsyncSession,
-        user_id: int,
-        llm_config_id: int,
-        request_data: Dict[str, Any],
-        response_data: Dict[str, Any],
-        performance_data: Dict[str, Any]
-    ) -> UsageLog:
-        """
-        Create a minimal usage log when full logging fails.
-        
-        This ensures we don't lose critical data even if there are
-        database issues or missing related records.
-        """
-        usage_log = UsageLog(
-            user_id=user_id,
-            department_id=None,
-            user_email="unknown",
-            user_role="unknown",
-            llm_config_id=llm_config_id,
-            llm_config_name="unknown",
-            provider=response_data.get("provider", "unknown"),
-            model=response_data.get("model", "unknown"),
-            request_messages_count=request_data.get("messages_count", 0),
-            request_total_chars=request_data.get("total_chars", 0),
-            input_tokens=response_data.get("token_usage", {}).get("input_tokens", 0),
-            output_tokens=response_data.get("token_usage", {}).get("output_tokens", 0),
-            total_tokens=response_data.get("token_usage", {}).get("total_tokens", 0),
-            estimated_cost=response_data.get("cost"),
-            response_time_ms=performance_data.get("response_time_ms"),
-            success=response_data.get("success", False),
-            error_type=response_data.get("error_type"),
-            error_message="Minimal log due to logging error",
-            response_content_length=response_data.get("content_length", 0)
-        )
-        
-        session.add(usage_log)
-        await session.commit()
-        
-        self.logger.warning(f"Created minimal usage log for user {user_id}")
-        return usage_log
+    # Removed _create_minimal_usage_log method to prevent duplicate logging
+    # Emergency logging is now handled inline within log_llm_request method
     
     # =============================================================================
     # ASYNC LOGGING (NON-BLOCKING)
@@ -319,6 +294,8 @@ class UsageService:
         """
         Log an LLM request asynchronously without blocking the main thread.
         
+        IMPROVED: Better error handling and duplicate prevention.
+        
         This is useful when you want to log usage but don't want to wait
         for the database operation to complete. The chat response can be
         returned immediately while logging happens in the background.
@@ -328,21 +305,52 @@ class UsageService:
         - Logging failures shouldn't affect the user experience
         - You don't need the UsageLog object returned immediately
         """
+        request_id = kwargs.get('request_id')
+        
         try:
-            # Create a background task for logging
-            asyncio.create_task(
-                self.log_llm_request(
-                    user_id=user_id,
-                    llm_config_id=llm_config_id,
-                    request_data=request_data,
-                    response_data=response_data,
-                    performance_data=performance_data,
-                    **kwargs
-                )
-            )
+            # Add detailed logging for debugging
+            if request_id:
+                self.logger.debug(f"Creating async logging task for user {user_id}, request {request_id}")
+            else:
+                self.logger.warning(f"Async logging for user {user_id} has no request_id - potential for duplicates")
+            
+            # Create a background task for logging with better error handling
+            async def safe_log_task():
+                try:
+                    result = await self.log_llm_request(
+                        user_id=user_id,
+                        llm_config_id=llm_config_id,
+                        request_data=request_data,
+                        response_data=response_data,
+                        performance_data=performance_data,
+                        **kwargs
+                    )
+                    self.logger.debug(f"Async logging completed for request {request_id}, log_id={result.id if result else 'none'}")
+                    return result
+                except Exception as task_error:
+                    self.logger.error(f"Async logging task failed for user {user_id}, request {request_id}: {str(task_error)}")
+                    # Don't re-raise - this is a background task
+                    return None
+            
+            # Create and start the task
+            task = asyncio.create_task(safe_log_task())
+            
+            # Optional: Add a simple done callback for monitoring
+            def log_completion(completed_task):
+                try:
+                    result = completed_task.result()
+                    if result:
+                        self.logger.debug(f"Async logging task completed successfully for request {request_id}")
+                    else:
+                        self.logger.warning(f"Async logging task completed with no result for request {request_id}")
+                except Exception as callback_error:
+                    self.logger.error(f"Error in async logging completion callback: {str(callback_error)}")
+            
+            task.add_done_callback(log_completion)
+            
         except Exception as e:
             # Log error but don't raise - this should never break the main flow
-            self.logger.error(f"Failed to create async logging task: {str(e)}")
+            self.logger.error(f"Failed to create async logging task for user {user_id}: {str(e)}")
     
     # =============================================================================
     # ANALYTICS AND REPORTING METHODS
@@ -370,7 +378,7 @@ class UsageService:
         if not end_date:
             end_date = datetime.utcnow()
         
-        async with get_async_session() as session:
+        async with AsyncSessionLocal() as session:
             # Base query for user's usage logs in date range
             base_query = select(UsageLog).where(
                 and_(
@@ -467,7 +475,7 @@ class UsageService:
         if not end_date:
             end_date = datetime.utcnow()
         
-        async with get_async_session() as session:
+        async with AsyncSessionLocal() as session:
             # Similar to user summary but filtered by department
             totals_query = select(
                 func.count(UsageLog.id).label('total_requests'),
@@ -529,7 +537,7 @@ class UsageService:
         if not end_date:
             end_date = datetime.utcnow()
         
-        async with get_async_session() as session:
+        async with AsyncSessionLocal() as session:
             provider_stats_query = select(
                 UsageLog.provider,
                 func.count(UsageLog.id).label('total_requests'),
@@ -632,3 +640,6 @@ class UsageService:
 # Create global service instance
 # This follows the same pattern as other services in our app
 usage_service = UsageService()
+
+# Debug information for troubleshooting
+logging.getLogger(__name__).info("Usage service initialized with duplicate logging prevention")

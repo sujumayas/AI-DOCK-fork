@@ -10,10 +10,14 @@ import logging
 from .core.config import settings, validate_config
 from .core.database import startup_database, shutdown_database, check_database_connection
 
+# Import our security middleware
+from .middleware.security import SecurityHeadersMiddleware, create_security_test_response
+
 # Import our API routers
 from .api.auth import router as auth_router
 from .api.admin.users import router as admin_users_router
 from .api.admin.llm_configs import router as admin_llm_configs_router
+from .api.admin.quotas import router as admin_quotas_router
 from .api.chat import router as chat_router
 
 # Setup logging
@@ -32,8 +36,21 @@ app = FastAPI(
     debug=settings.debug
 )
 
+# =============================================================================
+# SECURITY MIDDLEWARE - MUST BE FIRST!
+# =============================================================================
+
+# Security Headers Middleware - adds protection against common attacks
+# This MUST be added before other middleware to ensure security headers
+# are applied to all responses, including error responses from other middleware
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    environment=settings.environment  # Production vs development security
+)
+
 # CORS Middleware - allows our React frontend to talk to this backend
 # Without this, browsers block requests between different ports
+# Note: CORS is added AFTER security so security headers are applied to CORS responses
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -63,8 +80,24 @@ async def health_check():
         "version": settings.app_version,
         "environment": settings.environment,
         "database": "connected" if db_healthy else "disconnected",
-        "debug_mode": settings.debug
+        "debug_mode": settings.debug,
+        "security_enabled": True  # Indicates security middleware is active
     }
+
+# Security test endpoint - verify security headers are working
+@app.get("/security/test")
+async def security_test():
+    """
+    Test endpoint to verify security headers are being applied.
+    
+    This endpoint returns information about security features and
+    allows you to inspect the response headers to confirm protection
+    is active. Check the browser's developer tools Network tab to
+    see the security headers in the response.
+    
+    Learning: This is a great way to test middleware functionality!
+    """
+    return create_security_test_response()
 
 # =============================================================================
 # API ROUTERS
@@ -90,9 +123,42 @@ app.include_router(
     tags=["Admin LLM"]
 )
 
+# Include admin quota management endpoints
+# This adds all /admin/quotas/* endpoints to our application
+app.include_router(
+    admin_quotas_router,
+    prefix="/admin",
+    tags=["Admin Quotas"]
+)
+
+# Include admin department management endpoints
+# This adds all /admin/departments/* endpoints to our application
+from .api.admin.departments import router as admin_departments_router
+app.include_router(
+    admin_departments_router,
+    tags=["Admin Departments"]
+)
+
+# Include admin usage analytics endpoints
+# This adds all /admin/usage/* endpoints to our application
+from .api.admin.usage_analytics import router as admin_usage_router
+app.include_router(
+    admin_usage_router,
+    prefix="/admin",
+    tags=["Usage Analytics"]
+)
+
 # Include chat endpoints
 # This adds all /chat/* endpoints to our application
 app.include_router(chat_router)
+
+# Include manager endpoints
+# This adds all /manager/* endpoints to our application
+from .api.manager import router as manager_router
+app.include_router(
+    manager_router,
+    tags=["Manager"]
+)
 
 # Root endpoint - what users see when they visit the API directly
 @app.get("/")
@@ -117,7 +183,23 @@ def read_root():
                 "user_management": "/admin/users/",
                 "search_users": "/admin/users/search",
                 "user_statistics": "/admin/users/statistics",
-                "bulk_operations": "/admin/users/bulk"
+                "bulk_operations": "/admin/users/bulk",
+                "llm_configurations": "/admin/llm-configs/",
+                "quota_management": {
+                    "quotas": "/admin/quotas/",
+                    "department_status": "/admin/quotas/department/{id}/status",
+                    "reset_quota": "/admin/quotas/{id}/reset",
+                    "bulk_reset": "/admin/quotas/bulk/reset",
+                    "analytics": "/admin/quotas/analytics/summary"
+                },
+                "usage_analytics": {
+                    "summary": "/admin/usage/summary",
+                    "user_usage": "/admin/usage/users/{user_id}",
+                    "department_usage": "/admin/usage/departments/{department_id}",
+                    "recent_logs": "/admin/usage/logs/recent",
+                    "top_users": "/admin/usage/top-users",
+                    "system_health": "/admin/usage/health"
+                }
             },
             "chat": {
                 "send_message": "/chat/send",
@@ -126,6 +208,26 @@ def read_root():
                 "estimate_cost": "/chat/estimate-cost",
                 "get_models": "/chat/models/{config_id}",
                 "chat_health": "/chat/health"
+            },
+            "manager": {
+                "user_management": {
+                    "list_users": "/manager/users/",
+                    "create_user": "/manager/users/",
+                    "get_user": "/manager/users/{user_id}",
+                    "update_user": "/manager/users/{user_id}",
+                    "activate_user": "/manager/users/{user_id}/activate",
+                    "deactivate_user": "/manager/users/{user_id}/deactivate",
+                    "user_statistics": "/manager/users/statistics"
+                },
+                "quota_management": {
+                    "list_quotas": "/manager/quotas/",
+                    "create_quota": "/manager/quotas/",
+                    "get_quota": "/manager/quotas/{quota_id}",
+                    "update_quota": "/manager/quotas/{quota_id}",
+                    "reset_quota": "/manager/quotas/{quota_id}/reset",
+                    "dashboard": "/manager/quotas/dashboard",
+                    "statistics": "/manager/quotas/statistics"
+                }
             }
         }
     }
