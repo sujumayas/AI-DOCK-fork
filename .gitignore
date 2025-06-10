@@ -14,9 +14,10 @@
 .env.production
 .env.staging
 .env.development
-.env.example
-back/.env
-back/.env.example
+# Note: .env.example should be committed as a template
+Back/.env
+!Back/.env.example
+!.env.example
 
 # Database files (contain user data)
 *.db
