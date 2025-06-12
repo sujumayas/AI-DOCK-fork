@@ -153,6 +153,7 @@ class UsageLog(Base):
     """Length of AI response in characters"""
     
     response_preview = Column(String(500), nullable=True)
+    
     """
     First 500 chars of response for debugging/preview
     Note: Be careful with sensitive data - consider truncating or hashing

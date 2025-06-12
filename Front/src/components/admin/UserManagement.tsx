@@ -89,7 +89,7 @@ export const UserManagement: React.FC = () => {
    */
   const debounce = useMemo(() => {
     return <T extends (...args: any[]) => any>(func: T, wait: number) => {
-      let timeout: NodeJS.Timeout;
+      let timeout: ReturnType<typeof setTimeout>;
       
       return (...args: Parameters<T>) => {
         clearTimeout(timeout);
@@ -483,12 +483,15 @@ export const UserManagement: React.FC = () => {
                 id="sort-by-filter"
                 name="sort-by-filter"
                 value={filters.sort_by || 'created_at'}
-                onChange={(e) => handleFilterChange({ sort_by: e.target.value })}
+                onChange={(e) => handleFilterChange({ 
+                  sort_by: e.target.value as "id" | "username" | "email" | "department" | "created_at" | "last_login_at"
+                })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="created_at">Date Created</option>
                 <option value="username">Username</option>
-                <option value="full_name">Full Name</option>
+                <option value="email">Email</option>
+                <option value="department">Department</option>
                 <option value="last_login_at">Last Login</option>
               </select>
             </div>
