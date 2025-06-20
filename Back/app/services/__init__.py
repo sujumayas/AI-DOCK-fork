@@ -27,6 +27,12 @@ except ImportError:
     # LLM service might not be fully implemented yet
     llm_service = None
 
+# Import assistant service
+from .assistant_service import assistant_service
+
+# Import conversation service
+from .conversation_service import conversation_service
+
 __all__ = [
     # Auth functions
     "authenticate_user",
@@ -38,5 +44,9 @@ __all__ = [
     # Quota service
     "get_quota_service",
     # LLM service (if available)
-    "llm_service"
+    "llm_service",
+    # Assistant service
+    "assistant_service",
+    # Conversation service
+    "conversation_service"
 ]

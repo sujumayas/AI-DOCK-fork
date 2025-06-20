@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 
 import { adminService } from '../../services/adminService';
+import { departmentService, DepartmentDropdownOption } from '../../services/departmentService';
 import { CreateUserRequest, FormState, FormErrors } from '../../types/admin';
 
 interface UserCreateModalProps {
@@ -60,6 +61,11 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   // UI states
   const [showPassword, setShowPassword] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Department data - dynamic from API
+  const [departments, setDepartments] = useState<DepartmentDropdownOption[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
 
   // =============================================================================
   // FORM VALIDATION
@@ -129,6 +135,41 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     });
     
     return errors;
+  };
+
+  // =============================================================================
+  // DEPARTMENT DATA LOADING
+  // =============================================================================
+
+  /**
+   * Fetch departments for dropdown
+   * 
+   * Learning: This function demonstrates API integration patterns:
+   * - Loading states to show user something is happening
+   * - Error handling for when API calls fail
+   * - Async/await for clean promise handling
+   */
+  const fetchDepartments = async () => {
+    try {
+      setDepartmentsLoading(true);
+      setDepartmentsError(null);
+      
+      // Call the department service to get dropdown options
+      const departmentOptions = await departmentService.getDepartmentsForDropdown();
+      
+      // Update state with the fetched departments
+      setDepartments(departmentOptions);
+      
+      console.log('✅ Departments loaded:', departmentOptions.length);
+    } catch (error) {
+      console.error('❌ Failed to load departments:', error);
+      setDepartmentsError('Failed to load departments. Please try again.');
+      
+      // Fallback: Use empty array so form still works
+      setDepartments([]);
+    } finally {
+      setDepartmentsLoading(false);
+    }
   };
 
   // =============================================================================
@@ -291,6 +332,20 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
     };
   }, [isOpen]);
 
+  /**
+   * Load departments when modal opens
+   * 
+   * Learning: This useEffect demonstrates dependency arrays:
+   * - Runs when `isOpen` changes from false to true
+   * - Only fetches departments when we actually need them
+   * - Prevents unnecessary API calls when modal is closed
+   */
+  useEffect(() => {
+    if (isOpen) {
+      fetchDepartments();
+    }
+  }, [isOpen]);
+
   // =============================================================================
   // RENDER HELPERS
   // =============================================================================
@@ -396,6 +451,80 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
   };
 
   /**
+   * Render department field with dynamic loading
+   * 
+   * Learning: This function demonstrates dynamic dropdown patterns:
+   * - Loading states while fetching data
+   * - Error handling for failed API calls
+   * - Real-time data from backend
+   * - Graceful fallback when no data available
+   */
+  const renderDepartmentField = () => {
+    const hasError = !!formState.errors.department_id;
+    const value = formData.department_id;
+
+    return (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Department
+        </label>
+        
+        {/* Show loading state while departments are being fetched */}
+        {departmentsLoading ? (
+          <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+            <span className="text-gray-500">Loading departments...</span>
+          </div>
+        ) : (
+          <>
+            <select
+              value={value || ''}
+              onChange={(e) => handleInputChange('department_id', e.target.value === '' ? undefined : Number(e.target.value))}
+              onBlur={() => handleFieldBlur('department_id')}
+              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition-colors ${
+                hasError
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-blue-500'
+              }`}
+            >
+              <option value="">Select Department</option>
+              {departments.map(dept => (
+                <option key={dept.value} value={dept.value}>
+                  {dept.label}
+                </option>
+              ))}
+            </select>
+            
+            {/* Show error state if departments failed to load */}
+            {departmentsError && (
+              <p className="mt-1 text-sm text-amber-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {departmentsError}
+              </p>
+            )}
+            
+            {/* Show validation error if user hasn't selected a department */}
+            {hasError && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {formState.errors.department_id}
+              </p>
+            )}
+            
+            {/* Show helpful info about department management */}
+            {!departmentsLoading && departments.length === 0 && !departmentsError && (
+              <p className="mt-1 text-sm text-blue-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                No departments available. Create departments in the Admin Panel first.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  /**
    * Render success state
    */
   const renderSuccessState = () => (
@@ -459,13 +588,7 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({
                 { value: 4, label: 'Guest' }
               ], true)}
               
-              {renderSelectField('department_id', 'Department', [
-                { value: 1, label: 'Engineering' },
-                { value: 2, label: 'Marketing' },
-                { value: 3, label: 'Human Resources' },
-                { value: 4, label: 'Sales' },
-                { value: 5, label: 'Finance' }
-              ])}
+              {renderDepartmentField()}
             </div>
 
             {/* Optional Information */}

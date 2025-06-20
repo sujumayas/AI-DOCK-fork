@@ -94,6 +94,14 @@ export interface LLMConfigurationCreate {
   provider_settings?: Record<string, any>;
 }
 
+// NEW: Simplified interface for user-friendly configuration creation
+export interface LLMConfigurationSimpleCreate {
+  provider: LLMProvider;
+  name: string;
+  api_key: string;
+  description?: string;
+}
+
 export interface LLMConfigurationUpdate {
   name?: string;
   description?: string;
@@ -336,6 +344,28 @@ class LLMConfigService {
     return apiRequest<LLMConfigurationResponse>('/', {
       method: 'POST',
       body: JSON.stringify(configData),
+    });
+  }
+
+  /**
+   * Create a new LLM configuration using simplified input (NEW!)
+   * 
+   * This method uses the new simplified API that only requires 4 fields.
+   * Smart defaults are applied automatically based on the provider.
+   * 
+   * Learning: This demonstrates progressive disclosure - we provide a
+   * simple interface while using the full system capabilities underneath.
+   * 
+   * @param simpleConfigData - Simplified configuration data (just essentials)
+   * @returns The newly created configuration with smart defaults applied
+   */
+  async createSimpleConfiguration(simpleConfigData: LLMConfigurationSimpleCreate): Promise<LLMConfigurationResponse> {
+    console.log('✨ Creating new LLM configuration (simplified):', simpleConfigData.name);
+    console.log('🧠 Smart defaults will be applied for provider:', simpleConfigData.provider);
+    
+    return apiRequest<LLMConfigurationResponse>('/simple', {
+      method: 'POST',
+      body: JSON.stringify(simpleConfigData),
     });
   }
 
@@ -625,6 +655,7 @@ export type {
   LLMConfigurationSummary,
   LLMConfigurationResponse,
   LLMConfigurationCreate,
+  LLMConfigurationSimpleCreate,
   LLMConfigurationUpdate,
   LLMConfigurationTest,
   LLMConfigurationTestResult,

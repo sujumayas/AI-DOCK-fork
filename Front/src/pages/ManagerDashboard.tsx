@@ -1,7 +1,7 @@
 // AI Dock Manager Dashboard
 // Comprehensive overview of department status, users, quotas, and activity
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import managerService from '../services/managerService';
 import { DepartmentDashboardData } from '../types/manager';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
 
 interface ManagerDashboardProps {
@@ -51,10 +51,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ className = '' }) =
   // DATA FETCHING
   // =============================================================================
 
-  /**
-   * Load current user data from the API
-   */
-  const loadCurrentUser = async () => {
+  // Optimized data loading functions with useCallback
+  const loadCurrentUser = useCallback(async () => {
     try {
       const user = await authService.getCurrentUser();
       setCurrentUser(user);
@@ -63,15 +61,9 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ className = '' }) =
     } finally {
       setIsLoadingUser(false);
     }
-  };
+  }, []);
 
-  /**
-   * Load dashboard data from the API
-   * 
-   * Learning: This function demonstrates async data fetching with
-   * proper error handling and loading states.
-   */
-  const loadDashboardData = async (isRefresh = false) => {
+  const loadDashboardData = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -89,55 +81,42 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ className = '' }) =
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  /**
-   * Refresh dashboard data
-   */
-  const handleRefresh = () => {
+  // Optimized navigation and action handlers with useCallback
+  const handleRefresh = useCallback(() => {
     loadDashboardData(true);
-  };
+  }, [loadDashboardData]);
 
-  /**
-   * Navigate back to main dashboard
-   */
-  const handleBackToDashboard = () => {
+  const handleBackToDashboard = useCallback(() => {
     navigate('/dashboard');
-  };
+  }, [navigate]);
 
-  /**
-   * Handle logout function
-   */
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate('/login', { replace: true });
-  };
+  }, [logout, navigate]);
 
   // Load data on component mount
   useEffect(() => {
     loadDashboardData();
     loadCurrentUser();
-  }, []);
+  }, [loadDashboardData, loadCurrentUser]);
 
   // =============================================================================
   // UTILITY FUNCTIONS
   // =============================================================================
 
-  /**
-   * Get the appropriate color class for quota usage status
-   */
-  const getQuotaStatusColor = (exceeded: number, total: number) => {
+  // Optimized utility functions with useCallback for stable references
+  const getQuotaStatusColor = useCallback((exceeded: number, total: number) => {
     if (total === 0) return 'text-gray-500';
     const percentage = (exceeded / total) * 100;
     if (percentage > 20) return 'text-red-600';
     if (percentage > 10) return 'text-yellow-600';
     return 'text-green-600';
-  };
+  }, []);
 
-  /**
-   * Format time ago string
-   */
-  const formatTimeAgo = (dateString: string): string => {
+  const formatTimeAgo = useCallback((dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
@@ -150,7 +129,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ className = '' }) =
     
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays}d ago`;
-  };
+  }, []);
 
   // =============================================================================
   // RENDER FUNCTIONS

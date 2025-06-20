@@ -12,7 +12,6 @@ import {
   UserListResponse,
   BulkUserOperation,
   BulkOperationResult,
-  UserStatistics,
   ApiResponse,
   SuccessResponse,
   ErrorResponse
@@ -359,49 +358,7 @@ class AdminService {
     }
   }
 
-  // =============================================================================
-  // STATISTICS AND DASHBOARD DATA
-  // =============================================================================
 
-  /**
-   * Get comprehensive user statistics for admin dashboard
-   * 
-   * Learning: Dashboard statistics help admins understand their user base.
-   * This data is perfect for charts and summary cards.
-   * 
-   * @returns Promise with user statistics
-   */
-  async getUserStatistics(): Promise<UserStatistics> {
-    try {
-      // Note: Using a fallback endpoint since /admin/users/statistics doesn't exist yet
-      // For now, we'll get a basic count from the user search endpoint
-      console.log('📊 Fetching user statistics...');
-      
-      const allUsersResponse = await this.searchUsers({ page: 1, page_size: 1 });
-      
-      // Create basic statistics from available data
-      const stats: UserStatistics = {
-        total_users: allUsersResponse.total_count || 0,
-        active_users: 0, // Will need to calculate this properly
-        inactive_users: 0,
-        admin_users: 0,
-        verified_users: 0,
-        unverified_users: 0,
-        new_users_this_week: 0,
-        new_users_this_month: 0,
-        recent_logins_count: 0,
-        users_by_role: {},
-        users_by_department: {}
-      };
-      
-      console.log('✅ User statistics generated:', stats);
-      return stats;
-      
-    } catch (error) {
-      console.error('❌ Error getting user statistics:', error);
-      throw new Error(error instanceof Error ? error.message : 'Failed to get user statistics');
-    }
-  }
 
   // =============================================================================
   // CONVENIENCE METHODS

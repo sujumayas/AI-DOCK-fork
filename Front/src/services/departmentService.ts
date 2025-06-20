@@ -14,7 +14,6 @@ export interface Department {
   name: string;
   code: string;
   description?: string;
-  is_active: boolean;
   monthly_budget: number;
   manager_email?: string;
   location?: string;
@@ -27,14 +26,12 @@ export interface Department {
   // Computed fields
   full_path?: string;
   user_count?: number;
-  active_user_count?: number;
   monthly_usage?: number;
   budget_utilization?: number;
 }
 
 export interface DepartmentWithStats extends Department {
   user_count: number;
-  active_user_count: number;
   admin_user_count: number;
   monthly_usage: number;
   monthly_requests: number;
@@ -54,7 +51,6 @@ export interface DepartmentCreate {
   manager_email?: string;
   location?: string;
   cost_center?: string;
-  is_active?: boolean;
   parent_id?: number;
 }
 
@@ -66,7 +62,6 @@ export interface DepartmentUpdate {
   manager_email?: string;
   location?: string;
   cost_center?: string;
-  is_active?: boolean;
   parent_id?: number;
 }
 
@@ -74,12 +69,10 @@ export interface DepartmentDropdownOption {
   value: number;
   label: string;
   code?: string;
-  is_active: boolean;
 }
 
 export interface DepartmentSearchFilters {
   search_query?: string;
-  is_active?: boolean;
   parent_id?: number;
   min_budget?: number;
   max_budget?: number;
@@ -117,6 +110,28 @@ export interface DepartmentInitializationResponse {
   skipped_count: number;
   total_departments: number;
   created_departments: string[];
+}
+
+export interface DepartmentUser {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  role_id: number;
+  job_title?: string;
+  last_login_at?: string;
+}
+
+export interface DepartmentService {
+  getAllDepartments: () => Promise<Department[]>;
+  getDepartmentsWithStats: () => Promise<DepartmentWithStats[]>;
+  getDepartmentsForDropdown: () => Promise<DepartmentDropdownOption[]>;
+  getDepartment: (departmentId: number) => Promise<Department>;
+  createDepartment: (data: DepartmentCreate) => Promise<Department>;
+  updateDepartment: (id: number, data: DepartmentUpdate) => Promise<Department>;
+  deleteDepartment: (id: number) => Promise<void>;
+  getDepartmentUsers: (departmentId: number) => Promise<DepartmentUser[]>;
 }
 
 // =============================================================================
@@ -196,7 +211,7 @@ async function apiRequest<T>(
 // DEPARTMENT SERVICE CLASS
 // =============================================================================
 
-class DepartmentService {
+class DepartmentServiceImpl implements DepartmentService {
   
   // ===========================================================================
   // BASIC CRUD OPERATIONS
@@ -254,12 +269,19 @@ class DepartmentService {
   }
 
   /**
-   * Delete department
+   * Delete a department
    */
-  async deleteDepartment(departmentId: number): Promise<{ message: string }> {
-    return apiRequest<{ message: string }>(`/admin/departments/${departmentId}`, {
-      method: 'DELETE',
+  async deleteDepartment(id: number): Promise<void> {
+    await apiRequest<{ message: string }>(`/admin/departments/${id}`, {
+      method: 'DELETE'
     });
+  }
+
+  /**
+   * Get users of a specific department
+   */
+  async getDepartmentUsers(departmentId: number): Promise<DepartmentUser[]> {
+    return apiRequest<DepartmentUser[]>(`/admin/departments/${departmentId}/users`);
   }
 
   // ===========================================================================
@@ -418,18 +440,6 @@ class DepartmentService {
   }
 
   /**
-   * Get department status color
-   */
-  getDepartmentStatusColor(department: Department): string {
-    if (!department.is_active) return 'text-gray-500';
-    
-    const utilization = department.budget_utilization || 0;
-    if (utilization >= 90) return 'text-red-600';
-    if (utilization >= 75) return 'text-yellow-600';
-    return 'text-green-600';
-  }
-
-  /**
    * Get budget utilization color
    */
   getBudgetUtilizationColor(utilization: number): string {
@@ -487,4 +497,5 @@ class DepartmentService {
 }
 
 // Export singleton instance
-export const departmentService = new DepartmentService();
+const departmentService: DepartmentService = new DepartmentServiceImpl();
+export { departmentService };

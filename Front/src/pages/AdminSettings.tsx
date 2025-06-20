@@ -8,8 +8,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import { authService } from '../services/authService';
-import { adminService } from '../services/adminService';
-import { UserStatistics } from '../types/admin';
 
 // Component imports
 import { UserManagement } from '../components/admin/UserManagement';
@@ -17,7 +15,6 @@ import LLMConfiguration from '../components/admin/LLMConfiguration';
 import UsageDashboard from '../components/admin/UsageDashboard';
 import QuotaManagement from '../components/admin/QuotaManagement';
 import DepartmentManagement from '../components/admin/DepartmentManagement';
-import AuthDebugger from '../components/AuthDebugger';
 
 /**
  * AdminSettings Component
@@ -41,40 +38,20 @@ const AdminSettings: React.FC = () => {
   // Active tab state
   const [activeTab, setActiveTab] = useState<'users' | 'llm-configs' | 'usage-analytics' | 'quota-management' | 'departments' | 'settings'>('users');
   
-  // Loading and error states - more granular for better UX
+  // Loading and error states
   const [isInitializing, setIsInitializing] = useState(true);
-  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Admin data
   const [currentAdmin, setCurrentAdmin] = useState<any>(null);
-  const [statistics, setStatistics] = useState<UserStatistics | null>(null);
   
   // Request tracking to prevent duplicates
   const initializingRef = useRef(false);
-  const statsLoadingRef = useRef(false);
   const mountedRef = useRef(true);
 
   // =============================================================================
   // MEMOIZED VALUES AND CALLBACKS
   // =============================================================================
-
-  /**
-   * Memoized default statistics to prevent object recreation
-   */
-  const defaultStatistics = useMemo<UserStatistics>(() => ({
-    total_users: 0,
-    active_users: 0,
-    inactive_users: 0,
-    admin_users: 0,
-    verified_users: 0,
-    unverified_users: 0,
-    new_users_this_week: 0,
-    new_users_this_month: 0,
-    recent_logins_count: 0,
-    users_by_role: {},
-    users_by_department: {}
-  }), []);
 
   /**
    * Memoized tab configuration
@@ -83,97 +60,36 @@ const AdminSettings: React.FC = () => {
     { 
       id: 'users' as const, 
       name: 'User Management', 
-      count: statistics?.total_users || 0 
+      icon: '👥'
     },
     { 
       id: 'llm-configs' as const, 
       name: 'LLM Providers', 
-      count: null,
       icon: '🤖'
     },
     { 
       id: 'usage-analytics' as const, 
       name: 'Usage Analytics', 
-      count: null,
       icon: '📊'
     },
     { 
       id: 'quota-management' as const, 
       name: 'Quota Management', 
-      count: null,
       icon: '🎯'
     },
     { 
       id: 'departments' as const, 
       name: 'Departments', 
-      count: Object.keys(statistics?.users_by_department || {}).length,
       icon: '🏢'
     },
     { 
       id: 'settings' as const, 
       name: 'System Settings', 
-      count: null,
       icon: '⚙️'
     },
-  ], [statistics?.total_users, statistics?.users_by_department]);
+  ], []);
 
-  /**
-   * Load dashboard statistics with deduplication
-   */
-  const loadDashboardStats = useCallback(async () => {
-    // Prevent duplicate requests
-    if (statsLoadingRef.current) {
-      console.log('⏭️ Skipping stats load - already in progress');
-      return;
-    }
 
-    console.log('📊 Loading dashboard statistics...');
-    statsLoadingRef.current = true;
-    setIsLoadingStats(true);
-
-    try {
-      // First, test backend connectivity
-      console.log('🔌 Testing backend connectivity before loading stats...');
-      const isBackendConnected = await adminService.testBackendConnection();
-      
-      if (!isBackendConnected) {
-        throw new Error('Backend is not accessible. Please check if the server is running on http://localhost:8000');
-      }
-      
-      const stats = await adminService.getUserStatistics();
-      
-      // Only update state if component is still mounted
-      if (mountedRef.current) {
-        console.log('✅ Statistics loaded:', stats);
-        setStatistics(stats);
-      }
-      
-    } catch (err) {
-      console.warn('⚠️ Failed to load statistics, using defaults:', err);
-      
-      // Log detailed error information for debugging
-      if (err instanceof Error) {
-        console.error('Statistics error details:', {
-          message: err.message,
-          stack: err.stack,
-          name: err.name,
-          cause: err.cause
-        });
-      }
-      
-      // Set default statistics so the UI still works
-      if (mountedRef.current) {
-        setStatistics(defaultStatistics);
-        // Don't set this as an error state since statistics are secondary data
-      }
-      
-    } finally {
-      if (mountedRef.current) {
-        setIsLoadingStats(false);
-      }
-      statsLoadingRef.current = false;
-    }
-  }, [defaultStatistics]);
 
   /**
    * Initialize admin access with deduplication
@@ -215,10 +131,7 @@ const AdminSettings: React.FC = () => {
         return;
       }
 
-      console.log('✅ Admin access verified, loading dashboard data...');
-      
-      // Load dashboard stats (this is now a separate, non-blocking operation)
-      loadDashboardStats();
+      console.log('✅ Admin access verified');
       
     } catch (err) {
       console.error('❌ Admin access initialization failed:', err);
@@ -231,7 +144,7 @@ const AdminSettings: React.FC = () => {
       }
       initializingRef.current = false;
     }
-  }, [navigate, loadDashboardStats]);
+  }, [navigate]);
 
   /**
    * Handle tab change with error clearing
@@ -290,7 +203,6 @@ const AdminSettings: React.FC = () => {
     return () => {
       // Reset loading refs on unmount
       initializingRef.current = false;
-      statsLoadingRef.current = false;
     };
   }, []);
 
@@ -353,22 +265,8 @@ const AdminSettings: React.FC = () => {
             )}
           </div>
 
-          {/* Right side - Quick stats, dashboard link, and logout */}
+          {/* Right side - dashboard link and logout */}
           <div className="flex items-center space-x-6">
-            {statistics && (
-              <div className="flex items-center space-x-4 text-sm text-blue-100">
-                <span className="flex items-center space-x-1">
-                  <span className="text-white font-medium">{statistics.total_users || 0}</span>
-                  <span>Users</span>
-                  {isLoadingStats && (
-                    <div className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin ml-1"></div>
-                  )}
-                </span>
-                <span><span className="text-white font-medium">{statistics.active_users || 0}</span> Active</span>
-                <span><span className="text-white font-medium">{statistics.admin_users || 0}</span> Admins</span>
-              </div>
-            )}
-            
             {/* Dashboard navigation button */}
             <button
               onClick={handleBackToDashboard}
@@ -389,7 +287,7 @@ const AdminSettings: React.FC = () => {
         </div>
       </div>
     </div>
-  ), [currentAdmin, statistics, isLoadingStats, handleLogout]);
+  ), [currentAdmin, handleLogout]);
 
   /**
    * Render tab navigation
@@ -411,15 +309,6 @@ const AdminSettings: React.FC = () => {
               {tab.name}
               {tab.icon && (
                 <span className="ml-1">{tab.icon}</span>
-              )}
-              {tab.count !== null && tab.count !== undefined && (
-                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
-                  activeTab === tab.id 
-                    ? 'bg-white/20 text-white' 
-                    : 'bg-white/10 text-blue-200'
-                }`}>
-                  {tab.count}
-                </span>
               )}
             </button>
           ))}
@@ -552,8 +441,7 @@ const AdminSettings: React.FC = () => {
             </div>
           </div>
           
-          {/* Authentication Debugger - moved to bottom */}
-          <AuthDebugger />
+          {/* Additional system settings can be added here in the future */}
         </div>
       )}
     </div>

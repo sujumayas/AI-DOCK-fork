@@ -4,8 +4,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import MetaData, text
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import text
 from typing import AsyncGenerator, Generator
 import logging
 
@@ -24,11 +24,13 @@ logger = logging.getLogger(__name__)
 
 # Create the base class for all our database models
 # Think of this as the "parent class" that all our User, Department, etc. classes inherit from
+# The Base class automatically creates its own metadata object that we can access via Base.metadata
 Base = declarative_base()
 
-# Metadata object - contains information about all our database tables
-# This helps SQLAlchemy know about table relationships and constraints
-metadata = MetaData()
+# Ensure metadata is properly initialized
+if not hasattr(Base, 'metadata') or Base.metadata is None:
+    logger.error("❌ SQLAlchemy Base metadata not properly initialized")
+    raise Exception("Database Base class metadata initialization failed")
 
 # =============================================================================
 # DATABASE ENGINE CONFIGURATION (ASYNC)
@@ -158,7 +160,11 @@ async def create_database_tables():
     """
     async with async_engine.begin() as conn:
         # Import all models here to ensure they're registered with Base
-        from ..models import user, role, department
+        # This imports all model files which registers them with SQLAlchemy
+        from ..models import (
+            user, role, department, llm_config, 
+            usage_log, quota, conversation
+        )
         
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
@@ -169,7 +175,11 @@ def create_database_tables_sync():
     Synchronous version of table creation.
     """
     # Import all models here to ensure they're registered with Base
-    from ..models import user, role, department
+    # This imports all model files which registers them with SQLAlchemy
+    from ..models import (
+        user, role, department, llm_config, 
+        usage_log, quota, conversation
+    )
     
     # Create all tables using sync engine
     Base.metadata.create_all(sync_engine)

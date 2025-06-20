@@ -69,14 +69,6 @@ class Department(Base):
         comment="Detailed description of department responsibilities"
     )
     
-    # Is this department currently active?
-    is_active = Column(
-        Boolean,
-        default=True,
-        nullable=False,
-        comment="Whether this department is currently active"
-    )
-    
     # =============================================================================
     # HIERARCHY SUPPORT (PARENT-CHILD RELATIONSHIPS)
     # =============================================================================
@@ -372,14 +364,6 @@ class Department(Base):
             List of top-level departments
         """
         return session.query(cls).filter(cls.parent_id.is_(None)).all()
-    
-    def activate(self) -> None:
-        """Activate this department."""
-        self.is_active = True
-    
-    def deactivate(self) -> None:
-        """Deactivate this department."""
-        self.is_active = False
 
 # =============================================================================
 # HELPER FUNCTIONS FOR CREATING DEFAULT DEPARTMENTS

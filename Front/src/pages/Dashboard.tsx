@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Shield, Bot, MessageSquare, Settings, LogOut, User, Sparkles } from 'lucide-react'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../contexts/AuthContext'
 import { authService } from '../services/authService'
 
 // 🏠 Professional Dashboard - Intercorp Retail & InDigital XP Branded
@@ -32,26 +32,27 @@ export const Dashboard: React.FC = () => {
     loadCurrentUser()
   }, [])
 
-  // 🚪 Handle logout function
-  const handleLogout = () => {
+  // Optimized navigation handlers with useCallback to prevent unnecessary re-renders
+  const handleLogout = useCallback(() => {
     logout()
     navigate('/login', { replace: true })
-  }
+  }, [logout, navigate])
 
-  // 🛡️ Handle admin panel navigation
-  const handleAdminPanel = () => {
+  const handleAdminPanel = useCallback(() => {
     navigate('/admin')
-  }
+  }, [navigate])
 
-  // 💬 Handle chat interface navigation
-  const handleChatInterface = () => {
+  const handleChatInterface = useCallback(() => {
     navigate('/chat')
-  }
+  }, [navigate])
 
-  // ⚙️ Handle user settings navigation
-  const handleUserSettings = () => {
+  const handleUserSettings = useCallback(() => {
     navigate('/settings')
-  }
+  }, [navigate])
+  
+  const handleManagerDashboard = useCallback(() => {
+    navigate('/manager')
+  }, [navigate])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
@@ -211,7 +212,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => navigate('/manager')}
+                    onClick={handleManagerDashboard}
                     className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-emerald-700 bg-white/90 rounded-xl hover:bg-white transition-all duration-200 shadow-lg"
                   >
                     <Settings className="h-4 w-4" />

@@ -48,6 +48,12 @@ from .department import Department
 from .llm_config import LLMConfiguration, LLMProvider
 from .usage_log import UsageLog
 from .quota import DepartmentQuota, QuotaType, QuotaPeriod, QuotaStatus
+from .conversation import Conversation, ConversationMessage
+from .chat_conversation import ChatConversation  # NEW: Custom Assistants chat conversations
+from .assistant import Assistant
+from .file_upload import FileUpload
+from .folder import Folder
+from .chat import Chat
 
 # Import Base from database for schema operations
 from ..core.database import Base
@@ -67,6 +73,13 @@ __all__ = [
     "QuotaType",
     "QuotaPeriod", 
     "QuotaStatus",
+    "Conversation",
+    "ConversationMessage",
+    "ChatConversation",  # NEW: Custom Assistants chat conversations
+    "Assistant",
+    "FileUpload",
+    "Folder",
+    "Chat",
 ]
 
 # Model registry information (useful for debugging)
@@ -82,6 +95,13 @@ def get_all_models():
         LLMConfiguration,
         UsageLog,
         DepartmentQuota,
+        Conversation,
+        ConversationMessage,
+        ChatConversation,  # NEW: Custom Assistants chat conversations
+        Assistant,
+        FileUpload,
+        Folder,
+        Chat,
     ]
 
 def get_model_names():

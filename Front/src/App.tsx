@@ -1,11 +1,13 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
 import { LoginPage } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { ChatInterface } from './pages/ChatInterface'
 import { UserSettings } from './pages/UserSettings'
 import AdminSettings from './pages/AdminSettings'
 import ManagerDashboard from './pages/ManagerDashboard'
+import StreamingTestPage from './pages/StreamingTestPage' // 🌊 NEW: Streaming test interface
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 // 🚀 Main App Component - Now using React Router!
@@ -13,9 +15,12 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 
 function App() {
   return (
-    // 🧭 BrowserRouter enables client-side routing
-    // It manages URL changes and browser history
-    <BrowserRouter>
+    // 🔐 AuthProvider provides global authentication state to entire app
+    // All components can now access auth state without props drilling
+    <AuthProvider>
+      {/* 🧭 BrowserRouter enables client-side routing */}
+      {/* It manages URL changes and browser history */}
+      <BrowserRouter>
       <Routes>
         {/* 🏠 Root Route: Redirect to dashboard */}
         <Route 
@@ -45,6 +50,16 @@ function App() {
           element={
             <ProtectedRoute>
               <ChatInterface />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* 🌊 Streaming Test Route: Protected route for testing streaming functionality */}
+        <Route 
+          path="/streaming-test" 
+          element={
+            <ProtectedRoute>
+              <StreamingTestPage />
             </ProtectedRoute>
           } 
         />
@@ -85,7 +100,8 @@ function App() {
           element={<Navigate to="/dashboard" replace />} 
         />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 

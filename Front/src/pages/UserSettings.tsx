@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Mail, Lock, Shield, BarChart3, Save, Eye, EyeOff } from 'lucide-react'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../contexts/AuthContext'
 import { authService } from '../services/authService'
 
 // 👤 User Settings Page - Personal Profile Management
@@ -60,21 +60,28 @@ export const UserSettings: React.FC = () => {
     loadCurrentUser()
   }, [])
 
-  // 🔙 Navigate back to dashboard
-  const handleBackToDashboard = () => {
+  // Optimized navigation and form handlers with useCallback
+  const handleBackToDashboard = useCallback(() => {
     navigate('/dashboard')
-  }
+  }, [navigate])
 
-  // 📝 Handle form input changes
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = useCallback((field: string, value: string) => {
     setProfileForm(prev => ({
       ...prev,
       [field]: value
     }))
-  }
+  }, [])
+  
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev)
+  }, [])
+  
+  const toggleConfirmPasswordVisibility = useCallback(() => {
+    setShowConfirmPassword(prev => !prev)
+  }, [])
 
-  // 💾 Handle profile save
-  const handleSaveProfile = async () => {
+  // Optimized profile save handler with useCallback
+  const handleSaveProfile = useCallback(async () => {
     try {
       setIsSaving(true)
       setMessage(null)
@@ -139,7 +146,7 @@ export const UserSettings: React.FC = () => {
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [profileForm])
 
   if (isLoading) {
     return (
@@ -257,7 +264,7 @@ export const UserSettings: React.FC = () => {
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={togglePasswordVisibility}
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
                         >
                           {showPassword ? (
@@ -296,7 +303,7 @@ export const UserSettings: React.FC = () => {
                         />
                         <button
                           type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          onClick={toggleConfirmPasswordVisibility}
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
                         >
                           {showConfirmPassword ? (

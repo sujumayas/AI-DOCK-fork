@@ -201,6 +201,18 @@ class User(Base):
     # Usage tracking relationship - shows all LLM interactions by this user
     usage_logs = relationship("UsageLog", back_populates="user", lazy="dynamic")
     
+    # Conversation relationship - user's saved conversations
+    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan", order_by="Conversation.updated_at.desc()")
+    
+    # Chat conversation relationship - user's enhanced chat conversations with assistants
+    chat_conversations = relationship("ChatConversation", back_populates="user", cascade="all, delete-orphan", order_by="ChatConversation.updated_at.desc()")
+    
+    # File upload relationship - user's uploaded files
+    uploaded_files = relationship("FileUpload", back_populates="user", cascade="all, delete-orphan", order_by="FileUpload.upload_date.desc()")
+    
+    # Assistant relationship - user's custom AI assistants
+    assistants = relationship("Assistant", back_populates="user", cascade="all, delete-orphan", order_by="Assistant.created_at.desc()")
+    
     # Future relationships to add:
     # quota_overrides = relationship("UserQuotaOverride", back_populates="user")
     

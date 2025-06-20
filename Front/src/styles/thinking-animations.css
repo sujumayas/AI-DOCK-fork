@@ -1,0 +1,122 @@
+/* 🎨 Enhanced Thinking Animation Styles for AI Dock Chat Interface */
+/* Custom animations for smooth, professional thinking indicators */
+
+/* 🌊 Breathing pulse animation - smoother than default Tailwind pulse */
+@keyframes breathe {
+  0%, 100% { 
+    opacity: 0.4; 
+    transform: scale(0.8); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.1); 
+  }
+}
+
+/* 💫 Wave animation for sequential dots */
+@keyframes wave {
+  0%, 60%, 100% {
+    transform: initial;
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* 🎯 Shimmer effect for thinking bubble background */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 💎 Apply custom animations to thinking elements */
+
+/* Enhanced breathing dots */
+.thinking-dot {
+  animation: breathe 1.5s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(1) { animation-delay: 0s; }
+.thinking-dot:nth-child(2) { animation-delay: 0.3s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.6s; }
+
+/* Alternative wave animation for dots */
+.thinking-dot-wave {
+  animation: wave 1.8s ease-in-out infinite;
+}
+
+.thinking-dot-wave:nth-child(1) { animation-delay: 0s; }
+.thinking-dot-wave:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot-wave:nth-child(3) { animation-delay: 0.4s; }
+
+/* Thinking bubble with shimmer effect */
+.thinking-bubble {
+  position: relative;
+  overflow: hidden;
+}
+
+.thinking-bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(59, 130, 246, 0.1),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  pointer-events: none;
+}
+
+/* 🎨 Gradient dot variations */
+.dot-blue { 
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.dot-teal { 
+  background: linear-gradient(135deg, #14b8a6, #0f766e);
+  box-shadow: 0 2px 4px rgba(20, 184, 166, 0.3);
+}
+
+.dot-indigo { 
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+}
+
+/* 📱 Responsive adjustments */
+@media (max-width: 768px) {
+  .thinking-dot,
+  .thinking-dot-wave {
+    animation-duration: 1.2s; /* Faster on mobile for better perceived performance */
+  }
+  
+  .thinking-bubble::before {
+    animation-duration: 1.5s; /* Faster shimmer on mobile */
+  }
+}
+
+/* 🌟 Accessibility: Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .thinking-dot,
+  .thinking-dot-wave {
+    animation: none;
+    opacity: 0.7;
+  }
+  
+  .thinking-bubble::before {
+    animation: none;
+    background: rgba(59, 130, 246, 0.05);
+  }
+}

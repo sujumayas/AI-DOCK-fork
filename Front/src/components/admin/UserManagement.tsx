@@ -6,7 +6,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
-  Search, 
   Filter, 
   Plus, 
   Edit, 
@@ -30,6 +29,7 @@ import {
 } from '../../types/admin';
 import { UserCreateModal } from './UserCreateModal';
 import { UserEditModal } from './UserEditModal';
+import { UserSearch } from './user/UserSearch';
 
 /**
  * UserManagement Component
@@ -61,7 +61,6 @@ export const UserManagement: React.FC = () => {
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   
   // Search and filtering
-  const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<UserSearchFilters>({
     page: 1,
@@ -83,20 +82,6 @@ export const UserManagement: React.FC = () => {
   // =============================================================================
   // MEMOIZED VALUES
   // =============================================================================
-
-  /**
-   * Memoized debounce function to prevent recreation on every render
-   */
-  const debounce = useMemo(() => {
-    return <T extends (...args: any[]) => any>(func: T, wait: number) => {
-      let timeout: ReturnType<typeof setTimeout>;
-      
-      return (...args: Parameters<T>) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-      };
-    };
-  }, []);
 
   // =============================================================================
   // DATA FETCHING
@@ -163,21 +148,19 @@ export const UserManagement: React.FC = () => {
   }, []); // No dependencies to prevent circular loops
 
   /**
-   * Debounced search function
+   * Handle search query changes from UserSearch component
    * 
-   * Learning: Debouncing prevents too many API calls while the user is typing.
+   * Learning: Clean callback interface between extracted components
    */
-  const debouncedSearch = useMemo(() => {
-    return debounce((query: string, currentFilters: UserSearchFilters) => {
-      const newFilters = {
-        ...currentFilters,
-        search_query: query || undefined,
-        page: 1 // Reset to first page when searching
-      };
-      setFilters(newFilters);
-      loadUsers(newFilters);
-    }, 300); // 300ms delay
-  }, [debounce, loadUsers]);
+  const handleSearch = useCallback((query: string) => {
+    const newFilters = {
+      ...filters,
+      search_query: query || undefined,
+      page: 1 // Reset to first page when searching
+    };
+    setFilters(newFilters);
+    loadUsers(newFilters);
+  }, [filters, loadUsers]);
 
   // =============================================================================
   // EVENT HANDLERS
@@ -219,14 +202,7 @@ export const UserManagement: React.FC = () => {
     setShowCreateModal(true);
   }, []);
 
-  /**
-   * Handle search input changes
-   */
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    debouncedSearch(query, filters);
-  }, [debouncedSearch, filters]);
+
 
   /**
    * Handle filter changes with proper state management
@@ -377,7 +353,7 @@ export const UserManagement: React.FC = () => {
       <UsersIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
       <h3 className="text-lg font-semibold text-gray-900 mb-2">No Users Found</h3>
       <p className="text-gray-600 mb-4">
-        {searchQuery ? 'Try adjusting your search or filters.' : 'Get started by creating your first user.'}
+        {filters.search_query ? 'Try adjusting your search or filters.' : 'Get started by creating your first user.'}
       </p>
       <button
         onClick={handleCreateUser}
@@ -386,7 +362,7 @@ export const UserManagement: React.FC = () => {
         Create User
       </button>
     </div>
-  ), [searchQuery, handleCreateUser]);
+  ), [filters.search_query, handleCreateUser]);
 
   /**
    * Render search and filter controls
@@ -395,20 +371,13 @@ export const UserManagement: React.FC = () => {
     <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 mb-6">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         
-        {/* Search Input */}
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              id="user-search-input"
-              name="user-search"
-              type="text"
-              placeholder="Search users by name, email, or username..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+        {/* Search Input - Now using extracted UserSearch component */}
+        <div className="flex-1">
+          <UserSearch
+            onSearch={handleSearch}
+            placeholder="Search users by name, email, or username..."
+            initialValue={filters.search_query || ''}
+          />
         </div>
 
         {/* Action Buttons */}
@@ -514,7 +483,7 @@ export const UserManagement: React.FC = () => {
         </div>
       )}
     </div>
-  ), [searchQuery, handleSearchChange, showFilters, handleCreateUser, filters, handleFilterChange]);
+  ), [handleSearch, showFilters, handleCreateUser, filters, handleFilterChange]);
 
   /**
    * Render user status badge

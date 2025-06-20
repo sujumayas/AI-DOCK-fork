@@ -27,4 +27,21 @@
   .card {
     @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
   }
+  
+  /* 🛡️ PASTE PROTECTION: Force consistent text color in message input */
+  .message-input-textarea {
+    color: #1f2937 !important;
+  }
+  
+  /* Extra protection: Override any inline styles or nested elements */
+  .message-input-textarea *,
+  .message-input-textarea::before,
+  .message-input-textarea::after {
+    color: #1f2937 !important;
+  }
+  
+  /* Prevent any rich text formatting from affecting the textarea */
+  .message-input-textarea [style*="color"] {
+    color: #1f2937 !important;
+  }
 }

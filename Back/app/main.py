@@ -19,6 +19,7 @@ from .api.admin.users import router as admin_users_router
 from .api.admin.llm_configs import router as admin_llm_configs_router
 from .api.admin.quotas import router as admin_quotas_router
 from .api.chat import router as chat_router
+from .api.chat_streaming import router as chat_streaming_router  # 🆕 NEW: Streaming chat
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -51,16 +52,21 @@ app.add_middleware(
 # CORS Middleware - allows our React frontend to talk to this backend
 # Without this, browsers block requests between different ports
 # Note: CORS is added AFTER security so security headers are applied to CORS responses
+logger.info(f"🌐 Configuring CORS for frontend: {settings.frontend_url}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         settings.frontend_url,
         "http://localhost:8080", 
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "http://127.0.0.1:8080",  # Alternative localhost format
+        "http://127.0.0.1:3000"   # Alternative localhost format
     ],  # React dev servers
     allow_credentials=True,
-    allow_methods=["*"],        # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],        # Allow all headers
+    allow_methods=["*"],  # Allow all methods (includes OPTIONS for preflight)
+    allow_headers=["*"],  # Allow all headers for maximum compatibility
+    expose_headers=["*"],  # Expose all headers to frontend
+    max_age=86400,  # Cache preflight response for 24 hours
 )
 
 # Health check endpoint - like a "ping" to see if the server is alive
@@ -98,6 +104,36 @@ async def security_test():
     Learning: This is a great way to test middleware functionality!
     """
     return create_security_test_response()
+
+# CORS test endpoint - verify CORS configuration is working
+@app.get("/cors/test")
+@app.post("/cors/test")
+@app.options("/cors/test")
+async def cors_test():
+    """
+    Test endpoint to verify CORS configuration is working properly.
+    
+    This endpoint accepts GET, POST, and OPTIONS requests to test
+    that CORS preflight requests are handled correctly.
+    
+    Learning: CORS issues often happen during preflight (OPTIONS) requests!
+    """
+    return {
+        "message": "CORS is working! 🌍",
+        "cors_config": {
+            "allowed_origins": [
+                settings.frontend_url,
+                "http://localhost:8080",
+                "http://localhost:3000",
+                "http://127.0.0.1:8080",
+                "http://127.0.0.1:3000"
+            ],
+            "methods_allowed": "All methods (*)",
+            "headers_allowed": "All headers (*)",
+            "credentials_allowed": True
+        },
+        "test_instructions": "Make a POST request to this endpoint from your frontend to test CORS"
+    }
 
 # =============================================================================
 # API ROUTERS
@@ -152,12 +188,40 @@ app.include_router(
 # This adds all /chat/* endpoints to our application
 app.include_router(chat_router)
 
+# 🚀 Include streaming chat endpoints
+# This adds streaming functionality to /chat/* endpoints
+app.include_router(chat_streaming_router)
+
 # Include manager endpoints
 # This adds all /manager/* endpoints to our application
 from .api.manager import router as manager_router
 app.include_router(
     manager_router,
     tags=["Manager"]
+)
+
+# Include conversation endpoints
+# This adds all /conversations/* endpoints to our application
+from .api.conversations import router as conversations_router
+app.include_router(
+    conversations_router,
+    tags=["Conversations"]
+)
+
+# Include file upload endpoints
+# This adds all /files/* endpoints to our application
+from .api.files import router as files_router
+app.include_router(
+    files_router,
+    tags=["Files"]
+)
+
+# Include assistant endpoints
+# This adds all /assistants/* endpoints to our application
+from .api.assistants import router as assistants_router
+app.include_router(
+    assistants_router,
+    tags=["Assistants"]
 )
 
 # Root endpoint - what users see when they visit the API directly
@@ -168,6 +232,13 @@ def read_root():
     """
     return {
         "message": f"Welcome to {settings.app_name}! 🤖",
+        "new_features": {
+            "streaming_chat": "Real-time streaming responses via Server-Sent Events",
+            "dynamic_models": "Live model fetching from OpenAI and other providers",
+            "smart_filtering": "Intelligent model filtering to show only relevant models",
+            "file_upload": "Secure file upload system for document analysis and AI processing",
+            "custom_assistants": "Create personalized AI assistants with custom prompts and preferences"
+        },
         "version": settings.app_version,
         "documentation": "/docs",
         "health_check": "/health",
@@ -203,11 +274,41 @@ def read_root():
             },
             "chat": {
                 "send_message": "/chat/send",
+                "stream_message": "/chat/stream",  # 🆕 NEW: Real-time streaming
                 "get_configurations": "/chat/configurations",
                 "test_configuration": "/chat/test-configuration",
                 "estimate_cost": "/chat/estimate-cost",
                 "get_models": "/chat/models/{config_id}",
-                "chat_health": "/chat/health"
+                "get_dynamic_models": "/chat/models/{config_id}/dynamic",
+                "chat_health": "/chat/health",
+                "streaming_health": "/chat/stream/health"  # 🆕 NEW: Streaming health check
+            },
+            "files": {
+                "upload": "/files/upload",
+                "validate": "/files/validate",
+                "list_files": "/files/",
+                "search_files": "/files/search",
+                "download": "/files/{file_id}/download",
+                "metadata": "/files/{file_id}/metadata",
+                "preview": "/files/{file_id}/content-preview",
+                "delete": "/files/{file_id}",
+                "bulk_delete": "/files/bulk-delete",
+                "statistics": "/files/statistics",
+                "limits": "/files/limits",
+                "health": "/files/health"
+            },
+            "assistants": {
+                "create": "/assistants/",
+                "list": "/assistants/",
+                "get": "/assistants/{id}",
+                "update": "/assistants/{id}",
+                "delete": "/assistants/{id}",
+                "search": "/assistants/search",
+                "statistics": "/assistants/stats/overview",
+                "conversations": "/assistants/{id}/conversations",
+                "create_conversation": "/assistants/{id}/conversations",
+                "bulk_operations": "/assistants/bulk",
+                "health": "/assistants/health"
             },
             "manager": {
                 "user_management": {

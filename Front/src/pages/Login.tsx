@@ -2,11 +2,11 @@
 // This is where users enter their credentials to access AI Dock
 // Updated to match the Dashboard's beautiful blue gradient theme
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle, Sparkles } from 'lucide-react';
 import { authService } from '../services/authService';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { LoginCredentials } from '../types/auth';
 
 export const LoginPage: React.FC = () => {
@@ -38,19 +38,19 @@ export const LoginPage: React.FC = () => {
   }, [isAuthenticated, navigate]);
 
   // 🔄 FORM HANDLERS: Functions that respond to user interactions
-
-  // Handle input field changes (email and password)
-  const handleInputChange = (field: keyof LoginCredentials, value: string) => {
+  
+  // Optimized input change handler with useCallback to prevent unnecessary re-renders
+  const handleInputChange = useCallback((field: keyof LoginCredentials, value: string) => {
     setCredentials(prev => ({
       ...prev, // Keep other fields unchanged
       [field]: value // Update only the field that changed
     }));
     // Clear error when user starts typing again
     if (error) setError(null);
-  };
+  }, [error]);
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Optimized form submission handler with useCallback
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault(); // Prevent page refresh (default form behavior)
     
     // Basic validation
@@ -70,7 +70,7 @@ export const LoginPage: React.FC = () => {
       console.log('Login successful:', response);
       
       // Update authentication state using our hook
-      login();
+      await login();
       
       // Navigate to dashboard
       console.log('🎯 Redirecting to dashboard...');
@@ -84,7 +84,12 @@ export const LoginPage: React.FC = () => {
     } finally {
       setIsLoading(false); // Hide loading spinner
     }
-  };
+  }, [credentials, login, navigate]);
+  
+  // Optimized password visibility toggle with useCallback
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600 flex items-center justify-center p-4">
@@ -161,7 +166,7 @@ export const LoginPage: React.FC = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={togglePasswordVisibility}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   disabled={isLoading}
                 >

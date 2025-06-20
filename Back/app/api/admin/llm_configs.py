@@ -12,13 +12,15 @@ from ...core.security import get_current_admin_user
 from ...models.llm_config import LLMConfiguration, LLMProvider
 from ...schemas.llm_config import (
     LLMConfigurationCreate,
+    LLMConfigurationSimpleCreate,
     LLMConfigurationUpdate, 
     LLMConfigurationResponse,
     LLMConfigurationSummary,
     LLMConfigurationTest,
     LLMConfigurationTestResult,
     LLMProviderInfo,
-    get_provider_info_list
+    get_provider_info_list,
+    convert_simple_to_full_create
 )
 from ...services.llm_service import LLMService
 
@@ -226,6 +228,103 @@ async def create_llm_configuration(
     except Exception as e:
         # Handle unexpected database errors
         logger.error(f"Failed to create LLM configuration: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create LLM configuration"
+        )
+
+@router.post("/simple", response_model=LLMConfigurationResponse, status_code=status.HTTP_201_CREATED)
+async def create_llm_configuration_simple(
+    simple_config_data: LLMConfigurationSimpleCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
+):
+    """
+    Create a new LLM configuration using simplified input (NEW!).
+    
+    This is the user-friendly endpoint that only requires 4 fields:
+    1. Provider (openai, anthropic, etc.)
+    2. Configuration name 
+    3. API key
+    4. Optional description
+    
+    Everything else gets smart defaults based on the provider!
+    
+    Learning: This demonstrates progressive disclosure - we hide complexity
+    from the user while still using the full system underneath.
+    
+    Args:
+        simple_config_data: Simplified configuration (just the essentials)
+        db: Database session
+        current_user: Current admin user
+        
+    Returns:
+        The newly created LLM configuration with all defaults applied
+    """
+    logger.info(f"Admin {current_user.username} creating LLM configuration (simplified): {simple_config_data.name}")
+    
+    try:
+        # Check if name already exists
+        existing = db.query(LLMConfiguration).filter(
+            LLMConfiguration.name == simple_config_data.name
+        ).first()
+        
+        if existing:
+            logger.warning(f"LLM configuration name '{simple_config_data.name}' already exists")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Configuration name '{simple_config_data.name}' already exists"
+            )
+        
+        # Convert simplified data to full configuration using smart defaults
+        logger.info(f"Applying smart defaults for provider: {simple_config_data.provider.value}")
+        full_config_data = convert_simple_to_full_create(simple_config_data)
+        
+        # Create new configuration object (same logic as before)
+        new_config = LLMConfiguration(
+            name=full_config_data.name,
+            description=full_config_data.description,
+            provider=LLMProvider(full_config_data.provider.value),
+            api_endpoint=str(full_config_data.api_endpoint),
+            api_version=full_config_data.api_version,
+            default_model=full_config_data.default_model,
+            available_models=full_config_data.available_models,
+            model_parameters=full_config_data.model_parameters,
+            rate_limit_rpm=full_config_data.rate_limit_rpm,
+            rate_limit_tpm=full_config_data.rate_limit_tpm,
+            daily_quota=full_config_data.daily_quota,
+            monthly_budget_usd=full_config_data.monthly_budget_usd,
+            cost_per_1k_input_tokens=full_config_data.cost_per_1k_input_tokens,
+            cost_per_1k_output_tokens=full_config_data.cost_per_1k_output_tokens,
+            cost_per_request=full_config_data.cost_per_request,
+            is_active=full_config_data.is_active,
+            is_public=full_config_data.is_public,
+            priority=full_config_data.priority,
+            custom_headers=full_config_data.custom_headers,
+            provider_settings=full_config_data.provider_settings
+        )
+        
+        # Encrypt and store API key
+        new_config.set_encrypted_api_key(simple_config_data.api_key)
+        
+        # Save to database
+        db.add(new_config)
+        db.commit()
+        db.refresh(new_config)
+        
+        logger.info(f"Created LLM configuration {new_config.id}: {new_config.name} with smart defaults for {simple_config_data.provider.value}")
+        logger.info(f"Applied defaults: endpoint={new_config.api_endpoint}, model={new_config.default_model}, priority={new_config.priority}")
+        
+        # Return the new configuration
+        return LLMConfigurationResponse.from_orm(new_config)
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (like name conflicts)
+        raise
+    except Exception as e:
+        # Handle unexpected database errors
+        logger.error(f"Failed to create simplified LLM configuration: {str(e)}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

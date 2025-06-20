@@ -50,6 +50,69 @@ from .department import (
     DepartmentOperationResponse,
     DepartmentInitializationResponse
 )
+from .conversation import (
+    ConversationMessageCreate,
+    ConversationMessageResponse,
+    ConversationCreate,
+    ConversationUpdate,
+    ConversationSummary,
+    ConversationDetail,
+    ConversationSaveFromMessages,
+    ConversationListResponse,
+    ConversationStatsResponse,
+    ConversationOperationResponse
+)
+from .file_upload import (
+    FileUploadStatus,
+    AllowedFileType,
+    FileUploadValidation,
+    FileUploadResponse,
+    FileMetadata,
+    FileListResponse,
+    FileSearchRequest,
+    FileDeleteRequest,
+    FileDeleteResponse,
+    FileStatistics,
+    FileUploadError,
+    UploadLimits,
+    FileHealthCheck
+)
+from .chat import (
+    FileProcessingStatus,
+    ContentType,
+    FileAttachment,
+    ProcessedFileContent,
+    ChatMessageWithFiles,
+    ChatMessageResponse,
+    ChatSendRequest,
+    ChatSendResponse,
+    FileContentPreparation,
+    ChatConversationSummary,
+    ChatError,
+    ChatSystemStatus
+)
+from .assistant import (
+    AssistantStatus,
+    ModelProvider,
+    AssistantCreate,
+    AssistantUpdate,
+    AssistantResponse,
+    AssistantSummary,
+    AssistantConversationCreate,
+    AssistantConversationResponse,
+    AssistantListRequest,
+    AssistantListResponse,
+    AssistantOperationResponse,
+    AssistantStatsResponse,
+    AssistantErrorResponse,
+    AssistantPermissionError,
+    AssistantBulkAction,
+    AssistantBulkResponse,
+    AssistantExport,
+    AssistantImport,
+    create_assistant_response_from_model,
+    validate_assistant_ownership
+)
 
 __all__ = [
     # Auth schemas
@@ -102,4 +165,67 @@ __all__ = [
     "DepartmentHierarchy",
     "DepartmentOperationResponse",
     "DepartmentInitializationResponse",
+    
+    # Conversation schemas
+    "ConversationMessageCreate",
+    "ConversationMessageResponse",
+    "ConversationCreate",
+    "ConversationUpdate",
+    "ConversationSummary",
+    "ConversationDetail",
+    "ConversationSaveFromMessages",
+    "ConversationListResponse",
+    "ConversationStatsResponse",
+    "ConversationOperationResponse",
+    
+    # File upload schemas
+    "FileUploadStatus",
+    "AllowedFileType",
+    "FileUploadValidation",
+    "FileUploadResponse",
+    "FileMetadata",
+    "FileListResponse",
+    "FileSearchRequest",
+    "FileDeleteRequest",
+    "FileDeleteResponse",
+    "FileStatistics",
+    "FileUploadError",
+    "UploadLimits",
+    "FileHealthCheck",
+    
+    # Chat schemas with file support
+    "FileProcessingStatus",
+    "ContentType",
+    "FileAttachment",
+    "ProcessedFileContent",
+    "ChatMessageWithFiles",
+    "ChatMessageResponse",
+    "ChatSendRequest",
+    "ChatSendResponse",
+    "FileContentPreparation",
+    "ChatConversationSummary",
+    "ChatError",
+    "ChatSystemStatus",
+    
+    # Assistant schemas
+    "AssistantStatus",
+    "ModelProvider",
+    "AssistantCreate",
+    "AssistantUpdate",
+    "AssistantResponse",
+    "AssistantSummary",
+    "AssistantConversationCreate",
+    "AssistantConversationResponse",
+    "AssistantListRequest",
+    "AssistantListResponse",
+    "AssistantOperationResponse",
+    "AssistantStatsResponse",
+    "AssistantErrorResponse",
+    "AssistantPermissionError",
+    "AssistantBulkAction",
+    "AssistantBulkResponse",
+    "AssistantExport",
+    "AssistantImport",
+    "create_assistant_response_from_model",
+    "validate_assistant_ownership",
 ]

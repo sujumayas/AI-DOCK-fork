@@ -70,12 +70,6 @@ class DepartmentCreate(BaseModel):
         example="CC-ENG-001"
     )
     
-    is_active: bool = Field(
-        True,
-        description="Whether this department is currently active",
-        example=True
-    )
-    
     parent_id: Optional[int] = Field(
         None,
         description="Parent department ID for hierarchy support",
@@ -118,7 +112,6 @@ class DepartmentCreate(BaseModel):
                 "manager_email": "eng-manager@company.com",
                 "location": "Tech Building, Floor 3",
                 "cost_center": "CC-ENG-001",
-                "is_active": True,
                 "parent_id": None
             }
         }
@@ -176,11 +169,6 @@ class DepartmentUpdate(BaseModel):
         description="New cost center code"
     )
     
-    is_active: Optional[bool] = Field(
-        None,
-        description="New active status"
-    )
-    
     parent_id: Optional[int] = Field(
         None,
         description="New parent department ID"
@@ -207,8 +195,7 @@ class DepartmentUpdate(BaseModel):
             "example": {
                 "name": "Engineering & Technology",
                 "monthly_budget": 6000.00,
-                "manager_email": "new-manager@company.com",
-                "is_active": True
+                "manager_email": "new-manager@company.com"
             }
         }
 
@@ -228,7 +215,6 @@ class DepartmentResponse(BaseModel):
     name: str
     code: str
     description: Optional[str]
-    is_active: bool
     monthly_budget: Decimal
     manager_email: Optional[str]
     location: Optional[str]
@@ -255,7 +241,6 @@ class DepartmentResponse(BaseModel):
                 "name": "Engineering",
                 "code": "ENG",
                 "description": "Software development, DevOps, and technical infrastructure",
-                "is_active": True,
                 "monthly_budget": 5000.00,
                 "manager_email": "eng-manager@company.com",
                 "location": "Tech Building, Floor 3",
@@ -286,7 +271,6 @@ class DepartmentWithStats(BaseModel):
     name: str
     code: str
     description: Optional[str]
-    is_active: bool
     monthly_budget: Decimal
     manager_email: Optional[str]
     location: Optional[str]
@@ -323,7 +307,6 @@ class DepartmentWithStats(BaseModel):
                 "name": "Engineering",
                 "code": "ENG",
                 "description": "Software development, DevOps, and technical infrastructure",
-                "is_active": True,
                 "monthly_budget": 5000.00,
                 "manager_email": "eng-manager@company.com",
                 "location": "Tech Building, Floor 3",
@@ -390,12 +373,6 @@ class DepartmentSearchFilters(BaseModel):
         None,
         description="Search in name, code, and description fields",
         example="eng"
-    )
-    
-    # Filter by status
-    is_active: Optional[bool] = Field(
-        None,
-        description="Filter by active/inactive status"
     )
     
     # Filter by hierarchy
@@ -481,7 +458,6 @@ class DepartmentSearchFilters(BaseModel):
         schema_extra = {
             "example": {
                 "search_query": "eng",
-                "is_active": True,
                 "min_budget": 1000.00,
                 "max_budget": 10000.00,
                 "page": 1,
@@ -573,15 +549,13 @@ class DepartmentDropdownOption(BaseModel):
     value: int = Field(description="Department ID")
     label: str = Field(description="Department display name")
     code: Optional[str] = Field(description="Department code")
-    is_active: bool = Field(description="Whether department is active")
 
     class Config:
         schema_extra = {
             "example": {
                 "value": 1,
                 "label": "Engineering",
-                "code": "ENG",
-                "is_active": True
+                "code": "ENG"
             }
         }
 

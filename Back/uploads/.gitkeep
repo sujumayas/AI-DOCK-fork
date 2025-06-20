@@ -1,0 +1,3 @@
+# Keep this directory in git
+# Git ignores empty directories, so we add this file to ensure
+# the uploads directory is tracked in version control

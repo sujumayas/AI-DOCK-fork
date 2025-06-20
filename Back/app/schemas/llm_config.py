@@ -28,6 +28,210 @@ class LLMProviderSchema(str, enum.Enum):
     CUSTOM = "custom"
 
 # =============================================================================
+# SIMPLIFIED INPUT SCHEMAS (NEW - USER FRIENDLY)
+# =============================================================================
+
+class LLMConfigurationSimpleCreate(BaseModel):
+    """
+    Simplified schema for creating LLM configurations with just the essentials.
+    
+    This is the new user-friendly approach - admins only need to provide:
+    1. Provider type (OpenAI, Claude, etc.)
+    2. Configuration name 
+    3. API key
+    4. Optional description
+    
+    Everything else gets smart defaults based on the provider!
+    """
+    
+    # Required fields (the essentials)
+    provider: LLMProviderSchema = Field(
+        ...,
+        description="LLM provider type",
+        example=LLMProviderSchema.OPENAI
+    )
+    
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Configuration name",
+        example="OpenAI Production"
+    )
+    
+    api_key: str = Field(
+        ...,
+        min_length=1,
+        description="API key for authentication",
+        example="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    )
+    
+    # Optional field
+    description: Optional[str] = Field(
+        None,
+        max_length=1000,
+        description="Optional description",
+        example="Primary OpenAI configuration for the team"
+    )
+    
+    @validator('name')
+    def validate_name(cls, v):
+        """Validate configuration name format."""
+        if not v or not v.strip():
+            raise ValueError('Configuration name cannot be empty')
+        return v.strip()
+    
+    @validator('api_key')
+    def validate_api_key(cls, v):
+        """Validate API key format (basic check)."""
+        if not v or not v.strip():
+            raise ValueError('API key cannot be empty')
+        
+        v = v.strip()
+        
+        if len(v) < 10:
+            raise ValueError('API key seems too short')
+            
+        return v
+    
+    class Config:
+        """Pydantic configuration."""
+        schema_extra = {
+            "example": {
+                "provider": "openai",
+                "name": "OpenAI Production",
+                "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "description": "Primary OpenAI configuration for our team"
+            }
+        }
+
+# =============================================================================
+# PROVIDER SMART DEFAULTS
+# =============================================================================
+
+def get_provider_smart_defaults(provider: LLMProviderSchema) -> Dict[str, Any]:
+    """
+    Get smart defaults for a provider to minimize user configuration.
+    
+    This function encapsulates our knowledge about each provider's
+    best practices, so users don't need to research API endpoints,
+    models, or cost structures.
+    
+    Args:
+        provider: The LLM provider to get defaults for
+        
+    Returns:
+        Dictionary with smart defaults for the provider
+    """
+    
+    if provider == LLMProviderSchema.OPENAI:
+        return {
+            "api_endpoint": "https://api.openai.com/v1",
+            "api_version": None,  # OpenAI doesn't require version in URL
+            "default_model": "gpt-4",
+            "available_models": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
+            "model_parameters": {
+                "temperature": 0.7,
+                "max_tokens": 4000
+            },
+            "rate_limit_rpm": 3000,
+            "rate_limit_tpm": 90000,
+            "cost_per_1k_input_tokens": 0.030000,
+            "cost_per_1k_output_tokens": 0.060000,
+            "priority": 10,
+            "custom_headers": {},
+            "provider_settings": {"timeout": 30}
+        }
+    
+    elif provider == LLMProviderSchema.ANTHROPIC:
+        return {
+            "api_endpoint": "https://api.anthropic.com",
+            "api_version": "2023-06-01",
+            "default_model": "claude-3-sonnet-20240229",
+            "available_models": [
+                "claude-3-opus-20240229",
+                "claude-3-sonnet-20240229", 
+                "claude-3-haiku-20240307",
+                "claude-3-5-sonnet-20240620"
+            ],
+            "model_parameters": {
+                "temperature": 0.7,
+                "max_tokens": 4000
+            },
+            "rate_limit_rpm": 1000,
+            "rate_limit_tpm": 40000,
+            "cost_per_1k_input_tokens": 0.015000,
+            "cost_per_1k_output_tokens": 0.075000,
+            "priority": 20,
+            "custom_headers": {"anthropic-version": "2023-06-01"},
+            "provider_settings": {"timeout": 60}
+        }
+    
+    elif provider == LLMProviderSchema.GOOGLE:
+        return {
+            "api_endpoint": "https://generativelanguage.googleapis.com",
+            "api_version": "v1",
+            "default_model": "gemini-1.5-pro",
+            "available_models": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
+            "model_parameters": {"temperature": 0.7, "max_tokens": 4000},
+            "rate_limit_rpm": 300,
+            "rate_limit_tpm": 30000,
+            "cost_per_1k_input_tokens": 0.001250,
+            "cost_per_1k_output_tokens": 0.005000,
+            "priority": 30,
+            "custom_headers": {},
+            "provider_settings": {"timeout": 30}
+        }
+    
+    elif provider == LLMProviderSchema.MISTRAL:
+        return {
+            "api_endpoint": "https://api.mistral.ai",
+            "api_version": None,
+            "default_model": "mistral-large-latest",
+            "available_models": ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
+            "model_parameters": {"temperature": 0.7, "max_tokens": 4000},
+            "rate_limit_rpm": 1000,
+            "rate_limit_tpm": 50000,
+            "cost_per_1k_input_tokens": 0.008000,
+            "cost_per_1k_output_tokens": 0.024000,
+            "priority": 40,
+            "custom_headers": {},
+            "provider_settings": {"timeout": 30}
+        }
+    
+    elif provider == LLMProviderSchema.AZURE_OPENAI:
+        return {
+            "api_endpoint": "https://your-resource.openai.azure.com",
+            "api_version": "2023-05-15",
+            "default_model": "gpt-4",
+            "available_models": ["gpt-4", "gpt-35-turbo"],
+            "model_parameters": {"temperature": 0.7, "max_tokens": 4000},
+            "rate_limit_rpm": 2000,
+            "rate_limit_tpm": 60000,
+            "cost_per_1k_input_tokens": 0.030000,
+            "cost_per_1k_output_tokens": 0.060000,
+            "priority": 15,
+            "custom_headers": {},
+            "provider_settings": {"timeout": 30}
+        }
+    
+    else:  # CUSTOM or unknown providers
+        return {
+            "api_endpoint": "https://your-custom-endpoint.com",
+            "api_version": None,
+            "default_model": "your-model",
+            "available_models": ["your-model"],
+            "model_parameters": {"temperature": 0.7, "max_tokens": 4000},
+            "rate_limit_rpm": 100,
+            "rate_limit_tpm": 10000,
+            "cost_per_1k_input_tokens": 0.010000,
+            "cost_per_1k_output_tokens": 0.020000,
+            "priority": 100,
+            "custom_headers": {},
+            "provider_settings": {"timeout": 30}
+        }
+
+# =============================================================================
 # INPUT SCHEMAS (FOR CREATING/UPDATING CONFIGURATIONS)
 # =============================================================================
 
@@ -541,6 +745,59 @@ class LLMProviderInfo(BaseModel):
                 "documentation_url": "https://platform.openai.com/docs"
             }
         }
+
+# =============================================================================
+# CONVERSION FUNCTIONS
+# =============================================================================
+
+def convert_simple_to_full_create(simple_data: LLMConfigurationSimpleCreate) -> LLMConfigurationCreate:
+    """
+    Convert simplified creation data to full LLMConfigurationCreate.
+    
+    This function applies smart defaults based on the provider type,
+    so users only need to specify the essentials.
+    
+    Args:
+        simple_data: Simplified configuration data from user
+        
+    Returns:
+        Full LLMConfigurationCreate with smart defaults applied
+    """
+    # Get smart defaults for the provider
+    defaults = get_provider_smart_defaults(simple_data.provider)
+    
+    # Merge user data with smart defaults
+    full_data = {
+        # User-provided data (takes precedence)
+        "name": simple_data.name,
+        "description": simple_data.description,
+        "provider": simple_data.provider,
+        "api_key": simple_data.api_key,
+        
+        # Smart defaults from provider knowledge
+        "api_endpoint": defaults["api_endpoint"],
+        "api_version": defaults["api_version"],
+        "default_model": defaults["default_model"],
+        "available_models": defaults["available_models"],
+        "model_parameters": defaults["model_parameters"],
+        "rate_limit_rpm": defaults["rate_limit_rpm"],
+        "rate_limit_tpm": defaults["rate_limit_tpm"],
+        "cost_per_1k_input_tokens": defaults["cost_per_1k_input_tokens"],
+        "cost_per_1k_output_tokens": defaults["cost_per_1k_output_tokens"],
+        "priority": defaults["priority"],
+        "custom_headers": defaults["custom_headers"],
+        "provider_settings": defaults["provider_settings"],
+        
+        # Standard defaults
+        "daily_quota": None,
+        "monthly_budget_usd": None,
+        "cost_per_request": None,
+        "is_active": True,
+        "is_public": True
+    }
+    
+    # Create and return the full configuration
+    return LLMConfigurationCreate(**full_data)
 
 # =============================================================================
 # HELPER FUNCTIONS

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { Shield } from 'lucide-react'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../contexts/AuthContext'
 
 // 🛡️ ProtectedRoute Component
 // This is a "Higher-Order Component" (HOC) that wraps other components

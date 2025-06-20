@@ -14,12 +14,14 @@ import {
   LLMConfigurationSummary,
   LLMConfigurationResponse,
   LLMConfigurationCreate,
+  LLMConfigurationSimpleCreate,
   LLMConfigurationUpdate,
   LLMProviderInfo,
   LLMProvider,
   LLMConfigError
 } from '../../services/llmConfigService';
 import LLMCreateModal from './LLMCreateModal';
+import LLMSimpleCreateModal from './LLMSimpleCreateModal';
 import LLMEditModal from './LLMEditModal';
 import LLMDeleteModal from './LLMDeleteModal';
 
@@ -46,6 +48,7 @@ const LLMConfiguration: React.FC = () => {
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showSimpleCreateModal, setShowSimpleCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
@@ -159,12 +162,12 @@ const LLMConfiguration: React.FC = () => {
   // =============================================================================
 
   /**
-   * Create a new LLM configuration
+   * Create a new LLM configuration (advanced)
    */
   const handleCreate = useCallback(async (configData: LLMConfigurationCreate) => {
     setIsSubmitting(true);
     try {
-      console.log('➕ Creating configuration:', configData.name);
+      console.log('➕ Creating configuration (advanced):', configData.name);
       
       const newConfig = await llmConfigService.createConfiguration(configData);
       
@@ -176,6 +179,30 @@ const LLMConfiguration: React.FC = () => {
       
     } catch (err) {
       console.error('❌ Failed to create configuration:', err);
+      throw err; // Let the form handle the error display
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [loadConfigurations]);
+
+  /**
+   * Create a new LLM configuration (simplified)
+   */
+  const handleSimpleCreate = useCallback(async (simpleConfigData: LLMConfigurationSimpleCreate) => {
+    setIsSubmitting(true);
+    try {
+      console.log('✨ Creating configuration (simplified):', simpleConfigData.name);
+      
+      const newConfig = await llmConfigService.createSimpleConfiguration(simpleConfigData);
+      
+      // Reload the list to show the new configuration
+      await loadConfigurations();
+      
+      setShowSimpleCreateModal(false);
+      console.log(`✅ Created configuration with smart defaults: ${newConfig.name}`);
+      
+    } catch (err) {
+      console.error('❌ Failed to create simplified configuration:', err);
       throw err; // Let the form handle the error display
     } finally {
       setIsSubmitting(false);
@@ -371,15 +398,31 @@ const LLMConfiguration: React.FC = () => {
           </p>
         </div>
         
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md flex items-center gap-2 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Provider
-        </button>
+        <div className="flex gap-3">
+          {/* Simple Create Button (Primary) */}
+          <button
+            onClick={() => setShowSimpleCreateModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md flex items-center gap-2 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Provider
+          </button>
+          
+          {/* Advanced Create Button (Secondary) */}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-white/20 hover:bg-white/30 text-white font-medium py-2 px-4 rounded-md flex items-center gap-2 transition-colors border border-white/30"
+            title="Advanced configuration with all options"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Advanced
+          </button>
+        </div>
       </div>
 
       {/* Statistics */}
@@ -511,12 +554,12 @@ const LLMConfiguration: React.FC = () => {
             Get started by adding your first LLM provider configuration.
           </p>
           <div className="mt-6">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-            >
-              Add Provider
-            </button>
+          <button
+          onClick={() => setShowSimpleCreateModal(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+          >
+          Add Provider
+          </button>
           </div>
         </div>
       );
@@ -648,7 +691,16 @@ const LLMConfiguration: React.FC = () => {
       
       {isLoading ? renderLoading() : renderConfigurationsTable()}
       
-      {/* Create Configuration Modal */}
+      {/* Simplified Create Configuration Modal (PRIMARY) */}
+      <LLMSimpleCreateModal
+        isOpen={showSimpleCreateModal}
+        onClose={() => setShowSimpleCreateModal(false)}
+        onSubmit={handleSimpleCreate}
+        providerInfo={providerInfo}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* Advanced Create Configuration Modal (SECONDARY) */}
       <LLMCreateModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
