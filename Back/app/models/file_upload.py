@@ -117,6 +117,13 @@ class FileUpload(Base):
         comment="SHA-256 hash of file content for integrity and deduplication"
     )
     
+    # Extracted text content from the uploaded file
+    text_content = Column(
+        Text,
+        nullable=True,
+        comment="Extracted text content from the uploaded file"
+    )
+    
     # Upload status - track file processing state
     # 'uploading', 'completed', 'failed', 'deleted'
     upload_status = Column(

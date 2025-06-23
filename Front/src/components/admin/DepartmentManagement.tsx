@@ -119,13 +119,22 @@ const DepartmentManagement: React.FC = () => {
   const departmentStats = useMemo(() => {
     const stats = {
       total: state.departments.length,
-      totalBudget: state.departments.reduce((sum, d) => sum + d.monthly_budget, 0),
-      totalUsage: state.departments.reduce((sum, d) => sum + (d.monthly_usage || 0), 0),
+      totalBudget: state.departments.reduce(
+        (sum, d) => sum + (Number.isFinite(Number(d.monthly_budget)) ? Number(d.monthly_budget) : 0),
+        0
+      ),
+      totalUsage: state.departments.reduce(
+        (sum, d) => sum + (Number.isFinite(Number(d.monthly_usage)) ? Number(d.monthly_usage) : 0),
+        0
+      ),
       avgUtilization: 0
     };
     
     if (stats.total > 0) {
-      const totalUtilization = state.departments.reduce((sum, d) => sum + (d.budget_utilization || 0), 0);
+      const totalUtilization = state.departments.reduce(
+        (sum, d) => sum + (Number.isFinite(Number(d.budget_utilization)) ? Number(d.budget_utilization) : 0),
+        0
+      );
       stats.avgUtilization = totalUtilization / stats.total;
     }
     

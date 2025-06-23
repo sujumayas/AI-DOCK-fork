@@ -323,6 +323,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   // 🎓 LEARNING: useCallback prevents unnecessary re-renders
   // when we pass these functions as props to child components
   const handleFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📎 DEBUG - File input changed:', {
+      filesLength: event.target.files?.length || 0,
+      files: event.target.files ? Array.from(event.target.files).map(f => ({
+        name: f.name,
+        size: f.size,
+        type: f.type
+      })) : []
+    });
     const files = Array.from(event.target.files || []);
     handleFiles(files);
     
@@ -333,6 +341,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   }, [handleFiles]);
 
   const openFileDialog = useCallback(() => {
+    console.log('📎 DEBUG - Opening file dialog:', {
+      disabled,
+      hasFileInputRef: !!fileInputRef.current
+    });
     if (!disabled && fileInputRef.current) {
       fileInputRef.current.click();
     }

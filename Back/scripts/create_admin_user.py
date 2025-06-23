@@ -16,7 +16,7 @@ from pathlib import Path
 # Add the parent directory to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.core.database import engine, create_database_tables
+from app.core.database import async_engine, AsyncSessionLocal, create_database_tables
 from app.models.user import User
 from app.models.role import Role
 from app.models.department import Department
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 async def create_default_roles():
     """Create default system roles if they don't exist."""
     
-    async with AsyncSession(engine) as session:
+    async with AsyncSessionLocal() as session:
         
         print("🏷️  Creating default roles...")
         
@@ -55,6 +55,18 @@ async def create_default_roles():
                     "can_configure_llms": True,
                     "can_access_admin_panel": True,
                     "can_use_llms": True
+                }
+            },
+            {
+                "name": "manager",
+                "display_name": "Department Manager",
+                "level": 50,
+                "is_system_role": True,
+                "permissions": {
+                    "can_manage_department_users": True,
+                    "can_view_department_usage": True,
+                    "can_use_llms": True,
+                    "can_access_admin_panel": True
                 }
             },
             {
@@ -91,7 +103,7 @@ async def create_default_roles():
 async def create_default_department():
     """Create a default department if none exists."""
     
-    async with AsyncSession(engine) as session:
+    async with AsyncSessionLocal() as session:
         
         print("🏢 Creating default department...")
         
@@ -106,7 +118,7 @@ async def create_default_department():
                 description="Technology and IT Department",
                 monthly_budget=10000.00,
                 cost_center="TECH-001",
-                manager_email="admin@aidock.local",
+                manager_email="admin@aidock.dev",
                 location="Main Office"
             )
             session.add(department)
@@ -120,13 +132,13 @@ async def create_default_department():
 async def create_admin_user():
     """Create an admin user."""
     
-    async with AsyncSession(engine) as session:
+    async with AsyncSessionLocal() as session:
         
         print("👑 Creating admin user...")
         
         # Check if admin user already exists (check both email AND username)
         admin_email_check = await session.execute(
-            select(User).where(User.email == "admin@aidock.local")
+            select(User).where(User.email == "admin@aidock.dev")
         )
         existing_admin_by_email = admin_email_check.scalar_one_or_none()
         
@@ -164,7 +176,7 @@ async def create_admin_user():
         
         # Create admin user
         admin_user = User(
-            email="admin@aidock.local",
+            email="admin@aidock.dev",
             username=admin_username,  # Use the determined username
             full_name="System Administrator",
             password_hash=get_password_hash("admin123"),  # Correct field name!
@@ -179,7 +191,7 @@ async def create_admin_user():
         await session.commit()
         
         print("   ✅ Admin user created successfully!")
-        print("   📧 Email: admin@aidock.local")
+        print("   📧 Email: admin@aidock.dev")
         print(f"   👤 Username: {admin_username}")
         print("   🔑 Password: admin123")
         print("   ⚠️  IMPORTANT: Change this password after first login!")
@@ -189,7 +201,7 @@ async def create_admin_user():
 async def show_summary():
     """Show a summary of what was created."""
     
-    async with AsyncSession(engine) as session:
+    async with AsyncSessionLocal() as session:
         
         print("\\n📊 SETUP SUMMARY:")
         print("=" * 50)
@@ -205,7 +217,7 @@ async def show_summary():
         
         # Show admin user details
         admin_user = await session.execute(
-            select(User).where(User.email == "admin@aidock.local")
+            select(User).where(User.email == "admin@aidock.dev")
         )
         admin = admin_user.scalar_one_or_none()
         
@@ -245,7 +257,7 @@ async def main():
         
         print("\\n🎉 Admin setup complete!")
         print("\\n🔑 LOGIN CREDENTIALS:")
-        print("   Email: admin@aidock.local")
+        print("   Email: admin@aidock.dev")
         print("   Username: Check the summary above for the actual username used")
         print("   Password: admin123")
         print("\\n⚠️  SECURITY NOTE:")

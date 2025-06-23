@@ -14,7 +14,8 @@ import {
   Calendar, 
   TrendingUp,
   CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 
 import { 
@@ -62,6 +63,79 @@ const DepartmentModals: React.FC<DepartmentModalsProps> = ({
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userError, setUserError] = useState<string | null>(null);
 
+  // Create Department form state
+  const [form, setForm] = useState({
+    name: '',
+    code: '',
+    description: '',
+    monthly_budget: '',
+    manager_email: '',
+    // location: '',
+    // cost_center: '',
+  });
+
+  // Validation and submission state
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handle input changes for the form
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setFormErrors((prev) => ({ ...prev, [name]: '' })); // Clear error on change
+  };
+
+  // Validate form fields
+  const validateForm = () => {
+    const errors: { [key: string]: string } = {};
+    if (!form.name.trim()) {
+      errors.name = 'Department name is required.';
+    } else if (form.name.trim().length < 2) {
+      errors.name = 'Department name must be at least 2 characters.';
+    }
+    if (!form.code.trim()) {
+      errors.code = 'Department code is required.';
+    } else if (form.code.trim().length < 2) {
+      errors.code = 'Department code must be at least 2 characters.';
+    }
+    if (!form.monthly_budget || isNaN(Number(form.monthly_budget)) || Number(form.monthly_budget) < 0) {
+      errors.monthly_budget = 'Monthly budget must be a positive number.';
+    }
+    if (form.manager_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.manager_email)) {
+      errors.manager_email = 'Invalid email address.';
+    }
+    return errors;
+  };
+
+  // Handle form submit
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitError(null);
+    const errors = validateForm();
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setIsSubmitting(true);
+    try {
+      await onCreateDepartment({
+        name: form.name.trim(),
+        code: form.code.trim(),
+        description: form.description.trim() || undefined,
+        monthly_budget: Number(form.monthly_budget),
+        manager_email: form.manager_email.trim() || undefined,
+        // location: form.location.trim() || undefined,
+        // cost_center: form.cost_center.trim() || undefined,
+      });
+      setForm({ name: '', code: '', description: '', monthly_budget: '', manager_email: '' });
+      setFormErrors({});
+      onCloseModals();
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Failed to create department.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // =============================================================================
   // EFFECTS
   // =============================================================================
@@ -85,6 +159,38 @@ const DepartmentModals: React.FC<DepartmentModalsProps> = ({
 
     loadUsers();
   }, [state.showDetailsModal, state.viewingDepartment]);
+
+  // Prefill form when editingDepartment changes (Edit Modal)
+  useEffect(() => {
+    if (state.showEditModal && state.editingDepartment) {
+      setForm({
+        name: state.editingDepartment.name || '',
+        code: state.editingDepartment.code || '',
+        description: state.editingDepartment.description || '',
+        monthly_budget: state.editingDepartment.monthly_budget?.toString() || '',
+        manager_email: state.editingDepartment.manager_email || '',
+        // location: state.editingDepartment.location || '',
+        // cost_center: state.editingDepartment.cost_center || '',
+      });
+      setFormErrors({});
+      setSubmitError(null);
+    } else if (!state.showEditModal) {
+      setForm({ name: '', code: '', description: '', monthly_budget: '', manager_email: '' });
+      setFormErrors({});
+      setSubmitError(null);
+    }
+  }, [state.showEditModal, state.editingDepartment]);
+
+  // Reset form when create modal is opened or closed
+  useEffect(() => {
+    if (state.showCreateModal) {
+      setForm({ name: '', code: '', description: '', monthly_budget: '', manager_email: '' });
+      setFormErrors({});
+      setSubmitError(null);
+      // Optionally, focus the first input
+      // setTimeout(() => { document.getElementById('create-dept-name')?.focus(); }, 100);
+    }
+  }, [state.showCreateModal]);
 
   // =============================================================================
   // UTILITY FUNCTIONS
@@ -453,15 +559,102 @@ const DepartmentModals: React.FC<DepartmentModalsProps> = ({
           <div className="min-h-full flex items-center justify-center p-4">
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Department</h3>
-              <p className="text-gray-600 mb-4">
-                Modal implementation coming soon...
-              </p>
-              <button
-                onClick={onCloseModals}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-              >
-                Close
-              </button>
+              <form className="space-y-4" onSubmit={handleCreateSubmit}>
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department Name<span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    name="name"
+                    id="create-dept-name"
+                    value={form.name}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${form.name && formErrors.name ? 'border-red-400 pr-10' : 'border-gray-300'}`}
+                    required
+                  />
+                  {form.name && formErrors.name && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 group">
+                      <AlertCircle className="h-5 w-5 text-red-500 cursor-pointer" tabIndex={0} />
+                      <div className="absolute z-10 right-8 top-1/2 -translate-y-1/2 bg-white border border-red-200 text-red-700 text-xs rounded shadow-lg px-3 py-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none transition-opacity duration-200 min-w-max">
+                        {formErrors.name}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department Code<span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    name="code"
+                    value={form.code}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${form.code && formErrors.code ? 'border-red-400 pr-10' : 'border-gray-300'}`}
+                    required
+                  />
+                  {form.code && formErrors.code && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 group">
+                      <AlertCircle className="h-5 w-5 text-red-500 cursor-pointer" tabIndex={0} />
+                      <div className="absolute z-10 right-8 top-1/2 -translate-y-1/2 bg-white border border-red-200 text-red-700 text-xs rounded shadow-lg px-3 py-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none transition-opacity duration-200 min-w-max">
+                        {formErrors.code}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                  ></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Budget (USD)<span className="text-red-500">*</span></label>
+                  <input
+                    type="number"
+                    name="monthly_budget"
+                    min="0"
+                    step="0.01"
+                    value={form.monthly_budget}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.monthly_budget ? 'border-red-400' : 'border-gray-300'}`}
+                    required
+                  />
+                  {formErrors.monthly_budget && <p className="text-xs text-red-500 mt-1">{formErrors.monthly_budget}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Manager Email</label>
+                  <input
+                    type="email"
+                    name="manager_email"
+                    value={form.manager_email}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.manager_email ? 'border-red-400' : 'border-gray-300'}`}
+                  />
+                  {formErrors.manager_email && <p className="text-xs text-red-500 mt-1">{formErrors.manager_email}</p>}
+                </div>
+                {submitError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600">{submitError}</div>
+                )}
+                <div className="flex justify-end space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={onCloseModals}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium disabled:opacity-60"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -473,17 +666,128 @@ const DepartmentModals: React.FC<DepartmentModalsProps> = ({
           <div className="min-h-full flex items-center justify-center p-4">
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Edit Department: {state.editingDepartment.name}
+                Edit Department: {state.editingDepartment?.name}
               </h3>
-              <p className="text-gray-600 mb-4">
-                Modal implementation coming soon...
-              </p>
-              <button
-                onClick={onCloseModals}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-              >
-                Close
-              </button>
+              <form className="space-y-4" onSubmit={async (e) => {
+                e.preventDefault();
+                setSubmitError(null);
+                const errors = validateForm();
+                setFormErrors(errors);
+                if (Object.keys(errors).length > 0 || !state.editingDepartment) return;
+                setIsSubmitting(true);
+                try {
+                  await onUpdateDepartment(state.editingDepartment.id, {
+                    name: form.name.trim(),
+                    code: form.code.trim(),
+                    description: form.description.trim() || undefined,
+                    monthly_budget: Number(form.monthly_budget),
+                    manager_email: form.manager_email.trim() || undefined,
+                    // location: form.location.trim() || undefined,
+                    // cost_center: form.cost_center.trim() || undefined,
+                  });
+                  setForm({ name: '', code: '', description: '', monthly_budget: '', manager_email: '' });
+                  setFormErrors({});
+                  onCloseModals();
+                } catch (err: any) {
+                  setSubmitError(err?.message || 'Failed to update department.');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}>
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department Name<span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={form.name}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.name ? 'border-red-400 pr-10' : 'border-gray-300'}`}
+                    required
+                  />
+                  {form.name && formErrors.name && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 group">
+                      <AlertCircle className="h-5 w-5 text-red-500 cursor-pointer" tabIndex={0} />
+                      <div className="absolute z-10 right-8 top-1/2 -translate-y-1/2 bg-white border border-red-200 text-red-700 text-xs rounded shadow-lg px-3 py-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none transition-opacity duration-200 min-w-max">
+                        {formErrors.name}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department Code<span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    name="code"
+                    value={form.code}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.code ? 'border-red-400 pr-10' : 'border-gray-300'}`}
+                    required
+                  />
+                  {form.code && formErrors.code && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 group">
+                      <AlertCircle className="h-5 w-5 text-red-500 cursor-pointer" tabIndex={0} />
+                      <div className="absolute z-10 right-8 top-1/2 -translate-y-1/2 bg-white border border-red-200 text-red-700 text-xs rounded shadow-lg px-3 py-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none transition-opacity duration-200 min-w-max">
+                        {formErrors.code}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={2}
+                  ></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Budget (USD)<span className="text-red-500">*</span></label>
+                  <input
+                    type="number"
+                    name="monthly_budget"
+                    min="0"
+                    step="0.01"
+                    value={form.monthly_budget}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.monthly_budget ? 'border-red-400' : 'border-gray-300'}`}
+                    required
+                  />
+                  {formErrors.monthly_budget && <p className="text-xs text-red-500 mt-1">{formErrors.monthly_budget}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Manager Email</label>
+                  <input
+                    type="email"
+                    name="manager_email"
+                    value={form.manager_email}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.manager_email ? 'border-red-400' : 'border-gray-300'}`}
+                  />
+                  {formErrors.manager_email && <p className="text-xs text-red-500 mt-1">{formErrors.manager_email}</p>}
+                </div>
+                {submitError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600">{submitError}</div>
+                )}
+                <div className="flex justify-end space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={onCloseModals}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium disabled:opacity-60"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -495,17 +799,44 @@ const DepartmentModals: React.FC<DepartmentModalsProps> = ({
           <div className="min-h-full flex items-center justify-center p-4">
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Delete Department: {state.deletingDepartment.name}
+                Delete Department: {state.deletingDepartment?.name}
               </h3>
               <p className="text-gray-600 mb-4">
-                Modal implementation coming soon...
+                Are you sure you want to delete this department? This action cannot be undone.
               </p>
-              <button
-                onClick={onCloseModals}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-              >
-                Close
-              </button>
+              {submitError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600 mb-2">{submitError}</div>
+              )}
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={onCloseModals}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSubmitError(null);
+                    setIsSubmitting(true);
+                    if (!state.deletingDepartment) return;
+                    try {
+                      await onDeleteDepartment(state.deletingDepartment.id);
+                      onCloseModals();
+                    } catch (err: any) {
+                      setSubmitError(err?.message || 'Failed to delete department.');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium disabled:opacity-60"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -429,29 +429,31 @@ class FileService:
             is_valid, error_msg = self.validate_file_upload(file, user)
             if not is_valid:
                 return None, error_msg
-            
-            # Generate safe filename (no path needed)
-            safe_filename = FileUpload.sanitize_filename(file.filename)
 
-            # Read file in-memory (do not save to disk)
-            file_bytes = await file.read()
-            file_size = len(file_bytes)
+            # Read file content in-memory
+            await file.seek(0)
+            content_bytes = await file.read()
+            try:
+                text_content = content_bytes.decode("utf-8")
+            except Exception:
+                text_content = ""  # Or handle other file types
 
-            # Optionally: extract text/metadata here if needed
-            # extracted_text = extract_text_from_file(file_bytes, file.content_type)
+            # Calculate hash of the text content
+            import hashlib
+            file_hash = hashlib.sha256(content_bytes).hexdigest()
 
-            # Create database record (no file_path, no file_hash)
+            # Create database record (no file_path, no disk write)
             file_record = FileUpload(
                 original_filename=file.filename,
-                filename=safe_filename,
-                file_path=None,  # Not stored
-                file_size=file_size,
+                filename=FileUpload.sanitize_filename(file.filename),
+                file_path="",  # Not used
+                file_size=len(content_bytes),
                 mime_type=file.content_type or get_file_mime_type(file.filename),
                 file_extension=os.path.splitext(file.filename)[1].lower(),
                 user_id=user.id,
                 upload_status=FileUploadStatus.COMPLETED,
-                file_hash=None  # Not stored
-                # Optionally: add extracted_text=extracted_text
+                file_hash=file_hash,
+                text_content=text_content
             )
 
             db.add(file_record)
@@ -459,26 +461,15 @@ class FileService:
             db.refresh(file_record)
 
             return file_record, None
-            
+
         except Exception as e:
-            # Rollback database changes
             db.rollback()
-            
-            # Clean up partial file if it exists
-            if 'full_path' in locals() and full_path.exists():
-                try:
-                    full_path.unlink()
-                except:
-                    pass  # Ignore cleanup errors
-            
-            # Mark as failed if we have a record
             if 'file_record' in locals() and file_record.id:
                 try:
                     file_record.mark_as_failed(str(e))
                     db.commit()
                 except:
-                    pass  # Ignore if can't update
-            
+                    pass
             return None, f"Upload failed: {str(e)}"
     
     async def _write_file_to_disk(self, file: UploadFile, file_path: Path) -> int:

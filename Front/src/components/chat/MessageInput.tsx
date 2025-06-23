@@ -81,19 +81,44 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       upload.status === 'uploading' || upload.status === 'processing'
     );
     
+    console.log('🔍 DEBUG - Pre-send state check:', {
+      trimmedMessage: trimmedMessage.substring(0, 50) + '...',
+      attachmentsCount: attachments.length,
+      uploadsInProgressCount: fileUploadsInProgress.length,
+      hasUploadsInProgress,
+      isLoading,
+      disabled,
+      attachmentDetails: attachments.map(a => ({
+        id: a.id,
+        uploadedFileId: a.fileUpload.uploadedFileId,
+        fileName: a.fileUpload.file.name,
+        status: a.fileUpload.status
+      }))
+    });
+    
     // Don't send if:
     // - No message and no attachments
     // - Currently loading/streaming
     // - Component is disabled
     // - Files are still uploading
     if ((!trimmedMessage && !hasAttachments) || isLoading || disabled || hasUploadsInProgress) {
+      console.log('❌ Send blocked:', {
+        noContent: !trimmedMessage && !hasAttachments,
+        isLoading,
+        disabled,
+        hasUploadsInProgress
+      });
       return;
     }
     
     console.log('📤 Sending message with attachments:', {
       messageLength: trimmedMessage.length,
       attachmentCount: attachments.length,
-      attachments: attachments.map(a => a.displayName || a.fileUpload.file.name)
+      attachments: attachments.map(a => ({
+        fileName: a.fileUpload.file.name,
+        uploadedFileId: a.fileUpload.uploadedFileId,
+        hasServerID: !!a.fileUpload.uploadedFileId
+      }))
     });
     
     // Send the message with attachments to parent component
@@ -216,35 +241,56 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
   
   const handleFileUploadComplete = (completedUpload: FileUploadType) => {
-  // 🔍 DEBUG: Check if file ID is being set correctly
-  console.log('🔍 DEBUG - File Upload Completed:', {
-    fileId: completedUpload.id,
-    fileName: completedUpload.file.name,
-    uploadedFileId: completedUpload.uploadedFileId, // THIS IS CRITICAL
-    uploadedFileIdType: typeof completedUpload.uploadedFileId,
-    status: completedUpload.status,
-    hasUploadedFileId: !!completedUpload.uploadedFileId
-  });
-  
-  // Check if uploadedFileId is missing
-  if (!completedUpload.uploadedFileId) {
-    console.error('❌ ISSUE FOUND: uploadedFileId is missing from completed upload!');
-    console.log('This means the file upload API response is not setting the ID correctly');
-  }
-  
-  // ... rest of existing function
-  const attachment: FileAttachmentType = {
-    id: generateFileId(),
-    fileUpload: completedUpload,
-    isVisible: true,
-    isProcessed: true,
-    downloadCount: 0,
-    createdAt: new Date()
+    // 🔍 DEBUG: Check if file ID is being set correctly
+    console.log('🔍 DEBUG - File Upload Completed:', {
+      fileId: completedUpload.id,
+      fileName: completedUpload.file.name,
+      uploadedFileId: completedUpload.uploadedFileId, // THIS IS CRITICAL
+      uploadedFileIdType: typeof completedUpload.uploadedFileId,
+      status: completedUpload.status,
+      hasUploadedFileId: !!completedUpload.uploadedFileId
+    });
+    
+    // Check if uploadedFileId is missing
+    if (!completedUpload.uploadedFileId) {
+      console.error('❌ ISSUE FOUND: uploadedFileId is missing from completed upload!');
+      console.log('This means the file upload API response is not setting the ID correctly');
+    }
+    
+    // Create attachment object
+    const attachment: FileAttachmentType = {
+      id: generateFileId(),
+      fileUpload: completedUpload,
+      isVisible: true,
+      isProcessed: true,
+      downloadCount: 0,
+      createdAt: new Date()
+    };
+    
+    console.log('📎 Creating attachment:', {
+      attachmentId: attachment.id,
+      uploadedFileId: attachment.fileUpload.uploadedFileId,
+      fileName: attachment.fileUpload.file.name
+    });
+    
+    // Update attachments state
+    setAttachments(prev => {
+      const newAttachments = [...prev, attachment];
+      console.log('📎 Updated attachments array:', {
+        previousCount: prev.length,
+        newCount: newAttachments.length,
+        attachmentIds: newAttachments.map(a => ({
+          id: a.id,
+          uploadedFileId: a.fileUpload.uploadedFileId,
+          fileName: a.fileUpload.file.name
+        }))
+      });
+      return newAttachments;
+    });
+    
+    // Remove from uploads in progress
+    setFileUploadsInProgress(prev => prev.filter(upload => upload.id !== completedUpload.id));
   };
-  
-  setAttachments(prev => [...prev, attachment]);
-  setFileUploadsInProgress(prev => prev.filter(upload => upload.id !== completedUpload.id));
-};
   
   const handleFileUploadError = (error: FileError) => {
     console.error('❌ File upload error:', error);
@@ -271,6 +317,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
   
   const toggleFileUpload = () => {
+    console.log('📎 DEBUG - Toggle file upload clicked:', {
+      allowFileUpload,
+      disabled,
+      currentShowFileUpload: showFileUpload,
+      willShow: !showFileUpload
+    });
     if (!allowFileUpload || disabled) return;
     setShowFileUpload(prev => !prev);
   };
@@ -432,6 +484,20 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               )}
             </div>
           </div>
+          
+          {/* 🔍 DEBUG: Button state check */}
+          {console.log('🔍 DEBUG - Send button state:', {
+            hasUploadsInProgress,
+            canSend,
+            showCancelButton,
+            uploadsInProgressCount: fileUploadsInProgress.length,
+            uploadsInProgressDetails: fileUploadsInProgress.map(u => ({
+              id: u.id,
+              fileName: u.file.name,
+              status: u.status
+            })),
+            buttonWillBeDisabled: !canSend
+          })}
           
           {/* 📤 Send/Cancel Button with Conditional Rendering */}
           {showCancelButton ? (
