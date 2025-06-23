@@ -2171,7 +2171,7 @@ class FileProcessorService:
     
     async def _read_file_content(self, file_upload: FileUpload) -> str:
         """
-        Read and decode file content with smart encoding detection.
+        Read and decode file content from in-memory DB field (no disk access).
         
         🎓 LEARNING: Encoding Detection and Handling
         ===========================================
@@ -2183,20 +2183,16 @@ class FileProcessorService:
         
         This robust approach handles files from different systems/languages.
         """
-        file_path = Path(file_upload.file_path)
-        
-        if not file_path.exists():
+        # Read raw bytes from DB field (assume 'content' field exists)
+        raw_bytes = getattr(file_upload, 'content', None)
+        if raw_bytes is None:
             raise FileProcessingError(
-                f"File not found on disk: {file_upload.filename}",
+                f"No file content found in DB for: {file_upload.filename}",
                 file_upload.id,
                 "file_not_found"
             )
         
         try:
-            # Read raw bytes first
-            with open(file_path, 'rb') as f:
-                raw_bytes = f.read()
-            
             if not raw_bytes:
                 return ""  # Empty file
             
@@ -2230,9 +2226,9 @@ class FileProcessorService:
                 return content
                 
         except Exception as e:
-            logger.error(f"Failed to read file {file_upload.filename}: {str(e)}")
+            logger.error(f"Failed to decode file content for {file_upload.filename}: {str(e)}")
             raise EncodingDetectionError(
-                f"Cannot read file {file_upload.filename}: {str(e)}",
+                f"Cannot decode file content for {file_upload.filename}: {str(e)}",
                 file_upload.id
             )
     

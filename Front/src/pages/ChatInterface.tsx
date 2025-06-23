@@ -2,17 +2,19 @@
 // Main chat page with intelligent model selection and admin controls
 // Manages conversation state, smart LLM filtering, and backend integration
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MessageList } from '../components/chat/MessageList';
 import { MessageInput } from '../components/chat/MessageInput';
 import { ConversationSidebar } from '../components/chat/ConversationSidebar';
-import { chatService, SmartProcessedModelsData, UnifiedModelsResponse, UnifiedModelInfo } from '../services/chatService';
+import { EmbeddedAssistantManager } from '../components/chat/EmbeddedAssistantManager';
+import { AssistantSelectorCard } from '../components/chat/AssistantSelectorCard';
+import { AssistantSuggestions } from '../components/chat/AssistantSuggestions';
+import { chatService, UnifiedModelsResponse, UnifiedModelInfo } from '../services/chatService';
 import { conversationService } from '../services/conversationService';
 import { useAuth } from '../hooks/useAuth';
 import { 
   ChatMessage, 
-  LLMConfigurationSummary, 
   ChatServiceError,
   StreamingChatRequest,
   ChatResponse
@@ -23,7 +25,8 @@ import {
   DEFAULT_AUTO_SAVE_CONFIG,
   shouldAutoSave
 } from '../types/conversation';
-import { SmartFilterConfig } from '../utils/smartModelFilter';
+import { assistantService } from '../services/assistantService';
+import { AssistantSummary, AssistantServiceError } from '../types/assistant';
 import { useStreamingChat } from '../utils/streamingStateManager'; // 🌊 NEW: Streaming hook
 import { 
   Settings, 
@@ -35,7 +38,7 @@ import {
   Filter,
   BarChart3,
   Lightbulb,
-
+  Bot,           // 🤖 NEW: Assistant selector icon
   Archive,  // 💾 Conversation archive icon
   Save,      // 💾 Save conversation icon
   ChevronLeft,  // 🎯 NEW: Navigation arrow for history
@@ -44,6 +47,17 @@ import {
 } from 'lucide-react';
 
 import { sortConfigsByModel, getCleanModelName, getShortProviderName } from '../utils/llmUtils';
+
+// Add a filter function for classic models
+function filterClassicModels(models: UnifiedModelInfo[]): UnifiedModelInfo[] {
+  // Only allow GPT-4o, GPT-4 Turbo, and GPT-3.5
+  const allowedIds = [
+    'gpt-4o-mini',
+    'gpt-4-turbo',
+    'gpt-3.5-turbo',
+  ];
+  return models.filter((model: UnifiedModelInfo) => allowedIds.includes(model.id) || allowedIds.includes(model.display_name));
+}
 
 export const ChatInterface: React.FC = () => {
   // 🧭 Navigation hook for routing
@@ -56,8 +70,14 @@ export const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
+  // 📱 RESPONSIVE STATE: Track screen size for mobile vs desktop layout
+  const [isMobile, setIsMobile] = useState(false);
+  
   // 💾 CONVERSATION SAVE/LOAD STATE
   const [showConversationSidebar, setShowConversationSidebar] = useState(false);
+  
+  // 🤖 EMBEDDED ASSISTANT MANAGEMENT STATE
+  const [showAssistantManager, setShowAssistantManager] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [conversationTitle, setConversationTitle] = useState<string | null>(null);
   const [isSavingConversation, setIsSavingConversation] = useState(false);
@@ -86,21 +106,20 @@ export const ChatInterface: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   
+  // 🤖 ASSISTANT SELECTION STATE: Custom assistants integration
+  const [availableAssistants, setAvailableAssistants] = useState<AssistantSummary[]>([]);
+  const [selectedAssistantId, setSelectedAssistantId] = useState<number | null>(null);
+  const [selectedAssistant, setSelectedAssistant] = useState<AssistantSummary | null>(null);
+  const [assistantsLoading, setAssistantsLoading] = useState(false);
+  const [assistantsError, setAssistantsError] = useState<string | null>(null);
+  
   // 🎮 Smart filtering controls
-  const [showSmartControls, setShowSmartControls] = useState(false);
-  const [smartFilterConfig, setSmartFilterConfig] = useState<SmartFilterConfig>({
-    showAllModels: false,
-    includeExperimental: false,
-    includeLegacy: false,
-    maxResults: 15,
-    sortBy: 'relevance',
-    userRole: user?.is_admin ? 'admin' : 'user'
-  });
+  const [showAllModels, setShowAllModels] = useState(false);
   
   // 🆕 Load unified models when component mounts or filter settings change
   useEffect(() => {
     loadUnifiedModels();
-  }, [smartFilterConfig]);
+  }, [showAllModels]);
   
   // Update selected config ID when model selection changes
   useEffect(() => {
@@ -115,11 +134,103 @@ export const ChatInterface: React.FC = () => {
 
   // Update user role when user changes
   useEffect(() => {
-    setSmartFilterConfig(prev => ({
-      ...prev,
-      userRole: user?.is_admin ? 'admin' : 'user'
-    }));
+    // No need to update user role as it's not used in the new code
   }, [user?.is_admin]);
+  
+  // �� URL PARAMETER HANDLING: Support ?assistant=id for direct assistant selection
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  useEffect(() => {
+    const assistantParam = searchParams.get('assistant');
+    if (assistantParam) {
+      const assistantId = parseInt(assistantParam, 10);
+      if (!isNaN(assistantId) && assistantId !== selectedAssistantId) {
+        setSelectedAssistantId(assistantId);
+        console.log('🎯 Assistant selected from URL:', assistantId);
+      }
+    }
+  }, [searchParams, selectedAssistantId]);
+  
+  // 🤖 LOAD AVAILABLE ASSISTANTS: Fetch user's assistants for selection
+  const loadAvailableAssistants = async () => {
+    try {
+      setAssistantsLoading(true);
+      setAssistantsError(null);
+      
+      console.log('🤖 Loading available assistants...');
+      
+      const assistantsResponse = await assistantService.getActiveAssistants(50);
+      
+      setAvailableAssistants(assistantsResponse);
+      
+      console.log('✅ Assistants loaded:', {
+        count: assistantsResponse.length,
+        assistants: assistantsResponse.map(a => ({ id: a.id, name: a.name }))
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to load assistants:', error);
+      setAssistantsError(
+        error instanceof AssistantServiceError 
+          ? error.message 
+          : 'Failed to load assistants'
+      );
+    } finally {
+      setAssistantsLoading(false);
+    }
+  };
+  
+  // Load assistants when component mounts
+  useEffect(() => {
+    loadAvailableAssistants();
+  }, []);
+  
+  // 📱 RESPONSIVE SCREEN SIZE DETECTION: Handle mobile vs desktop layout
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Check initially
+    checkScreenSize();
+    
+    // Listen for resize events
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+  
+  // 🤖 UPDATE SELECTED ASSISTANT: When assistant ID changes, update assistant data
+  useEffect(() => {
+    if (selectedAssistantId && availableAssistants.length > 0) {
+      const assistant = availableAssistants.find(a => a.id === selectedAssistantId);
+      if (assistant && assistant !== selectedAssistant) {
+        const previousAssistant = selectedAssistant;
+        setSelectedAssistant(assistant);
+        console.log('🤖 Selected assistant updated:', {
+          id: assistant.id,
+          name: assistant.name,
+          systemPromptPreview: assistant.system_prompt_preview
+        });
+        // Immediately switch assistant and add introduction message (no confirmation)
+        handleAssistantIntroduction(assistant, previousAssistant);
+      }
+    } else if (!selectedAssistantId) {
+      // Clear assistant when none selected
+      if (selectedAssistant && messages.length > 0) {
+        // Add a message indicating return to default chat
+        const dividerMessage: ChatMessage = {
+          role: 'system',
+          content: `Switched back to default AI chat`,
+          assistantChanged: true,
+          previousAssistantName: selectedAssistant.name
+        };
+        setMessages(prev => [...prev, dividerMessage]);
+      }
+      setSelectedAssistant(null);
+    }
+  }, [selectedAssistantId, availableAssistants, selectedAssistant, messages.length]);
   
   // 🌊 REAL-TIME STREAMING UPDATE: Update messages as content streams in
   useEffect(() => {
@@ -135,6 +246,27 @@ export const ChatInterface: React.FC = () => {
     }
   }, [accumulatedContent, isStreaming, messages.length]);
   
+  // 🤖 ASSISTANT INTRODUCTION HANDLER: Add introduction message when assistant is selected
+  const handleAssistantIntroduction = (assistant: AssistantSummary, previousAssistant: AssistantSummary | null) => {
+    const introMessage: ChatMessage = {
+      role: 'assistant',
+      content: `Hello! I'm **${assistant.name}**, your AI assistant.\n\n${assistant.description || assistant.system_prompt_preview || 'I\'m here to help you with your questions.'}\n\nHow can I assist you today?`,
+      assistantId: assistant.id,
+      assistantName: assistant.name,
+      assistantIntroduction: true,
+      assistantChanged: !!previousAssistant,
+      previousAssistantName: previousAssistant?.name
+    };
+    
+    setMessages(prev => [...prev, introMessage]);
+    
+    console.log('🤖 Added assistant introduction:', {
+      assistantName: assistant.name,
+      isSwitch: !!previousAssistant,
+      previousAssistant: previousAssistant?.name
+    });
+  };
+  
   // 🆕 Fetch unified models from all providers
   const loadUnifiedModels = async () => {
     try {
@@ -143,12 +275,14 @@ export const ChatInterface: React.FC = () => {
       setConnectionStatus('checking');
       
       console.log('🆕 Loading unified models from all providers...');
+      console.log('DEBUG: showAllModels =', showAllModels);
       
       const unifiedData = await chatService.getUnifiedModels(
         true, // Use cache
-        smartFilterConfig.showAllModels, // Admin flag
-        smartFilterConfig.userRole
+        showAllModels, // Show all models or filtered
+        user && 'is_admin' in user && (user as any).is_admin ? 'admin' : 'user'
       );
+      console.log('DEBUG: unifiedModelsData.total_models =', unifiedData.total_models, 'original_total_models =', unifiedData.original_total_models);
       
       if (unifiedData.total_models === 0) {
         setError('No AI models available. Please contact your administrator.');
@@ -259,6 +393,24 @@ export const ChatInterface: React.FC = () => {
         content: content
       };
       
+      // 🤖 ASSISTANT SYSTEM PROMPT: Inject assistant's system prompt if selected
+      let messagesWithSystemPrompt = [userMessage];
+      if (selectedAssistant) {
+        // Add assistant's system prompt as the first message
+        const systemMessage: ChatMessage = {
+          role: 'system',
+          content: selectedAssistant.system_prompt_preview // We use preview here, full prompt would come from backend
+        };
+        messagesWithSystemPrompt = [systemMessage, ...messages, userMessage];
+        
+        console.log('🤖 Using assistant system prompt:', {
+          assistantName: selectedAssistant.name,
+          systemPromptLength: selectedAssistant.system_prompt_preview.length
+        });
+      } else {
+        messagesWithSystemPrompt = [...messages, userMessage];
+      }
+      
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
       
@@ -281,10 +433,12 @@ export const ChatInterface: React.FC = () => {
       
       const streamingRequest: StreamingChatRequest = {
         config_id: selectedConfigId,
-        messages: updatedMessages,
+        messages: messagesWithSystemPrompt, // Use messages with system prompt
         model: selectedModelId || undefined,
         // 📁 Include file attachments in streaming request
-        file_attachment_ids: fileAttachmentIds
+        file_attachment_ids: fileAttachmentIds,
+        // 🤖 Include assistant context for backend processing
+        assistant_id: selectedAssistantId || undefined
       };
       
       const streamingSuccess = await streamMessage(
@@ -296,10 +450,17 @@ export const ChatInterface: React.FC = () => {
             tokens: finalResponse.usage.total_tokens
           });
           
-          // Replace placeholder with final response
+          // Replace placeholder with final response (including assistant context)
+          const finalMessage: ChatMessage = {
+            role: 'assistant',
+            content: finalResponse.content,
+            assistantId: selectedAssistantId || undefined,
+            assistantName: selectedAssistant?.name || undefined
+          };
+          
           setMessages(prev => [
             ...prev.slice(0, -1),
-            { role: 'assistant', content: finalResponse.content }
+            finalMessage
           ]);
           
           setIsLoading(false);
@@ -345,19 +506,34 @@ export const ChatInterface: React.FC = () => {
   // 🔄 REGULAR MESSAGE HELPER: Extracted regular chat logic (FIXED: Added fileAttachmentIds parameter)
   const sendRegularMessage = async (updatedMessages: ChatMessage[], fileAttachmentIds?: number[]) => {
     try {
+      // 🤖 ASSISTANT SYSTEM PROMPT: Inject assistant's system prompt if selected
+      let messagesWithSystemPrompt = updatedMessages;
+      if (selectedAssistant) {
+        // Add assistant's system prompt as the first message
+        const systemMessage: ChatMessage = {
+          role: 'system',
+          content: selectedAssistant.system_prompt_preview // We use preview here, full prompt would come from backend
+        };
+        messagesWithSystemPrompt = [systemMessage, ...messages, ...updatedMessages.slice(-1)];
+      }
+      
       // 🤖 Send to LLM service with selected model
       const response = await chatService.sendMessage({
         config_id: selectedConfigId!,
-        messages: updatedMessages,
+        messages: messagesWithSystemPrompt, // Use messages with system prompt
         model: selectedModelId || undefined,
         // 📁 Include file attachments in regular request
-        file_attachment_ids: fileAttachmentIds
+        file_attachment_ids: fileAttachmentIds,
+        // 🤖 Include assistant context for backend processing
+        assistant_id: selectedAssistantId || undefined
       });
       
-      // 🤖 Add AI response to conversation
+      // 🤖 Add AI response to conversation (including assistant context)
       const aiMessage: ChatMessage = {
         role: 'assistant',
-        content: response.content
+        content: response.content,
+        assistantId: selectedAssistantId || undefined,
+        assistantName: selectedAssistant?.name || undefined
       };
       
       setMessages([...updatedMessages, aiMessage]);
@@ -378,8 +554,8 @@ export const ChatInterface: React.FC = () => {
     // 🎯 Special case: Handle the toggle filter option
     if (modelId === '__toggle_filter__') {
       // Toggle the filter and keep the current model selected
-      handleFilterConfigChange({ showAllModels: !smartFilterConfig.showAllModels });
-      console.log('🔄 Toggled model filter from dropdown:', !smartFilterConfig.showAllModels ? 'show all' : 'filter');
+      setShowAllModels((prev) => !prev);
+      console.log('🔄 Toggled model filter from dropdown:', !showAllModels ? 'show all' : 'filter');
       return;
     }
     
@@ -393,12 +569,6 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
-  // 🎮 Handle smart filter configuration changes
-  const handleFilterConfigChange = (updates: Partial<SmartFilterConfig>) => {
-    setSmartFilterConfig(prev => ({ ...prev, ...updates }));
-    console.log('🎮 Updated filter config:', updates);
-  };
-  
   // 🛑 NEW: Enhanced cancel handler that resets all states
   // 📝 LEARNING: This fixes the "loading spinner stuck" bug!
   // When streaming is canceled, we need to reset BOTH streaming AND loading states
@@ -424,6 +594,14 @@ export const ChatInterface: React.FC = () => {
     setConversationTitle(null);
     setLastAutoSaveMessageCount(0);
     setAutoSaveFailedAt(null); // 🔧 Reset auto-save failure tracking
+    
+    // Clear assistant selection from URL when starting new conversation
+    if (searchParams.has('assistant')) {
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('assistant');
+      setSearchParams(newSearchParams, { replace: true });
+    }
+    
     console.log('🆕 Started new conversation');
   };
   
@@ -542,6 +720,14 @@ export const ChatInterface: React.FC = () => {
       setAutoSaveFailedAt(null); // 🔧 Reset auto-save tracking when loading conversation
       setError(null);
       
+      // Clear assistant selection when loading existing conversation
+      if (selectedAssistantId) {
+        setSelectedAssistantId(null);
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('assistant');
+        setSearchParams(newSearchParams, { replace: true });
+      }
+      
       // Close sidebar on mobile
       if (window.innerWidth < 1024) {
         setShowConversationSidebar(false);
@@ -565,6 +751,52 @@ export const ChatInterface: React.FC = () => {
     navigate('/');
   };
   
+  // 🤖 Handle assistant selection from embedded manager
+  const handleAssistantSelectFromManager = useCallback((assistantId: number | null) => {
+    setSelectedAssistantId(assistantId);
+    
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (assistantId) {
+      newSearchParams.set('assistant', assistantId.toString());
+    } else {
+      newSearchParams.delete('assistant');
+    }
+    setSearchParams(newSearchParams, { replace: true });
+    
+    console.log('🤖 Assistant selected from embedded manager:', assistantId);
+  }, [searchParams, setSearchParams]);
+  
+  // 🤖 Handle assistant changes (create/edit/delete)
+  const handleAssistantManagerChange = useCallback(() => {
+    // Reload available assistants when they change
+    loadAvailableAssistants();
+    console.log('🔄 Assistant list updated from embedded manager');
+  }, []);
+  
+  // 🎯 Handle "Change Assistant" button click from AssistantSelectorCard
+  const handleChangeAssistantClick = () => {
+    // Open the assistant manager sidebar
+    setShowAssistantManager(true);
+    console.log('🎯 Opening assistant manager from selector card');
+  };
+  
+  // 🤖 Handle assistant selection (for backward compatibility with dropdown)
+  const handleAssistantChange = (assistantId: string) => {
+    if (assistantId === '') {
+      // Clear assistant selection
+      handleAssistantSelectFromManager(null);
+    } else if (assistantId === '__manage__') {
+      // Open embedded assistant manager instead of navigating
+      setShowAssistantManager(true);
+    } else {
+      // Select assistant
+      const id = parseInt(assistantId, 10);
+      if (!isNaN(id)) {
+        handleAssistantSelectFromManager(id);
+      }
+    }
+  };
+  
   // 🆕 Get current model and config information from unified data
   const currentModelInfo = useMemo(() => {
     if (!unifiedModelsData || !selectedModelId) return null;
@@ -585,36 +817,34 @@ export const ChatInterface: React.FC = () => {
   // 🎯 Group unified models by provider for better UX
   const groupedModels = useMemo(() => {
     if (!unifiedModelsData) return null;
-    
+    let models: UnifiedModelInfo[] = unifiedModelsData.models;
+    if (!showAllModels) {
+      models = filterClassicModels(models);
+    }
     // Group models by provider
     const providerGroups: { [provider: string]: UnifiedModelInfo[] } = {};
-    
-    unifiedModelsData.models.forEach(model => {
+    models.forEach((model: UnifiedModelInfo) => {
       if (!providerGroups[model.provider]) {
         providerGroups[model.provider] = [];
       }
       providerGroups[model.provider].push(model);
     });
-    
     // Sort models within each provider by relevance and recommendation
-    Object.keys(providerGroups).forEach(provider => {
-      providerGroups[provider].sort((a, b) => {
+    Object.keys(providerGroups).forEach((provider: string) => {
+      providerGroups[provider].sort((a: UnifiedModelInfo, b: UnifiedModelInfo) => {
         // Recommended models first
         if (a.is_recommended && !b.is_recommended) return -1;
         if (!a.is_recommended && b.is_recommended) return 1;
-        
         // Higher relevance score first
         const aScore = a.relevance_score || 0;
         const bScore = b.relevance_score || 0;
         if (aScore !== bScore) return bScore - aScore;
-        
         // Alphabetical fallback
         return a.display_name.localeCompare(b.display_name);
       });
     });
-    
     return providerGroups;
-  }, [unifiedModelsData]);
+  }, [unifiedModelsData, showAllModels]);
   
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600 overflow-hidden">
@@ -643,6 +873,54 @@ export const ChatInterface: React.FC = () => {
         onCreateNew={handleNewConversation}
         currentConversationId={currentConversationId || undefined}
       />
+      
+      {/* 🤖 RESPONSIVE EMBEDDED ASSISTANT MANAGER */}
+      {showAssistantManager && (
+        <div className={`fixed z-40 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-600 shadow-xl transform transition-all duration-300 ease-in-out ${
+          isMobile 
+            ? // 📱 MOBILE: Bottom sheet that slides up from bottom
+              `inset-x-0 bottom-0 h-96 rounded-t-xl ${
+                showAssistantManager ? 'translate-y-0' : 'translate-y-full'
+              }`
+            : // 🖥️ DESKTOP: Right sidebar that slides from right  
+              `inset-y-0 right-0 w-96 ${
+                showAssistantManager ? 'translate-x-0' : 'translate-x-full'
+              }`
+        }`}>
+          <div className="h-full overflow-y-auto">
+            {/* 📱 MOBILE: Add a drag handle for bottom sheet UX */}
+            {isMobile && (
+              <div className="flex justify-center py-3 bg-white/10">
+                <div className="w-12 h-1 bg-white/30 rounded-full"></div>
+              </div>
+            )}
+            
+            <EmbeddedAssistantManager
+              selectedAssistantId={selectedAssistantId}
+              onAssistantSelect={handleAssistantSelectFromManager}
+              onAssistantChange={handleAssistantManagerChange}
+              className="h-full border-0 rounded-none bg-transparent"
+            />
+          </div>
+        </div>
+      )}
+      
+      {/* 🎭 RESPONSIVE BACKDROP: Different behavior for mobile vs desktop */}
+      {showAssistantManager && (
+        <div 
+          className={`fixed inset-0 z-30 transition-opacity duration-300 ${
+            isMobile 
+              ? 'bg-black/60' // Darker backdrop on mobile for bottom sheet
+              : 'bg-black/50' // Standard backdrop on desktop
+          }`}
+          onClick={() => setShowAssistantManager(false)}
+          // 📱 MOBILE: Add touch-friendly close area (tap above bottom sheet to close)
+          style={isMobile ? { 
+            paddingBottom: '24rem', // Don't close when tapping the sheet area
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%)'
+          } : {}}
+        />
+      )}
       
       {/* Main chat interface */}
       <div className="flex flex-col flex-1 min-w-0">
@@ -699,9 +977,9 @@ export const ChatInterface: React.FC = () => {
                     {/* 🎯 SHOW ALL TOGGLE OPTION - Now inside the dropdown! */}
                     <optgroup label="📋 Model View Options">
                       <option value="__toggle_filter__" className="font-medium text-blue-600 bg-blue-50">
-                        {smartFilterConfig.showAllModels 
-                          ? `🔍 Switch to Filtered View (${unifiedModelsData.original_total_models ? unifiedModelsData.original_total_models - unifiedModelsData.total_models : 'fewer'} models hidden)`
-                          : `👁️ Show All Models (${unifiedModelsData.original_total_models ? unifiedModelsData.original_total_models - unifiedModelsData.total_models : 'more'} additional models)`
+                        {showAllModels 
+                          ? `🔍 Show Fewer Models (${unifiedModelsData && unifiedModelsData.original_total_models ? unifiedModelsData.original_total_models - unifiedModelsData.total_models : ''} hidden)`
+                          : `👁️ Show All Models (${unifiedModelsData && unifiedModelsData.original_total_models ? unifiedModelsData.original_total_models - unifiedModelsData.total_models : ''} more)`
                         }
                       </option>
                     </optgroup>
@@ -726,10 +1004,10 @@ export const ChatInterface: React.FC = () => {
                   {/* Visual indicator overlay for filtering status */}
                   <div className="absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none">
                     <div className={`w-2 h-2 rounded-full ${
-                      smartFilterConfig.showAllModels
+                      showAllModels
                         ? 'bg-orange-400'  // Orange for "show all"
                         : 'bg-blue-400'    // Blue for "filtered"
-                    }`} title={smartFilterConfig.showAllModels ? 'All models shown' : 'Filtered models shown'}></div>
+                    }`} title={showAllModels ? 'All models shown' : 'Filtered models shown'}></div>
                   </div>
                 </div>
               </div>
@@ -751,20 +1029,6 @@ export const ChatInterface: React.FC = () => {
               </div>
             )}
 
-            {/* 🎮 Advanced Controls Button (Admin Only) - Now for advanced options only */}
-            {user?.is_admin && unifiedModelsData && (
-              <button
-                onClick={() => setShowSmartControls(!showSmartControls)}
-                className="px-2 md:px-3 py-1.5 md:py-1 text-xs md:text-sm bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-md transition-all duration-200 flex items-center backdrop-blur-sm touch-manipulation"
-                title="Advanced Filter Controls"
-              >
-                <Settings className="w-3 h-3 md:w-4 md:h-4 md:mr-1" />
-                <span className="hidden md:inline ml-1">Advanced</span>
-              </button>
-            )}
-            
-
-            
             {/* 💾 Save Conversation button */}
             {messages.length > 0 && !currentConversationId && (
               <button
@@ -794,6 +1058,16 @@ export const ChatInterface: React.FC = () => {
               <span className="hidden md:inline ml-1">Dashboard</span>
             </button>
             
+            {/* 🤖 ASSISTANT INDICATOR: Simple visual indicator for selected assistant */}
+            {selectedAssistant && (
+              <div className="flex items-center px-2 md:px-3 py-1.5 md:py-1 bg-purple-500/20 backdrop-blur-sm border border-purple-300/30 rounded-md text-xs md:text-sm text-purple-100 min-w-0">
+                <Bot className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
+                <span className="whitespace-nowrap">
+                  {selectedAssistant.name}
+                </span>
+              </div>
+            )}
+            
             {/* 🆕 New conversation button */}
             <button
               onClick={handleNewConversation}
@@ -810,10 +1084,21 @@ export const ChatInterface: React.FC = () => {
         {selectedConfig && currentModelInfo && (
           <div className="mt-2 text-xs md:text-sm text-blue-100">
             <div className="flex flex-wrap items-center gap-1 md:gap-2">
+              {/* 🤖 ASSISTANT INFO: Show selected assistant info */}
+              {selectedAssistant && (
+                <div className="flex items-center">
+                  <Bot className="w-3 h-3 md:w-4 md:h-4 mr-1 text-purple-300 flex-shrink-0" />
+                  <span className="whitespace-nowrap">
+                    Assistant: <strong className="text-purple-200">{selectedAssistant.name}</strong>
+                  </span>
+                  <span className="mx-1 text-blue-300">•</span>
+                </div>
+              )}
+              
               <div className="flex items-center">
                 <Zap className="w-3 h-3 md:w-4 md:h-4 mr-1 text-yellow-300 flex-shrink-0" />
                 <span className="whitespace-nowrap">
-                  Using <strong className="text-white">{currentModelInfo.displayName}</strong>
+                  Model: <strong className="text-white">{currentModelInfo.displayName}</strong>
                 </span>
               </div>
               <div className="flex items-center">
@@ -846,28 +1131,30 @@ export const ChatInterface: React.FC = () => {
                 <div className="flex items-center gap-1">
                   {/* Model count with filtering indicator */}
                   <span className={`text-xs px-1.5 py-0.5 rounded ${
-                    smartFilterConfig.showAllModels 
-                      ? 'bg-orange-500/20 text-orange-200'
-                      : 'bg-blue-500/20 text-blue-200'
+                    showAllModels
+                        ? 'bg-orange-500/20 text-orange-200'
+                        : 'bg-blue-500/20 text-blue-200'
                   }`} title={
-                    smartFilterConfig.showAllModels
-                      ? `All models shown: ${unifiedModelsData.total_models} models from ${unifiedModelsData.providers.length} providers`
-                      : `Smart filtered: ${unifiedModelsData.total_models} recommended models${unifiedModelsData.original_total_models ? ` of ${unifiedModelsData.original_total_models} total` : ''}`
+                    unifiedModelsData
+                        ? showAllModels
+                          ? `All models shown: ${unifiedModelsData.total_models} models from ${unifiedModelsData.providers.length} providers`
+                          : `Smart filtered: ${unifiedModelsData.total_models} recommended models${unifiedModelsData.original_total_models ? ` of ${unifiedModelsData.original_total_models} total` : ''}`
+                        : ''
                   }>
-                    {smartFilterConfig.showAllModels ? '🔍' : '✨'} {unifiedModelsData.total_models}{unifiedModelsData.original_total_models ? `/${unifiedModelsData.original_total_models}` : ''}
+                    {showAllModels ? '🔍' : '✨'} {unifiedModelsData ? unifiedModelsData.total_models : ''}{unifiedModelsData && unifiedModelsData.original_total_models ? `/${unifiedModelsData.original_total_models}` : ''}
                   </span>
                   
                   {/* Filtering mode indicator */}
                   <span className={`text-xs ${
-                    smartFilterConfig.showAllModels 
-                      ? 'text-orange-300'
-                      : 'text-green-300'
+                    showAllModels
+                        ? 'text-orange-300'
+                        : 'text-green-300'
                   }`} title={
-                    smartFilterConfig.showAllModels
-                      ? 'All models mode - showing experimental, legacy, and deprecated models'
-                      : 'Smart filter mode - showing recommended and relevant models only'
+                    showAllModels
+                        ? 'All models mode - showing experimental, legacy, and deprecated models'
+                        : 'Smart filter mode - showing recommended and relevant models only'
                   }>
-                    {smartFilterConfig.showAllModels ? 'Complete' : 'Filtered'}
+                    {showAllModels ? 'Complete' : 'Filtered'}
                   </span>
                   
                   {/* Cache status */}
@@ -887,6 +1174,13 @@ export const ChatInterface: React.FC = () => {
               {currentModelInfo.capabilities && currentModelInfo.capabilities.length > 0 && (
                 <span className="text-blue-200 text-xs">
                   • {currentModelInfo.capabilities.slice(0, 2).join(', ')}
+                </span>
+              )}
+              
+              {/* 🤖 ASSISTANT SYSTEM PROMPT PREVIEW: Show when assistant is selected */}
+              {selectedAssistant && (
+                <span className="text-purple-200 text-xs" title={selectedAssistant.system_prompt_preview}>
+                  • Custom prompt active
                 </span>
               )}
               
@@ -945,97 +1239,6 @@ export const ChatInterface: React.FC = () => {
             </span>
           </div>
         )}
-
-        {/* 🎮 Smart Filter Controls Panel (Admin Only) */}
-        {user?.is_admin && showSmartControls && unifiedModelsData && (
-          <div className="mt-3 p-3 bg-black/20 backdrop-blur-sm border border-white/20 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-white flex items-center">
-                <Settings className="w-4 h-4 mr-1" />
-                Advanced Filter Controls
-              </h4>
-              <button
-                onClick={() => setShowSmartControls(false)}
-                className="text-white/60 hover:text-white text-lg"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              {/* Advanced Filter Options */}
-              <div className="space-y-2">
-                <div className="text-white font-medium mb-1">Advanced Options:</div>
-                <label className="flex items-center text-white">
-                  <input
-                    type="checkbox"
-                    checked={smartFilterConfig.includeExperimental}
-                    onChange={(e) => handleFilterConfigChange({ includeExperimental: e.target.checked })}
-                    className="mr-2"
-                  />
-                  Include experimental
-                </label>
-                <label className="flex items-center text-white">
-                  <input
-                    type="checkbox"
-                    checked={smartFilterConfig.includeLegacy}
-                    onChange={(e) => handleFilterConfigChange({ includeLegacy: e.target.checked })}
-                    className="mr-2"
-                  />
-                  Include legacy models
-                </label>
-                <div className="text-white/60 text-xs mt-1">
-                  💡 Use "{smartFilterConfig.showAllModels ? 'Filter' : 'All Models'}" button above for basic filtering
-                </div>
-              </div>
-              
-              {/* Sort & Limit Options */}
-              <div className="space-y-2">
-                <div className="text-white font-medium mb-1">Sort & Limits:</div>
-                <label className="text-white block">
-                  Sort by:
-                  <select
-                    value={smartFilterConfig.sortBy}
-                    onChange={(e) => handleFilterConfigChange({ sortBy: e.target.value as any })}
-                    className="ml-2 px-2 py-1 bg-white/90 text-gray-700 rounded text-xs"
-                  >
-                    <option value="relevance">Relevance</option>
-                    <option value="name">Name</option>
-                    <option value="cost">Cost</option>
-                  </select>
-                </label>
-                <label className="text-white block">
-                  Max results:
-                  <input
-                    type="number"
-                    min="5"
-                    max="100"
-                    value={smartFilterConfig.maxResults}
-                    onChange={(e) => handleFilterConfigChange({ maxResults: parseInt(e.target.value) || 20 })}
-                    className="ml-2 px-2 py-1 bg-white/90 text-gray-700 rounded text-xs w-16"
-                  />
-                </label>
-                <div className="text-white/60 text-xs mt-1">
-                  Current: {smartFilterConfig.showAllModels ? 'All' : 'Filtered'} mode
-                </div>
-              </div>
-              
-              {/* Debug Info */}
-              <div className="space-y-1 text-white">
-                <div className="font-medium mb-1">System Debug:</div>
-                <div>Total Models: {unifiedModelsData.total_models}</div>
-                <div>Total Configs: {unifiedModelsData.total_configs}</div>
-                <div>Providers: {unifiedModelsData.providers.join(', ')}</div>
-                {unifiedModelsData.original_total_models && (
-                  <div>Excluded: {unifiedModelsData.original_total_models - unifiedModelsData.total_models} models</div>
-                )}
-                <div className="text-white/60 text-xs mt-2">
-                  Status: {smartFilterConfig.showAllModels ? '🔍 Complete View' : '✨ Smart Filtered'}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       
       {/* 🚨 Error display with glassmorphism */}
@@ -1065,6 +1268,17 @@ export const ChatInterface: React.FC = () => {
       {/* 💬 Main chat area */}
       {!modelsLoading && unifiedModelsData && unifiedModelsData.models.length > 0 && (
         <>
+          {/* 🤖 ASSISTANT SUGGESTIONS: Show when no assistant selected and no conversation started */}
+          {!selectedAssistantId && messages.length === 0 && availableAssistants.length > 0 && (
+            <AssistantSuggestions
+              suggestions={availableAssistants}
+              onSelect={handleAssistantSelectFromManager}
+              onDismiss={() => console.log('✨ Assistant suggestions dismissed by user')}
+              maxSuggestions={4}
+              showOnlyOnce={true}
+            />
+          )}
+          
           {/* 📜 Message list with Smart Auto-Scroll */}
           <MessageList 
             messages={messages}
@@ -1073,6 +1287,12 @@ export const ChatInterface: React.FC = () => {
             className="flex-1"
           />
           {/* End Message List */}
+          
+          {/* 🤖 ASSISTANT SELECTOR CARD: Visual card above message input */}
+          <AssistantSelectorCard
+            selectedAssistant={selectedAssistant}
+            onChangeClick={handleChangeAssistantClick}
+          />
           
           {/* ✍️ Message input with streaming cancel support */}
           <MessageInput
@@ -1088,6 +1308,8 @@ export const ChatInterface: React.FC = () => {
                 ? "Loading AI models..."
                 : modelsError
                 ? "Model loading failed - using default model"
+                : selectedAssistant && currentModelInfo
+                ? `Chatting with ${selectedAssistant.name} via ${currentModelInfo.display_name}...`
                 : currentModelInfo
                 ? `Chatting with ${currentModelInfo.display_name} - streaming enabled...`
                 : "Type your message here..."
@@ -1155,3 +1377,6 @@ export const ChatInterface: React.FC = () => {
 // - Role-based UI rendering
 // - Real-time data processing
 // - Professional admin tools
+// - Custom assistant integration
+// - URL parameter handling
+// - Seamless feature integration

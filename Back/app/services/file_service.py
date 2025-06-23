@@ -430,46 +430,34 @@ class FileService:
             if not is_valid:
                 return None, error_msg
             
-            # Generate safe filename and path
+            # Generate safe filename (no path needed)
             safe_filename = FileUpload.sanitize_filename(file.filename)
-            relative_path = create_upload_path(user.id, safe_filename)
-            full_path = self.upload_dir / relative_path
-            
-            # Ensure directory exists
-            full_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Create database record first (in 'uploading' status)
+
+            # Read file in-memory (do not save to disk)
+            file_bytes = await file.read()
+            file_size = len(file_bytes)
+
+            # Optionally: extract text/metadata here if needed
+            # extracted_text = extract_text_from_file(file_bytes, file.content_type)
+
+            # Create database record (no file_path, no file_hash)
             file_record = FileUpload(
                 original_filename=file.filename,
                 filename=safe_filename,
-                file_path=str(full_path),
-                file_size=0,  # Will update after writing
+                file_path=None,  # Not stored
+                file_size=file_size,
                 mime_type=file.content_type or get_file_mime_type(file.filename),
                 file_extension=os.path.splitext(file.filename)[1].lower(),
                 user_id=user.id,
-                upload_status=FileUploadStatus.UPLOADING,
-                file_hash=""  # Will calculate after writing
+                upload_status=FileUploadStatus.COMPLETED,
+                file_hash=None  # Not stored
+                # Optionally: add extracted_text=extracted_text
             )
-            
-            # Add to database but don't commit yet
+
             db.add(file_record)
-            db.flush()  # Get the ID without committing
-            
-            # Write file to disk
-            file_size = await self._write_file_to_disk(file, full_path)
-            
-            # Calculate file hash for integrity
-            file_hash = calculate_file_hash(str(full_path))
-            
-            # Update file record with actual data
-            file_record.file_size = file_size
-            file_record.file_hash = file_hash
-            file_record.mark_as_completed()
-            
-            # Commit transaction
             db.commit()
             db.refresh(file_record)
-            
+
             return file_record, None
             
         except Exception as e:

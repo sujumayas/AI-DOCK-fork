@@ -4,10 +4,13 @@ import { AuthProvider } from './contexts/AuthContext'
 import { LoginPage } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { ChatInterface } from './pages/ChatInterface'
+// import { ChatInterfaceTest } from './pages/ChatInterface.test' // REMOVED: file deleted
 import { UserSettings } from './pages/UserSettings'
 import AdminSettings from './pages/AdminSettings'
 import ManagerDashboard from './pages/ManagerDashboard'
-import StreamingTestPage from './pages/StreamingTestPage' // 🌊 NEW: Streaming test interface
+// import StreamingTestPage from './pages/StreamingTestPage' // 🌊 NEW: Streaming test interface (REMOVED)
+import AssistantDiagnosticPage from './pages/AssistantDiagnosticPage' // 🔧 NEW: Diagnostic tool
+
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 // 🚀 Main App Component - Now using React Router!
@@ -55,14 +58,15 @@ function App() {
         />
         
         {/* 🌊 Streaming Test Route: Protected route for testing streaming functionality */}
+        // (REMOVED)
+        
+        {/* 🔧 Diagnostic Route: Test backend connection and save button issues */}
         <Route 
-          path="/streaming-test" 
-          element={
-            <ProtectedRoute>
-              <StreamingTestPage />
-            </ProtectedRoute>
-          } 
+          path="/diagnostic" 
+          element={<AssistantDiagnosticPage />} 
         />
+        
+
         
         {/* ⚙️ User Settings Route: Protected route for user profile management */}
         <Route 

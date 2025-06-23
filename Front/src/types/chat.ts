@@ -11,10 +11,17 @@ export interface ChatMessage {
   content: string;
   name?: string;
   
-  // 📁 NEW: File attachment support
+  // 📁 File attachment support
   attachments?: import('./file').FileAttachment[];
   hasFiles?: boolean;                    // Quick flag for messages with files
   fileCount?: number;                    // Number of attached files
+  
+  // 🤖 NEW: Assistant context support
+  assistantId?: number;                  // Which assistant generated this message (for AI responses)
+  assistantName?: string;                // Assistant name for display
+  assistantIntroduction?: boolean;       // True if this is an assistant introduction message
+  assistantChanged?: boolean;            // True if assistant changed before this message
+  previousAssistantName?: string;        // Name of previous assistant (for change dividers)
 }
 
 export interface ChatRequest {
@@ -26,6 +33,9 @@ export interface ChatRequest {
   
   // 📁 NEW: File attachment support (matches backend schema)
   file_attachment_ids?: number[];        // List of uploaded file IDs to include as context
+  
+  // 🤖 NEW: Assistant integration support
+  assistant_id?: number;                 // Custom assistant ID for system prompt injection
 }
 
 export interface ChatResponse {
@@ -159,7 +169,12 @@ export interface StreamingChatRequest extends ChatRequest {
   // 📁 File attachments are inherited from ChatRequest
   // file_attachment_ids?: number[]; (inherited)
   
+  // 🤖 Assistant integration is inherited from ChatRequest
+  // assistant_id?: number; (inherited)
+  
   stream_timeout?: number;  // Optional timeout for streaming connection
+  stream_delay_ms?: number; // Optional delay between chunks for testing
+  include_usage_in_stream?: boolean; // Include token usage in streaming chunks
 }
 
 export interface StreamingChatChunk {

@@ -137,10 +137,12 @@ class AssistantService:
         """
         Get an assistant by ID with ownership validation.
         
-        🎓 LEARNING: Security by Design
-        ==============================
+        🎓 LEARNING: Security by Design with Computed Fields
+        ===================================================
         Always validate ownership when retrieving user-owned resources.
         This prevents users from accessing assistants they don't own.
+        
+        We also compute conversation count to avoid lazy loading issues.
         
         Args:
             db: Async database session
@@ -151,10 +153,16 @@ class AssistantService:
             Assistant instance if found and owned by user, None otherwise
         """
         try:
-            stmt = select(Assistant).options(
-                selectinload(Assistant.conversations),
-                selectinload(Assistant.chat_conversations),
-                selectinload(Assistant.user)
+            # Create subquery for conversation count
+            conversation_count_subquery = (
+                select(func.count(ChatConversation.id))
+                .where(ChatConversation.assistant_id == Assistant.id)
+                .label("conversation_count")
+            )
+            
+            stmt = select(
+                Assistant,
+                conversation_count_subquery
             ).where(
                 and_(
                     Assistant.id == assistant_id,
@@ -163,14 +171,20 @@ class AssistantService:
             )
             
             result = await db.execute(stmt)
-            assistant = result.scalar_one_or_none()
+            row = result.first()
             
-            if assistant:
+            if row:
+                assistant = row[0]  # Assistant object
+                conversation_count = row[1] or 0  # Conversation count
+                
+                # Attach conversation count as an attribute to avoid lazy loading
+                assistant._conversation_count = conversation_count
+                
                 logger.debug(f"Retrieved assistant {assistant_id} for user {user_id}")
+                return assistant
             else:
                 logger.warning(f"Assistant {assistant_id} not found or not owned by user {user_id}")
-            
-            return assistant
+                return None
             
         except Exception as e:
             logger.error(f"Failed to get assistant {assistant_id} for user {user_id}: {str(e)}")
@@ -273,12 +287,18 @@ class AssistantService:
         """
         Delete an assistant and all associated conversations.
         
-        🎓 LEARNING: Cascade Deletes
-        ===========================
+        🎓 LEARNING: Cascade Deletes and Async SQLAlchemy Patterns
+        =========================================================
         When deleting assistants, we need to handle:
         - Associated conversations (delete or unlink)
         - Chat conversations (delete or convert to general)
         - Usage logs (keep for analytics but mark assistant as deleted)
+        
+        🔧 CRITICAL ASYNC PATTERNS:
+        - Use `db.delete(instance)` WITHOUT await (synchronous)
+        - Use `await db.commit()` to actually perform the deletion
+        - Don't access lazy-loaded relationships in async context
+        - Use explicit queries for counts instead of len(relationship)
         
         The model relationships use cascade="all, delete-orphan" so SQLAlchemy
         will automatically handle the deletions.
@@ -297,9 +317,19 @@ class AssistantService:
             if not assistant:
                 return False
             
-            # Log the deletion with context
-            conversation_count = len(assistant.conversations) if assistant.conversations else 0
-            chat_conversation_count = len(assistant.chat_conversations) if assistant.chat_conversations else 0
+            # Log the deletion with context - use SQL queries to avoid lazy loading issues
+            # Get conversation counts without accessing potentially lazy-loaded relationships
+            conversation_count_stmt = select(func.count(Conversation.id)).where(
+                Conversation.assistant_id == assistant_id
+            )
+            conversation_count_result = await db.execute(conversation_count_stmt)
+            conversation_count = conversation_count_result.scalar() or 0
+            
+            chat_conversation_count_stmt = select(func.count(ChatConversation.id)).where(
+                ChatConversation.assistant_id == assistant_id
+            )
+            chat_conversation_count_result = await db.execute(chat_conversation_count_stmt)
+            chat_conversation_count = chat_conversation_count_result.scalar() or 0
             
             logger.info(
                 f"Deleting assistant '{assistant.name}' (ID: {assistant_id}) with "
@@ -307,7 +337,8 @@ class AssistantService:
             )
             
             # Delete the assistant (cascade will handle related records)
-            await db.delete(assistant)
+            # 🔧 KEY FIX: Don't await db.delete() - it's synchronous!
+            db.delete(assistant)
             await db.commit()
             
             logger.info(f"Successfully deleted assistant {assistant_id}")
@@ -331,15 +362,17 @@ class AssistantService:
         """
         Get assistants for a user with filtering, search, and pagination.
         
-        🎓 LEARNING: Complex Queries
-        ===========================
+        🎓 LEARNING: Complex Queries with Conversation Counts
+        ===================================================
         Production applications need sophisticated querying:
         - Pagination (don't load all data at once)
         - Filtering (by status, date ranges, etc.)
         - Search (fuzzy matching on text fields)
         - Sorting (by different criteria)
+        - Computed fields (like conversation counts) without lazy loading
         
-        This method demonstrates building dynamic queries based on parameters.
+        This method demonstrates building dynamic queries based on parameters
+        and avoiding the N+1 problem by computing conversation counts in SQL.
         
         Args:
             db: Async database session
@@ -353,8 +386,19 @@ class AssistantService:
             if request is None:
                 request = AssistantListRequest()
             
-            # Base query with ownership filter
-            stmt = select(Assistant).where(Assistant.user_id == user_id)
+            # Create a subquery for conversation counts to avoid lazy loading
+            conversation_count_subquery = (
+                select(func.count(ChatConversation.id))
+                .where(ChatConversation.assistant_id == Assistant.id)
+                .label("conversation_count")
+            )
+            
+            # Base query with ownership filter and conversation count
+            stmt = select(
+                Assistant,
+                conversation_count_subquery
+            ).where(Assistant.user_id == user_id)
+            
             count_stmt = select(func.count(Assistant.id)).where(Assistant.user_id == user_id)
             
             # Apply status filter
@@ -402,7 +446,17 @@ class AssistantService:
             
             # Execute queries
             result = await db.execute(stmt)
-            assistants = result.scalars().all()
+            rows = result.all()
+            
+            # Extract assistants and attach conversation counts
+            assistants = []
+            for row in rows:
+                assistant = row[0]  # Assistant object
+                conversation_count = row[1] or 0  # Conversation count
+                
+                # Attach conversation count as an attribute to avoid lazy loading
+                assistant._conversation_count = conversation_count
+                assistants.append(assistant)
             
             count_result = await db.execute(count_stmt)
             total_count = count_result.scalar()
@@ -412,7 +466,7 @@ class AssistantService:
                 f"(total: {total_count}, search: '{request.search}')"
             )
             
-            return list(assistants), total_count
+            return assistants, total_count
             
         except Exception as e:
             logger.error(f"Failed to get assistants for user {user_id}: {str(e)}")
@@ -428,12 +482,13 @@ class AssistantService:
         """
         Search assistants with fuzzy matching for autocomplete/quick search.
         
-        🎓 LEARNING: Search Optimization
-        ===============================
+        🎓 LEARNING: Search Optimization with Conversation Counts
+        ========================================================
         For user-facing search features, prioritize:
         - Speed (small result sets, efficient queries)
         - Relevance (match names before descriptions)
         - User experience (fast autocomplete responses)
+        - Avoid lazy loading for computed fields
         
         Args:
             db: Async database session
@@ -442,7 +497,7 @@ class AssistantService:
             limit: Maximum results to return
             
         Returns:
-            List of matching assistants, sorted by relevance
+            List of matching assistants with pre-computed conversation counts
         """
         try:
             if not search_query or not search_query.strip():
@@ -450,8 +505,18 @@ class AssistantService:
             
             search_term = f"%{search_query.strip()}%"
             
+            # Create subquery for conversation counts
+            conversation_count_subquery = (
+                select(func.count(ChatConversation.id))
+                .where(ChatConversation.assistant_id == Assistant.id)
+                .label("conversation_count")
+            )
+            
             # Prioritize name matches over description matches
-            stmt = select(Assistant).where(
+            stmt = select(
+                Assistant,
+                conversation_count_subquery
+            ).where(
                 and_(
                     Assistant.user_id == user_id,
                     Assistant.is_active == True,
@@ -467,10 +532,20 @@ class AssistantService:
             ).limit(limit)
             
             result = await db.execute(stmt)
-            assistants = result.scalars().all()
+            rows = result.all()
+            
+            # Extract assistants and attach conversation counts
+            assistants = []
+            for row in rows:
+                assistant = row[0]  # Assistant object
+                conversation_count = row[1] or 0  # Conversation count
+                
+                # Attach conversation count as an attribute to avoid lazy loading
+                assistant._conversation_count = conversation_count
+                assistants.append(assistant)
             
             logger.debug(f"Search '{search_query}' found {len(assistants)} assistants for user {user_id}")
-            return list(assistants)
+            return assistants
             
         except Exception as e:
             logger.error(f"Failed to search assistants for user {user_id}: {str(e)}")

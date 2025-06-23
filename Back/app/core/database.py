@@ -113,17 +113,25 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides an async database session.
     
+    🔧 FIXED: Proper transaction management
+    - Don't close session manually (async context manager handles it)
+    - Only rollback on actual exceptions
+    - Let successful commits stay committed
+    
     Use this for async route handlers and services.
     """
     async with AsyncSessionLocal() as session:
         try:
             yield session
+            # 🔧 KEY FIX: If we get here, everything succeeded
+            # The context manager will properly close the session
+            # without triggering unnecessary rollbacks
         except Exception as e:
+            # Only rollback if there was actually an error
             await session.rollback()
             logger.error(f"Async database session error: {e}")
             raise
-        finally:
-            await session.close()
+        # 🔧 Removed finally block - let context manager handle cleanup
 
 def get_sync_db() -> Generator[Session, None, None]:
     """

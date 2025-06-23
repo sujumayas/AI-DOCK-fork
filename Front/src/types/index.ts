@@ -30,6 +30,9 @@ export * from './usage';
 // File upload and attachment types
 export * from './file';
 
+// Custom assistants types
+export * from './assistant';
+
 // =============================================================================
 // CONVENIENCE RE-EXPORTS
 // =============================================================================
@@ -70,6 +73,17 @@ export type {
   FileUploadUIState
 } from './file';
 
+// Most commonly used assistant types
+export type {
+  Assistant,
+  AssistantSummary,
+  AssistantCreate,
+  AssistantUpdate,
+  AssistantListResponse,
+  AssistantConversationCreate,
+  AssistantUIState
+} from './assistant';
+
 // =============================================================================
 // UTILITY TYPE COLLECTIONS
 // =============================================================================
@@ -90,6 +104,10 @@ export {
   FileUploadError,
   FileValidationFailedError
 } from './file';
+
+export {
+  AssistantServiceError
+} from './assistant';
 
 // All utility functions for type conversions
 export {
@@ -118,6 +136,22 @@ export {
   canRetryUpload,
   isAttachmentDownloadable
 } from './file';
+
+// All utility functions for assistant operations
+export {
+  isAssistant,
+  isAssistantSummary,
+  assistantToSummary,
+  createDefaultAssistantFormData,
+  validateAssistantFormData,
+  hasValidationErrors,
+  formatAssistantStatus,
+  formatConversationCount,
+  generateSystemPromptPreview,
+  DEFAULT_ASSISTANT_CONFIG,
+  ASSISTANT_VALIDATION,
+  ASSISTANT_API_DEFAULTS
+} from './assistant';
 
 // =============================================================================
 // TYPE COLLECTIONS BY DOMAIN
@@ -156,6 +190,20 @@ export type FileTypes = {
   Status: import('./file').FileUploadStatus;
 };
 
+// Everything related to custom assistants
+export type AssistantTypes = {
+  Assistant: import('./assistant').Assistant;
+  Summary: import('./assistant').AssistantSummary;
+  Create: import('./assistant').AssistantCreate;
+  Update: import('./assistant').AssistantUpdate;
+  ListResponse: import('./assistant').AssistantListResponse;
+  ConversationCreate: import('./assistant').AssistantConversationCreate;
+  ConversationResponse: import('./assistant').AssistantConversationResponse;
+  UIState: import('./assistant').AssistantUIState;
+  FormData: import('./assistant').AssistantFormData;
+  Error: import('./assistant').AssistantServiceError;
+};
+
 // =============================================================================
 // USAGE EXAMPLES
 // =============================================================================
@@ -164,10 +212,10 @@ export type FileTypes = {
 // Clean imports throughout the application:
 
 // Import specific types (recommended for most cases)
-import { ChatMessage, ConversationSummary, FileUpload, FileAttachment } from '@/types';
+import { ChatMessage, ConversationSummary, FileUpload, FileAttachment, Assistant, AssistantCreate } from '@/types';
 
 // Import all types from a domain
-import { ChatTypes, ConversationTypes, FileTypes } from '@/types';
+import { ChatTypes, ConversationTypes, FileTypes, AssistantTypes } from '@/types';
 
 // Import utility functions
 import { 
@@ -175,7 +223,9 @@ import {
   shouldAutoSave,
   formatFileSize,
   validateFile,
-  getFileIcon 
+  getFileIcon,
+  validateAssistantFormData,
+  formatAssistantStatus 
 } from '@/types';
 
 // Import error classes
@@ -183,7 +233,8 @@ import {
   ChatServiceError, 
   ConversationServiceError,
   FileUploadError,
-  FileValidationFailedError 
+  FileValidationFailedError,
+  AssistantServiceError 
 } from '@/types';
 
 // Use domain-specific type collections
@@ -191,4 +242,6 @@ function handleChat(message: ChatTypes['Message']) { ... }
 function saveConversation(conv: ConversationTypes['Create']) { ... }
 function uploadFile(file: FileTypes['Upload']) { ... }
 function trackProgress(progress: FileTypes['Progress']) { ... }
+function createAssistant(data: AssistantTypes['Create']) { ... }
+function updateAssistant(assistant: AssistantTypes['Assistant']) { ... }
 */

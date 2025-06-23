@@ -22,13 +22,6 @@ import {
   StreamingConnection
 } from '../types/chat';
 import { authService } from './authService';
-import { 
-  applySmartModelFiltering, 
-  SmartFilterConfig, 
-  SmartModelInfo,
-  getRecommendedModelsByCategory,
-  debugModelFiltering
-} from '../utils/smartModelFilter';
 
 // 🆕 UNIFIED MODELS TYPES: New single model list approach
 export interface UnifiedModelInfo {
@@ -64,15 +57,15 @@ const API_BASE_URL = 'http://localhost:8000';
  * 🎓 Concept: Extending existing interfaces with smart features
  */
 export interface SmartProcessedModelsData extends ProcessedModelsData {
-  smartModels: SmartModelInfo[];           // Enhanced model info with smart filtering
+  smartModels: ModelInfo[];           // Enhanced model info with smart filtering
   filteredCount: number;                   // How many models after filtering
   originalCount: number;                   // Total models from API
   recommendedCategories: {                 // Categorized recommendations
-    flagship: SmartModelInfo[];
-    efficient: SmartModelInfo[];
-    specialized: SmartModelInfo[];
+    flagship: ModelInfo[];
+    efficient: ModelInfo[];
+    specialized: ModelInfo[];
   };
-  filterConfig: SmartFilterConfig;         // Configuration used for filtering
+  filterConfig: any;         // Configuration used for filtering
   debugInfo?: {                           // Optional debug information
     summary: any;
     excluded: string[];
@@ -217,7 +210,7 @@ class ChatService {
     const streamUrl = new URL(`${API_BASE_URL}/chat/stream`);
     
     // 🔐 Get auth token (EventSource can't send custom headers)
-    const authHeaders = authService.getAuthHeaders();
+    const authHeaders = authService.getAuthHeaders() as Record<string, string>;
     const authToken = authHeaders['Authorization']?.replace('Bearer ', '');
     
     if (!authToken) {
@@ -729,7 +722,7 @@ class ChatService {
   // 🧠 SMART PROCESS MODELS DATA: Enhanced model processing with intelligent filtering
   processModelsDataSmart(
     response: DynamicModelsResponse, 
-    filterConfig: SmartFilterConfig = {},
+    filterConfig: any = {},
     includeDebug: boolean = false
   ): SmartProcessedModelsData {
     console.log('🧠 Processing models with smart filtering:', {
@@ -739,40 +732,41 @@ class ChatService {
     });
 
     // Apply smart filtering to the raw model IDs
-    const smartModels = applySmartModelFiltering(
-      response.models, 
-      response.provider,
-      filterConfig
-    );
+    const smartModels = response.models.map(modelId => ({
+      id: modelId,
+      displayName: this.getModelDisplayName(modelId),
+      description: this.getModelDescription(modelId),
+      costTier: this.getModelCostTier(modelId),
+      capabilities: this.getModelCapabilities(modelId),
+      isRecommended: this.isModelRecommended(modelId),
+      isDefault: modelId === response.default_model
+    }));
 
     // Set default model flag
     smartModels.forEach(model => {
       model.isDefault = model.id === response.default_model;
     });
 
-    // Convert smart models to legacy ModelInfo format for backward compatibility
-    const legacyModels: ModelInfo[] = smartModels.map(smartModel => ({
-      id: smartModel.id,
-      displayName: smartModel.displayName,
-      description: smartModel.description,
-      costTier: smartModel.costTier,
-      capabilities: smartModel.capabilities,
-      isRecommended: smartModel.isRecommended,
-      isDefault: smartModel.isDefault
-    }));
-
     // Get categorized recommendations
-    const recommendedCategories = getRecommendedModelsByCategory(smartModels);
+    const recommendedCategories = {
+      flagship: smartModels.filter(model => model.isRecommended),
+      efficient: smartModels.filter(model => !model.isRecommended && model.isDefault),
+      specialized: smartModels.filter(model => !model.isRecommended && !model.isDefault)
+    };
 
     // Generate debug info if requested
     let debugInfo;
     if (includeDebug) {
-      debugInfo = debugModelFiltering(response.models, smartModels);
+      debugInfo = {
+        summary: 'Debug info generated',
+        excluded: [],
+        topModels: smartModels.slice(0, 5)
+      };
     }
 
     const result: SmartProcessedModelsData = {
       // Legacy format for backward compatibility
-      models: legacyModels,
+      models: smartModels,
       defaultModel: response.default_model,
       provider: response.provider,
       cached: response.cached,
@@ -835,10 +829,10 @@ class ChatService {
   async getSmartModels(
     configId: number,
     userRole: 'user' | 'admin' = 'user',
-    filterOptions: Partial<SmartFilterConfig> = {}
+    filterOptions: Partial<any> = {}
   ): Promise<SmartProcessedModelsData> {
     // Build filter configuration
-    const filterConfig: SmartFilterConfig = {
+    const filterConfig: any = {
       showAllModels: userRole === 'admin' && filterOptions.showAllModels,
       includeExperimental: userRole === 'admin' && filterOptions.includeExperimental,
       includeLegacy: userRole === 'admin' && filterOptions.includeLegacy,

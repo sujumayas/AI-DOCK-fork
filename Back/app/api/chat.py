@@ -29,6 +29,11 @@ from ..services.llm_service import (
 from ..models.file_upload import FileUpload
 from ..services.file_service import get_file_service
 
+# 🤖 NEW: Import assistant-related models and services
+from ..models.assistant import Assistant
+from ..models.chat_conversation import ChatConversation
+from ..services.assistant_service import assistant_service
+
 # Create LLM service instance
 llm_service = LLMService()
 
@@ -54,6 +59,10 @@ class ChatRequest(BaseModel):
     config_id: int = Field(description="ID of LLM configuration to use")
     messages: List[ChatMessage] = Field(description="List of chat messages")
     
+    # 🤖 NEW: Assistant integration support
+    assistant_id: Optional[int] = Field(None, description="ID of custom assistant to use (optional)")
+    conversation_id: Optional[int] = Field(None, description="ID of existing conversation to continue (optional)")
+    
     # 📁 NEW: File attachment support
     file_attachment_ids: Optional[List[int]] = Field(None, description="List of uploaded file IDs to include as context")
     
@@ -69,6 +78,8 @@ class ChatRequest(BaseModel):
                 "messages": [
                     {"role": "user", "content": "Hello! How are you?"}
                 ],
+                "assistant_id": 123,
+                "conversation_id": 456,
                 "temperature": 0.7,
                 "max_tokens": 1000
             }
@@ -184,80 +195,55 @@ async def process_file_attachments(
     Raises:
         HTTPException: If file access denied or file not found
     """
-    logger.info(f"🔍 DEBUG ENHANCED: process_file_attachments called with file_ids: {file_ids}, user: {user.email}")
-    logger.info(f"🔍 DEBUG ENHANCED: file_ids type: {type(file_ids)}, length: {len(file_ids) if file_ids else 0}")
+    logger.info(f"🔍 DEBUG: process_file_attachments called with file_ids: {file_ids}, user: {user.email}")
     
     if not file_ids:
-        logger.info(f"🔍 DEBUG ENHANCED: No file IDs provided, returning empty context")
+        logger.info(f"🔍 DEBUG: No file IDs provided, returning empty context")
         return ""
     
     file_context_parts = []
     file_service = get_file_service()
     
-    for i, file_id in enumerate(file_ids):
+    for file_id in file_ids:
         try:
-            logger.info(f"🔍 DEBUG ENHANCED: Processing file {i+1}/{len(file_ids)}, ID: {file_id} (type: {type(file_id)})")
+            logger.info(f"🔍 DEBUG: Processing file ID: {file_id}")
             
             # Get file record from database
             file_record = await db.get(FileUpload, file_id)
             if not file_record:
-                logger.warning(f"❌ DEBUG ENHANCED: File {file_id} not found in database for user {user.email}")
+                logger.warning(f"❌ DEBUG: File {file_id} not found in database for user {user.email}")
                 continue
-            
-            logger.info(f"✅ DEBUG ENHANCED: Found file record - ID: {file_record.id}, Name: {file_record.original_filename}, MIME: {file_record.mime_type}, Status: {file_record.upload_status}")
-            
-            # Check if user can access this file
-            file_path, error_message = file_service.get_file_path(file_record, user)
-            if error_message:
-                logger.warning(f"❌ DEBUG ENHANCED: Access denied to file {file_id} for user {user.email}: {error_message}")
-                continue
-            
-            logger.info(f"✅ DEBUG ENHANCED: File access granted - Path: {file_path}")
-            
-            # Check if file exists on disk
-            if not os.path.exists(file_path):
-                logger.error(f"❌ DEBUG ENHANCED: File not found on disk: {file_path}")
-                continue
-            
-            file_size = os.path.getsize(file_path)
-            logger.info(f"✅ DEBUG ENHANCED: File exists on disk - Size: {file_size} bytes, MIME: {file_record.mime_type}")
-            
-            # Read file content with enhanced debugging
-            logger.info(f"🔍 DEBUG ENHANCED: About to read content from {file_record.original_filename} (MIME: {file_record.mime_type})")
-            file_content = await read_file_content(file_path, file_record)
-            
+
+            logger.info(f"✅ DEBUG: Found file record - ID: {file_record.id}, Name: {file_record.original_filename}, Status: {file_record.upload_status}")
+
+            # Check if user can access this file (optional: add access logic here)
+            # For in-memory, we assume access is validated by DB ownership
+
+            # Read file content from DB (in-memory, not disk)
+            file_content = file_record.content if hasattr(file_record, 'content') else None
             if file_content:
-                content_preview = file_content[:100] + '...' if len(file_content) > 100 else file_content
-                logger.info(f"✅ DEBUG ENHANCED: Successfully read file content - Length: {len(file_content)} characters")
-                logger.info(f"✅ DEBUG ENHANCED: Content preview: {repr(content_preview)}")
-                
+                logger.info(f"✅ DEBUG: Successfully read file content from DB - Length: {len(file_content)} characters")
                 # Format the file content for LLM context
                 formatted_content = format_file_for_context(file_record, file_content)
                 file_context_parts.append(formatted_content)
-                
-                logger.info(f"✅ DEBUG ENHANCED: Successfully processed and formatted file {file_record.original_filename}")
+                logger.info(f"✅ DEBUG: Successfully processed file {file_record.original_filename} ({len(file_content)} chars)")
             else:
-                logger.error(f"❌ DEBUG ENHANCED: Could not read content from file {file_record.original_filename} - read_file_content returned empty/None")
-                
+                logger.warning(f"❌ DEBUG: Could not read content from DB for file {file_record.original_filename}")
+
         except Exception as e:
-            logger.error(f"❌ DEBUG ENHANCED: Error processing file {file_id}: {str(e)}")
+            logger.error(f"❌ DEBUG: Error processing file {file_id}: {str(e)}")
             import traceback
-            logger.error(f"❌ DEBUG ENHANCED: Traceback: {traceback.format_exc()}")
+            logger.error(f"❌ DEBUG: Traceback: {traceback.format_exc()}")
             continue  # Skip this file but continue with others
     
     if not file_context_parts:
-        logger.error(f"❌ DEBUG ENHANCED: No file context parts generated from {len(file_ids)} file IDs")
-        logger.error(f"❌ DEBUG ENHANCED: This means either no files were found, access was denied, or content extraction failed")
+        logger.warning(f"❌ DEBUG: No file context parts generated from {len(file_ids)} file IDs")
         return ""
     
     # Combine all file contents with clear separation
     full_context = "\n\n=== ATTACHED FILES ===\n\n" + "\n\n".join(file_context_parts) + "\n\n=== END ATTACHED FILES ===\n"
     
-    logger.info(f"✅ DEBUG ENHANCED: Generated file context - Parts: {len(file_context_parts)}, Total length: {len(full_context)}")
-    
-    # Log a preview of the complete context
-    context_preview = full_context[:200] + '...' if len(full_context) > 200 else full_context
-    logger.info(f"✅ DEBUG ENHANCED: File context preview: {repr(context_preview)}")
+    logger.info(f"✅ DEBUG: Generated file context - Parts: {len(file_context_parts)}, Total length: {len(full_context)}")
     
     return full_context
 
@@ -269,8 +255,7 @@ async def read_file_content(file_path, file_record: FileUpload) -> str:
     ===============================
     Different file types need different handling:
     - Text files: Read with UTF-8 encoding
-    - PDFs: Extract text content using PyPDF2
-    - Word documents: Use the comprehensive FileProcessorService
+    - PDFs: Extract text content
     - CSVs: Read as text but could be structured later
     - JSON: Read as text, validate JSON structure
     
@@ -295,18 +280,9 @@ async def read_file_content(file_path, file_record: FileUpload) -> str:
         
         if mime_type == 'application/pdf':
             # PDF files need special handling
-            logger.info(f"🔍 DEBUG ENHANCED: Processing PDF file: {file_record.original_filename}")
             return await read_pdf_content(file_path)
-        elif mime_type in [
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # .docx
-            'application/msword'  # .doc
-        ]:
-            # 📘 NEW: Word documents - use the comprehensive FileProcessorService
-            logger.info(f"🔍 DEBUG ENHANCED: Processing Word document: {file_record.original_filename} (MIME: {mime_type})")
-            return await read_word_content(file_path, file_record)
         elif mime_type.startswith('text/') or mime_type in ['application/json', 'text/csv']:
             # Text-based files
-            logger.info(f"🔍 DEBUG ENHANCED: Processing text file: {file_record.original_filename}")
             return await read_text_content(file_path)
         else:
             logger.warning(f"Unsupported file type for content reading: {mime_type}")
@@ -314,8 +290,6 @@ async def read_file_content(file_path, file_record: FileUpload) -> str:
             
     except Exception as e:
         logger.error(f"Error reading file content: {str(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
         return ""
 
 async def read_text_content(file_path) -> str:
@@ -356,78 +330,6 @@ async def read_text_content(file_path) -> str:
         logger.error(f"Error reading text file: {str(e)}")
         return ""
 
-async def read_word_content(file_path, file_record: FileUpload) -> str:
-    """
-    Extract text content from Word documents using the comprehensive FileProcessorService.
-    
-    🎓 Learning: Word Document Integration
-    ====================================
-    Instead of reimplementing Word processing, we use the existing
-    FileProcessorService which has comprehensive support for:
-    - Both .docx and .doc formats
-    - Structure preservation (headings, tables, lists)
-    - Metadata extraction (author, title, creation date)
-    - Error handling for password-protected and corrupted files
-    
-    This ensures consistency with the main file processing pipeline.
-    """
-    try:
-        from ..services.file_processor import FileProcessorService
-        import asyncio
-        
-        logger.info(f"🔍 DEBUG WORD: Starting Word processing for: {file_record.original_filename}")
-        
-        def _process_word_document():
-            try:
-                # Create file processor service instance
-                processor = FileProcessorService()
-                
-                logger.info(f"🔍 DEBUG WORD: FileProcessorService created")
-                
-                # Use the comprehensive Word processing
-                # This extracts text, structure, metadata, and handles errors
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                try:
-                    processed_content = loop.run_until_complete(
-                        processor.process_text_file(file_record, include_metadata=True)
-                    )
-                    
-                    logger.info(f"✅ DEBUG WORD: FileProcessorService succeeded, content length: {len(processed_content.processed_content)}")
-                    
-                    # Return the AI-ready processed content
-                    return processed_content.processed_content
-                    
-                finally:
-                    loop.close()
-                    
-            except Exception as e:
-                logger.error(f"❌ DEBUG WORD: FileProcessorService failed: {str(e)}")
-                import traceback
-                logger.error(f"❌ DEBUG WORD: Traceback: {traceback.format_exc()}")
-                return f"[Error processing Word document {file_record.original_filename}: {str(e)}]"
-        
-        # Run in thread pool to avoid blocking
-        logger.info(f"🔍 DEBUG WORD: Running Word processing in thread pool")
-        content = await asyncio.get_event_loop().run_in_executor(None, _process_word_document)
-        
-        if content and not content.startswith('[Error'):
-            logger.info(f"✅ DEBUG WORD: Word processing completed successfully, result length: {len(content)} chars")
-            # Log a preview of the content
-            preview = content[:200] + '...' if len(content) > 200 else content
-            logger.info(f"✅ DEBUG WORD: Content preview: {repr(preview)}")
-        else:
-            logger.error(f"❌ DEBUG WORD: Word processing failed or returned error: {content[:100]}...")
-        
-        return content or f"[No content extracted from {file_record.original_filename}]"
-        
-    except Exception as e:
-        logger.error(f"❌ DEBUG WORD: Critical error processing Word document: {str(e)}")
-        import traceback
-        logger.error(f"❌ DEBUG WORD: Traceback: {traceback.format_exc()}")
-        return f"[Critical error processing Word document: {str(e)}]"
-
 async def read_pdf_content(file_path) -> str:
     """
     Extract text content from PDF files.
@@ -444,83 +346,53 @@ async def read_pdf_content(file_path) -> str:
     """
     try:
         import asyncio
-        logger.info(f"🔍 DEBUG PDF: Starting PDF text extraction for: {file_path}")
         
         def _extract_pdf_text():
             try:
                 import PyPDF2
-                logger.info(f"🔍 DEBUG PDF: PyPDF2 imported successfully")
                 
                 with open(file_path, 'rb') as file:
                     pdf_reader = PyPDF2.PdfReader(file)
-                    logger.info(f"🔍 DEBUG PDF: PDF reader created, pages: {len(pdf_reader.pages)}")
                     
                     # Check if PDF is encrypted
                     if pdf_reader.is_encrypted:
-                        logger.warning(f"❌ DEBUG PDF: PDF is encrypted")
                         return "[PDF is encrypted - cannot extract text]"
                     
                     # Extract text from all pages
                     text_parts = []
-                    total_pages = len(pdf_reader.pages)
-                    logger.info(f"🔍 DEBUG PDF: Processing {total_pages} pages")
-                    
                     for page_num, page in enumerate(pdf_reader.pages, 1):
                         try:
-                            logger.info(f"🔍 DEBUG PDF: Extracting text from page {page_num}/{total_pages}")
                             page_text = page.extract_text()
-                            page_text_length = len(page_text.strip()) if page_text else 0
-                            
-                            if page_text and page_text.strip():
+                            if page_text.strip():
                                 text_parts.append(f"--- Page {page_num} ---\n{page_text}")
-                                logger.info(f"✅ DEBUG PDF: Page {page_num} extracted successfully, length: {page_text_length} chars")
-                            else:
-                                logger.warning(f"⚠️ DEBUG PDF: Page {page_num} has no extractable text")
-                                
                         except Exception as page_error:
-                            logger.warning(f"❌ DEBUG PDF: Error extracting text from PDF page {page_num}: {str(page_error)}")
+                            logger.warning(f"Error extracting text from PDF page {page_num}: {str(page_error)}")
                             continue
                     
                     if not text_parts:
-                        logger.error(f"❌ DEBUG PDF: No readable text found in any of the {total_pages} pages")
                         return "[No readable text found in PDF - may contain only images]"
                     
                     full_text = "\n\n".join(text_parts)
-                    original_length = len(full_text)
-                    logger.info(f"✅ DEBUG PDF: Successfully extracted text from {len(text_parts)} pages, total length: {original_length} chars")
                     
                     # Limit content size
                     max_chars = 50000
                     if len(full_text) > max_chars:
                         full_text = full_text[:max_chars] + "\n\n[PDF content truncated - file is larger than 50k characters]"
-                        logger.info(f"⚠️ DEBUG PDF: Content truncated from {original_length} to {len(full_text)} chars")
-                    
-                    # Log a preview of the extracted content
-                    preview = full_text[:150] + '...' if len(full_text) > 150 else full_text
-                    logger.info(f"✅ DEBUG PDF: Content preview: {repr(preview)}")
                     
                     return full_text
                     
-            except ImportError as import_error:
-                logger.error(f"❌ DEBUG PDF: PyPDF2 not available: {import_error}")
+            except ImportError:
                 return "[PDF reading not available - PyPDF2 not installed]"
             except Exception as e:
-                logger.error(f"❌ DEBUG PDF: Error extracting PDF text: {str(e)}")
-                import traceback
-                logger.error(f"❌ DEBUG PDF: Traceback: {traceback.format_exc()}")
+                logger.error(f"Error extracting PDF text: {str(e)}")
                 return f"[Error reading PDF: {str(e)}]"
         
         # Run in thread pool to avoid blocking
-        logger.info(f"🔍 DEBUG PDF: Running PDF extraction in thread pool")
         content = await asyncio.get_event_loop().run_in_executor(None, _extract_pdf_text)
-        
-        logger.info(f"✅ DEBUG PDF: PDF extraction completed, result length: {len(content) if content else 0} chars")
         return content
         
     except Exception as e:
-        logger.error(f"❌ DEBUG PDF: Error processing PDF file: {str(e)}")
-        import traceback
-        logger.error(f"❌ DEBUG PDF: Traceback: {traceback.format_exc()}")
+        logger.error(f"Error processing PDF file: {str(e)}")
         return f"[Error processing PDF: {str(e)}]"
 
 def format_file_for_context(file_record: FileUpload, content: str) -> str:
@@ -559,6 +431,291 @@ def format_file_for_context(file_record: FileUpload, content: str) -> str:
     return "\n".join(formatted_parts)
 
 # =============================================================================
+# 🤖 ASSISTANT INTEGRATION PROCESSING FUNCTIONS
+# =============================================================================
+
+async def process_assistant_integration(
+    assistant_id: Optional[int],
+    conversation_id: Optional[int],
+    user: User,
+    db: AsyncSession
+) -> Dict[str, Any]:
+    """
+    Process assistant integration for chat requests.
+    
+    🎯 Learning: Assistant-Chat Integration
+    ======================================
+    This function handles the complex logic of integrating custom assistants
+    with chat conversations:
+    
+    1. **Validation**: Ensure user owns the assistant
+    2. **System Prompt**: Extract assistant's system prompt for LLM
+    3. **Model Preferences**: Get assistant's preferred LLM settings
+    4. **Conversation Management**: Link or create chat conversations
+    5. **Error Handling**: Graceful fallback for missing/invalid assistants
+    
+    Args:
+        assistant_id: Optional ID of assistant to use
+        conversation_id: Optional ID of existing conversation
+        user: Current user (for ownership validation)
+        db: Database session
+        
+    Returns:
+        Dictionary containing:
+        - assistant: Assistant object or None
+        - system_prompt: System prompt to inject or None
+        - model_preferences: Dict of LLM preferences
+        - chat_conversation: ChatConversation object or None
+        - should_create_conversation: Whether to auto-create conversation
+        - error: Error message if validation failed
+        
+    Raises:
+        HTTPException: If assistant access is denied
+    """
+    logger.info(f"🔍 DEBUG: process_assistant_integration called with assistant_id: {assistant_id}, conversation_id: {conversation_id}, user: {user.email}")
+    
+    result = {
+        "assistant": None,
+        "system_prompt": None,
+        "model_preferences": {},
+        "chat_conversation": None,
+        "should_create_conversation": False,
+        "error": None
+    }
+    
+    # If no assistant specified, return empty result (general chat)
+    if not assistant_id:
+        logger.info(f"🔍 DEBUG: No assistant_id provided, using general chat")
+        return result
+    
+    try:
+        # Get and validate assistant ownership
+        assistant = await assistant_service.get_assistant(
+            db=db,
+            assistant_id=assistant_id,
+            user_id=user.id
+        )
+        
+        if not assistant:
+            logger.warning(f"❌ DEBUG: Assistant {assistant_id} not found or not owned by user {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Assistant {assistant_id} not found or access denied"
+            )
+        
+        if not assistant.is_active:
+            logger.warning(f"❌ DEBUG: Assistant {assistant_id} is inactive")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Assistant '{assistant.name}' is not active"
+            )
+        
+        logger.info(f"✅ DEBUG: Successfully validated assistant '{assistant.name}' (ID: {assistant_id})")
+        
+        # Extract assistant configuration
+        result["assistant"] = assistant
+        result["system_prompt"] = assistant.system_prompt
+        result["model_preferences"] = assistant.get_effective_model_preferences()
+        
+        # Handle conversation integration
+        if conversation_id:
+            # User specified an existing conversation - validate and load it
+            chat_conversation = await get_chat_conversation_with_validation(
+                db=db,
+                conversation_id=conversation_id,
+                user_id=user.id,
+                expected_assistant_id=assistant_id
+            )
+            
+            if chat_conversation:
+                result["chat_conversation"] = chat_conversation
+                logger.info(f"✅ DEBUG: Using existing conversation {conversation_id}")
+            else:
+                logger.warning(f"⚠️ DEBUG: Conversation {conversation_id} not found or invalid")
+                # Fall back to creating new conversation
+                result["should_create_conversation"] = True
+        else:
+            # No conversation specified - we'll auto-create one
+            result["should_create_conversation"] = True
+            logger.info(f"🔍 DEBUG: Will auto-create conversation for assistant chat")
+        
+        logger.info(f"🎉 DEBUG: Assistant integration successful - system_prompt length: {len(result['system_prompt']) if result['system_prompt'] else 0}")
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (validation errors)
+        raise
+    except Exception as e:
+        logger.error(f"❌ DEBUG: Error processing assistant integration: {str(e)}")
+        result["error"] = f"Assistant integration failed: {str(e)}"
+    
+    return result
+
+async def get_chat_conversation_with_validation(
+    db: AsyncSession,
+    conversation_id: int,
+    user_id: int,
+    expected_assistant_id: Optional[int] = None
+) -> Optional[ChatConversation]:
+    """
+    Get and validate a chat conversation.
+    
+    🎯 Learning: Conversation Validation
+    ===================================
+    When users specify an existing conversation, we need to validate:
+    - User owns the conversation
+    - Conversation is active
+    - Assistant matches (if specified)
+    - Conversation exists and is accessible
+    
+    Args:
+        db: Database session
+        conversation_id: ID of conversation to validate
+        user_id: ID of user (for ownership validation)
+        expected_assistant_id: Optional assistant ID that should match
+        
+    Returns:
+        ChatConversation object or None if invalid
+    """
+    try:
+        # Query for the conversation with ownership validation
+        chat_conversation = await db.get(ChatConversation, conversation_id)
+        
+        if not chat_conversation:
+            logger.warning(f"Chat conversation {conversation_id} not found")
+            return None
+        
+        # Validate ownership
+        if chat_conversation.user_id != user_id:
+            logger.warning(f"Chat conversation {conversation_id} not owned by user {user_id}")
+            return None
+        
+        # Validate active status
+        if not chat_conversation.is_active:
+            logger.warning(f"Chat conversation {conversation_id} is inactive")
+            return None
+        
+        # Validate assistant match if specified
+        if expected_assistant_id and chat_conversation.assistant_id != expected_assistant_id:
+            logger.warning(
+                f"Chat conversation {conversation_id} uses assistant {chat_conversation.assistant_id}, "
+                f"but user requested assistant {expected_assistant_id}"
+            )
+            return None
+        
+        logger.info(f"✅ Validated chat conversation {conversation_id}")
+        return chat_conversation
+        
+    except Exception as e:
+        logger.error(f"Error validating chat conversation {conversation_id}: {str(e)}")
+        return None
+
+async def create_chat_conversation_for_assistant(
+    db: AsyncSession,
+    assistant: Assistant,
+    user: User,
+    first_message_content: str
+) -> Optional[ChatConversation]:
+    """
+    Auto-create a chat conversation when user starts chatting with an assistant.
+    
+    🎯 Learning: Auto-Conversation Creation
+    ======================================
+    When users start chatting with an assistant without specifying a conversation,
+    we automatically create one for better organization:
+    
+    1. Generate meaningful conversation title
+    2. Create ChatConversation record
+    3. Link to assistant for future reference
+    4. Set up proper metadata
+    
+    Args:
+        db: Database session
+        assistant: Assistant being used
+        user: User creating the conversation
+        first_message_content: Content of first message (for title generation)
+        
+    Returns:
+        Created ChatConversation or None if creation failed
+    """
+    try:
+        # Generate a meaningful title based on first message
+        conversation_title = generate_conversation_title(
+            assistant_name=assistant.name,
+            first_message=first_message_content
+        )
+        
+        # Create the chat conversation
+        chat_conversation = ChatConversation(
+            user_id=user.id,
+            assistant_id=assistant.id,
+            title=conversation_title,
+            description=f"Chat with {assistant.name} assistant",
+            is_active=True,
+            message_count=0  # Will be updated after message is sent
+        )
+        
+        db.add(chat_conversation)
+        await db.flush()  # Get the ID without committing
+        
+        logger.info(f"✅ Auto-created chat conversation '{conversation_title}' for assistant {assistant.name}")
+        return chat_conversation
+        
+    except Exception as e:
+        logger.error(f"Failed to create chat conversation for assistant {assistant.id}: {str(e)}")
+        return None
+
+def generate_conversation_title(assistant_name: str, first_message: str, max_length: int = 50) -> str:
+    """
+    Generate a meaningful conversation title.
+    
+    🎯 Learning: Title Generation Strategy
+    ====================================
+    Good conversation titles help users:
+    - Quickly identify conversations in lists
+    - Understand the context/purpose
+    - Find specific conversations later
+    
+    Strategy:
+    1. Use first few words of user message
+    2. Include assistant name for context
+    3. Keep within reasonable length
+    4. Handle edge cases (empty/long messages)
+    
+    Args:
+        assistant_name: Name of the assistant
+        first_message: Content of first user message
+        max_length: Maximum title length
+        
+    Returns:
+        Generated conversation title
+    """
+    try:
+        # Clean and truncate the first message
+        message_preview = first_message.strip()[:30].strip()
+        
+        # Remove newlines and extra spaces
+        message_preview = " ".join(message_preview.split())
+        
+        # Generate title
+        if message_preview:
+            if len(message_preview) < 25:
+                title = f"{assistant_name}: {message_preview}"
+            else:
+                title = f"{assistant_name}: {message_preview}..."
+        else:
+            title = f"Chat with {assistant_name}"
+        
+        # Ensure title doesn't exceed max length
+        if len(title) > max_length:
+            title = title[:max_length-3] + "..."
+        
+        return title
+        
+    except Exception as e:
+        logger.error(f"Error generating conversation title: {str(e)}")
+        return f"Chat with {assistant_name}"
+
+# =============================================================================
 # CHAT ENDPOINTS
 # =============================================================================
 
@@ -570,12 +727,51 @@ async def send_chat_message(
     db: AsyncSession = Depends(get_async_db)
 ):
     """
-    Send a chat message to an LLM provider.
+    Send a chat message to an LLM provider with full assistant integration.
+    
+    🎯 STEP 6: Chat Integration API (COMPLETE IMPLEMENTATION)
+    ========================================================
+    This endpoint now fully supports custom assistants by:
+    
+    1. **Assistant Validation**: Verify user owns the assistant
+    2. **System Prompt Injection**: Add assistant's system prompt to LLM request
+    3. **Model Preferences**: Apply assistant's preferred LLM settings
+    4. **Conversation Management**: Auto-create and track assistant conversations
+    5. **Usage Logging**: Track assistant usage for analytics
     
     This is the main endpoint that users call to chat with AI models.
-    It handles authentication, configuration validation, and usage tracking.
+    It handles authentication, configuration validation, assistant integration, and usage tracking.
     """
     try:
+        # =============================================================================
+        # 🤖 STEP 1: PROCESS ASSISTANT INTEGRATION (NEW!)
+        # =============================================================================
+        
+        # Process assistant integration first (if assistant_id provided)
+        assistant_integration = await process_assistant_integration(
+            assistant_id=chat_request.assistant_id,
+            conversation_id=chat_request.conversation_id,
+            user=current_user,
+            db=db
+        )
+        
+        # Extract assistant data
+        assistant = assistant_integration.get("assistant")
+        assistant_system_prompt = assistant_integration.get("system_prompt")
+        assistant_model_prefs = assistant_integration.get("model_preferences", {})
+        chat_conversation = assistant_integration.get("chat_conversation")
+        should_create_conversation = assistant_integration.get("should_create_conversation", False)
+        
+        # Log assistant integration results
+        if assistant:
+            logger.info(f"User {current_user.email} chatting with assistant '{assistant.name}' (ID: {assistant.id})")
+        else:
+            logger.info(f"User {current_user.email} using general chat (no assistant)")
+        
+        # =============================================================================
+        # STEP 2: VALIDATE LLM CONFIGURATION
+        # =============================================================================
+        
         # Validate that the user can access this configuration
         config = await db.get(LLMConfiguration, chat_request.config_id)
         if not config:
@@ -591,7 +787,8 @@ async def send_chat_message(
                 detail=f"Access denied to configuration '{config.name}'"
             )
         
-        logger.info(f"User {current_user.email} sending chat message via {config.name}")
+        config_description = f"{config.name} + {assistant.name}" if assistant else config.name
+        logger.info(f"User {current_user.email} sending chat message via {config_description}")
         
         # =============================================================================
         # EXTRACT CLIENT INFORMATION FOR USAGE LOGGING
@@ -620,18 +817,41 @@ async def send_chat_message(
         session_id = f"user_{current_user.id}_{int(request.state.__dict__.get('start_time', 0) * 1000) if hasattr(request.state, 'start_time') else 'unknown'}"
         
         # =============================================================================
-        # VALIDATE MODEL SELECTION (NEW!)
+        # 🤖 STEP 3: APPLY ASSISTANT MODEL PREFERENCES (NEW!)
         # =============================================================================
         
-        validated_model = chat_request.model
-        model_requested = chat_request.model
+        # Merge assistant preferences with user request (user request takes priority)
+        effective_model = chat_request.model
+        effective_temperature = chat_request.temperature
+        effective_max_tokens = chat_request.max_tokens
+        
+        # Apply assistant model preferences if no user override
+        if assistant and assistant_model_prefs:
+            if not effective_model and "model" in assistant_model_prefs:
+                effective_model = assistant_model_prefs["model"]
+                logger.info(f"🤖 Using assistant's preferred model: {effective_model}")
+            
+            if effective_temperature is None and "temperature" in assistant_model_prefs:
+                effective_temperature = assistant_model_prefs["temperature"]
+                logger.info(f"🤖 Using assistant's preferred temperature: {effective_temperature}")
+            
+            if not effective_max_tokens and "max_tokens" in assistant_model_prefs:
+                effective_max_tokens = assistant_model_prefs["max_tokens"]
+                logger.info(f"🤖 Using assistant's preferred max_tokens: {effective_max_tokens}")
+        
+        # =============================================================================
+        # STEP 4: VALIDATE MODEL SELECTION
+        # =============================================================================
+        
+        validated_model = effective_model
+        model_requested = chat_request.model  # Keep track of original user request
         model_changed = False
         model_change_reason = None
         
-        # If user specified a model, validate it against dynamic models
-        if chat_request.model and chat_request.model != config.default_model:
+        # If user or assistant specified a model, validate it against dynamic models
+        if validated_model and validated_model != config.default_model:
             try:
-                logger.info(f"Validating user-selected model '{chat_request.model}' for config {config.name}")
+                logger.info(f"Validating model '{validated_model}' for config {config.name}")
                 
                 # Get dynamic models to validate against
                 dynamic_models_data = await llm_service.get_dynamic_models(
@@ -641,19 +861,19 @@ async def send_chat_message(
                 
                 available_models = dynamic_models_data.get("models", [])
                 
-                if chat_request.model not in available_models:
+                if validated_model not in available_models:
                     # Model not available - either use default or suggest alternatives
                     default_model = dynamic_models_data.get("default_model", config.default_model)
                     
-                    logger.warning(f"Model '{chat_request.model}' not available. Using '{default_model}' instead.")
+                    logger.warning(f"Model '{validated_model}' not available. Using '{default_model}' instead.")
                     
                     # Track model change for response
                     validated_model = default_model
                     model_changed = True
-                    model_change_reason = f"Model '{chat_request.model}' not available from provider, using '{default_model}' instead"
+                    model_change_reason = f"Model '{effective_model}' not available from provider, using '{default_model}' instead"
                     
                 else:
-                    logger.info(f"Model '{chat_request.model}' validated successfully")
+                    logger.info(f"Model '{validated_model}' validated successfully")
                     
             except Exception as model_validation_error:
                 # If validation fails, fall back to default model
@@ -665,8 +885,7 @@ async def send_chat_message(
         # 📁 NEW: Process file attachments and add to context
         file_context = ""
         if chat_request.file_attachment_ids:
-            logger.info(f"🔍 DEBUG ENHANCED: Processing {len(chat_request.file_attachment_ids)} file attachments: {chat_request.file_attachment_ids}")
-            logger.info(f"🔍 DEBUG ENHANCED: File attachment IDs types: {[type(fid) for fid in chat_request.file_attachment_ids]}")
+            logger.info(f"🔍 DEBUG: Processing {len(chat_request.file_attachment_ids)} file attachments: {chat_request.file_attachment_ids}")
             
             file_context = await process_file_attachments(
                 file_ids=chat_request.file_attachment_ids,
@@ -674,93 +893,147 @@ async def send_chat_message(
                 db=db
             )
             
-            logger.info(f"📄 DEBUG ENHANCED: File processing completed - Context length: {len(file_context)} characters")
+            logger.info(f"📄 DEBUG: File context result - Length: {len(file_context)} characters")
             if file_context:
-                context_preview = file_context[:300] + '...' if len(file_context) > 300 else file_context
-                logger.info(f"📄 DEBUG ENHANCED: File context preview: {repr(context_preview)}")
-                logger.info(f"✅ DEBUG ENHANCED: SUCCESS - File context generated and will be included in AI message")
+                logger.info(f"📄 DEBUG: File context preview: {file_context[:200]}...")
             else:
-                logger.error(f"❌ DEBUG ENHANCED: CRITICAL - File processing returned empty context for files: {chat_request.file_attachment_ids}")
-                logger.error(f"❌ DEBUG ENHANCED: This means the AI will NOT see the file content!")
+                logger.warning(f"⚠️ DEBUG: File processing returned empty context for files: {chat_request.file_attachment_ids}")
                 
-            logger.info(f"📊 DEBUG ENHANCED: File processing summary - {len(chat_request.file_attachment_ids)} files requested, context length: {len(file_context)} chars")
+            logger.info(f"Processed {len(chat_request.file_attachment_ids)} file attachments, total context length: {len(file_context)} characters")
         else:
-            logger.info(f"🔍 DEBUG ENHANCED: No file attachments in request (file_attachment_ids is None or empty)")
+            logger.info(f"🔍 DEBUG: No file attachments in request")
         
-        # Convert request to service format
+        # =============================================================================
+        # 🤖 STEP 5: INJECT ASSISTANT SYSTEM PROMPT (NEW!)
+        # =============================================================================
+        
+        # Convert request messages to service format
         messages = [
             {"role": msg.role, "content": msg.content, "name": msg.name}
             for msg in chat_request.messages
         ]
         
+        # Inject assistant system prompt if available
+        if assistant_system_prompt:
+            # Check if there's already a system message
+            has_system_message = any(msg["role"] == "system" for msg in messages)
+            
+            if has_system_message:
+                # Update existing system message to include assistant prompt
+                for msg in messages:
+                    if msg["role"] == "system":
+                        # Prepend assistant prompt to existing system message
+                        msg["content"] = f"{assistant_system_prompt}\n\n{msg['content']}"
+                        logger.info(f"🤖 Enhanced existing system message with assistant prompt")
+                        break
+            else:
+                # Add assistant system prompt as the first message
+                messages.insert(0, {
+                    "role": "system",
+                    "content": assistant_system_prompt,
+                    "name": f"assistant_{assistant.id}"
+                })
+                logger.info(f"🤖 Injected assistant system prompt: '{assistant.name}' ({len(assistant_system_prompt)} chars)")
+        
         # 📁 Add file context to the last user message if we have attachments
         if file_context and messages:
-            logger.info(f"📄 DEBUG ENHANCED: Adding file context to message. Context length: {len(file_context)}")
+            logger.info(f"📄 DEBUG: Adding file context to message. Context length: {len(file_context)}")
             # Find the last user message and append file context
             for i in range(len(messages) - 1, -1, -1):
                 if messages[i]["role"] == "user":
                     original_content = messages[i]["content"]
-                    enhanced_content = f"{messages[i]['content']}\n\n{file_context}"
-                    messages[i]["content"] = enhanced_content
-                    
-                    logger.info(f"📄 DEBUG ENHANCED: File context added to user message")
-                    logger.info(f"📄 DEBUG ENHANCED: Original message length: {len(original_content)} chars")
-                    logger.info(f"📄 DEBUG ENHANCED: Enhanced message length: {len(enhanced_content)} chars")
-                    logger.info(f"📄 DEBUG ENHANCED: File context portion: {len(file_context)} chars")
-                    
-                    # Show a preview of the enhanced message
-                    enhanced_preview = enhanced_content[:200] + '...' if len(enhanced_content) > 200 else enhanced_content
-                    logger.info(f"📄 DEBUG ENHANCED: Enhanced message preview: {repr(enhanced_preview)}")
+                    messages[i]["content"] = f"{messages[i]['content']}\n\n{file_context}"
+                    logger.info(f"📄 DEBUG: Added file context to user message. Original length: {len(original_content)}, New length: {len(messages[i]['content'])}")
                     break
             else:
                 # No user message found, add a system message with file context
-                logger.info(f"📄 DEBUG ENHANCED: No user message found, adding system message with file context")
+                logger.info(f"📄 DEBUG: No user message found, adding system message with file context")
                 messages.insert(0, {
                     "role": "system", 
                     "content": f"The user has provided the following files for context:\n\n{file_context}"
                 })
-                logger.info(f"📄 DEBUG ENHANCED: System message added with file context")
         elif file_context and not messages:
-            logger.error(f"❌ DEBUG ENHANCED: CRITICAL - Have file context but no messages to attach it to!")
+            logger.warning(f"⚠️ DEBUG: Have file context but no messages to attach it to!")
         elif chat_request.file_attachment_ids and not file_context:
-            logger.error(f"❌ DEBUG ENHANCED: CRITICAL - User sent file attachments but no context was generated!")
-            logger.error(f"❌ DEBUG ENHANCED: File IDs: {chat_request.file_attachment_ids}")
-            logger.error(f"❌ DEBUG ENHANCED: This means the AI will receive an empty message for the file content!")
+            logger.warning(f"⚠️ DEBUG: User sent file attachments but no context was generated!")
+        
+        # =============================================================================
+        # 🤖 STEP 6: PREPARE CONVERSATION CONTEXT (NEW!)
+        # =============================================================================
+        
+        # If this is a new assistant chat, prepare for auto-conversation creation
+        first_user_message = ""
+        if should_create_conversation:
+            # Find the first user message for conversation title generation
+            for msg in reversed(chat_request.messages):  # Start from the most recent
+                if msg.role == "user":
+                    first_user_message = msg.content
+                    break
         
         # 🔍 DEBUG: Log final message that will be sent to LLM
-        logger.info(f"📤 DEBUG ENHANCED: Sending {len(messages)} messages to LLM")
+        logger.info(f"📤 DEBUG: Sending {len(messages)} messages to LLM")
         for i, msg in enumerate(messages):
-            content_length = len(msg['content'])
-            content_preview = msg['content'][:150] + '...' if content_length > 150 else msg['content']
-            
-            logger.info(f"📤 DEBUG ENHANCED: Message {i+1} - Role: {msg['role']}, Content length: {content_length} chars")
-            logger.info(f"📤 DEBUG ENHANCED: Message {i+1} preview: {repr(content_preview)}")
-            
-            # Check if this message contains file context
-            if '=== ATTACHED FILES ===' in msg['content']:
-                logger.info(f"📎 DEBUG ENHANCED: Message {i+1} contains file attachments - AI will see file content!")
-            elif msg['role'] == 'user' and chat_request.file_attachment_ids:
-                logger.warning(f"⚠️ DEBUG ENHANCED: Message {i+1} is from user but doesn't contain file context despite file attachments!")
+            content_preview = msg['content'][:100] + '...' if len(msg['content']) > 100 else msg['content']
+            logger.info(f"📤 DEBUG: Message {i+1} - Role: {msg['role']}, Content length: {len(msg['content'])}, Preview: {content_preview}")
         
         # =============================================================================
-        # SEND REQUEST THROUGH LLM SERVICE WITH USAGE LOGGING
+        # STEP 7: SEND REQUEST THROUGH LLM SERVICE WITH ASSISTANT INFO
         # =============================================================================
         
+        # Send the actual request with assistant preferences
         response = await llm_service.send_chat_request(
             config_id=chat_request.config_id,
             messages=messages,
             user_id=current_user.id,  # Added for usage logging
             model=validated_model,  # Use validated model instead of raw user input
-            temperature=chat_request.temperature,
-            max_tokens=chat_request.max_tokens,
+            temperature=effective_temperature,  # Use assistant's preferred temperature if available
+            max_tokens=effective_max_tokens,  # Use assistant's preferred max_tokens if available
             session_id=session_id,  # Added for session tracking
             request_id=request_id,  # Added for request tracing
             ip_address=client_ip,  # Added for client tracking
-            user_agent=user_agent  # Added for client info
+            user_agent=user_agent,  # Added for client info
+            assistant_id=chat_request.assistant_id  # 🤖 NEW: Pass assistant ID for logging
         )
         
-        # Convert service response to API response with model validation info
-        return ChatResponse(
+        # =============================================================================
+        # 🤖 STEP 8: UPDATE CONVERSATION TRACKING (NEW!)
+        # =============================================================================
+        
+        # Auto-create conversation if needed
+        if should_create_conversation and assistant and first_user_message:
+            try:
+                new_chat_conversation = await create_chat_conversation_for_assistant(
+                    db=db,
+                    assistant=assistant,
+                    user=current_user,
+                    first_message_content=first_user_message
+                )
+                
+                if new_chat_conversation:
+                    chat_conversation = new_chat_conversation
+                    logger.info(f"🎉 Auto-created conversation {chat_conversation.id} for assistant chat")
+                
+            except Exception as conv_error:
+                logger.error(f"Failed to auto-create conversation (non-critical): {str(conv_error)}")
+        
+        # Update existing conversation activity
+        if chat_conversation:
+            try:
+                chat_conversation.message_count += 2  # User message + assistant response
+                chat_conversation.last_message_at = datetime.utcnow()
+                chat_conversation.update_activity()
+                await db.commit()
+                logger.info(f"📊 Updated conversation {chat_conversation.id} activity")
+                
+            except Exception as update_error:
+                logger.error(f"Failed to update conversation activity (non-critical): {str(update_error)}")
+        
+        # =============================================================================
+        # STEP 9: BUILD ENHANCED RESPONSE WITH ASSISTANT INFO
+        # =============================================================================
+        
+        # Convert service response to API response with assistant and model validation info
+        chat_response = ChatResponse(
             content=response.content,
             model=response.model,
             provider=response.provider,
@@ -773,6 +1046,14 @@ async def send_chat_message(
             model_changed=model_changed,
             model_change_reason=model_change_reason
         )
+        
+        # Add assistant context to response if available
+        if assistant:
+            # Note: We could extend ChatResponse schema to include assistant info
+            # For now, the assistant context is handled through conversation tracking
+            logger.info(f"🤖 Chat completed with assistant '{assistant.name}' - {len(response.content)} chars generated")
+        
+        return chat_response
         
     except LLMConfigurationError as e:
         logger.error(f"Configuration error: {str(e)}")

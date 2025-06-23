@@ -906,34 +906,72 @@ class AssistantImport(BaseModel):
 # UTILITY FUNCTIONS
 # =============================================================================
 
-def create_assistant_response_from_model(assistant_model) -> AssistantResponse:
+def create_assistant_response_from_model(
+    assistant_model, 
+    conversation_count: Optional[int] = None
+) -> AssistantResponse:
     """
     Utility function to convert an Assistant model instance to AssistantResponse.
     
     Args:
         assistant_model: SQLAlchemy Assistant model instance
+        conversation_count: Pre-computed conversation count (avoids lazy loading)
         
     Returns:
         AssistantResponse schema instance
         
-    🎓 LEARNING: Model-to-Schema Conversion
-    =====================================
-    This utility helps maintain consistency when converting database
-    models to API responses, ensuring all computed fields are properly set.
+    🎓 LEARNING: Async-Safe Model-to-Schema Conversion
+    ================================================
+    This utility avoids lazy loading issues in async contexts by:
+    - Accepting pre-computed values as parameters
+    - Computing simple properties directly
+    - Avoiding database queries in the conversion process
     """
+    # Compute conversation count safely
+    if conversation_count is None:
+        # If conversations are already loaded, use them
+        if hasattr(assistant_model, 'conversations') and assistant_model.conversations is not None:
+            conversation_count = len(assistant_model.conversations)
+        else:
+            # Default to 0 to avoid lazy loading
+            conversation_count = 0
+    
+    # Compute is_new without accessing potentially lazy-loaded properties
+    is_new = False
+    if assistant_model.created_at:
+        from datetime import datetime, timedelta
+        day_ago = datetime.utcnow() - timedelta(hours=24)
+        is_new = assistant_model.created_at > day_ago
+    
+    # Get system prompt preview safely
+    system_prompt_preview = assistant_model.system_prompt[:147] + "..." if len(assistant_model.system_prompt) > 150 else assistant_model.system_prompt
+    
+    # Get effective model preferences safely
+    defaults = {
+        "model": "gpt-3.5-turbo",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 1.0,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0
+    }
+    
+    if assistant_model.model_preferences and isinstance(assistant_model.model_preferences, dict):
+        defaults.update(assistant_model.model_preferences)
+    
     return AssistantResponse(
         id=assistant_model.id,
         name=assistant_model.name,
         description=assistant_model.description,
         system_prompt=assistant_model.system_prompt,
-        system_prompt_preview=assistant_model.system_prompt_preview,
-        model_preferences=assistant_model.get_effective_model_preferences(),
+        system_prompt_preview=system_prompt_preview,
+        model_preferences=defaults,
         user_id=assistant_model.user_id,
         is_active=assistant_model.is_active,
-        conversation_count=assistant_model.conversation_count,
+        conversation_count=conversation_count,
         created_at=assistant_model.created_at,
         updated_at=assistant_model.updated_at,
-        is_new=assistant_model.is_new,
+        is_new=is_new,
         status_label="Active" if assistant_model.is_active else "Inactive",
         has_custom_preferences=bool(assistant_model.model_preferences)
     )

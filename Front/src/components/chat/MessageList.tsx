@@ -9,6 +9,7 @@ import Markdown from 'markdown-to-jsx';
 import { ChatMessage } from '../../types/chat';
 import { CodeBlock } from '../ui/CodeBlock';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
+import { AssistantDivider, AssistantBadge } from '../assistant';
 
 // Props interface - what data this component needs
 interface MessageListProps {
@@ -248,11 +249,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message, isLas
             lineHeight: 'inherit !important'
           }}
         >
-        {/* 👤 Message sender indicator (only for non-user messages) */}
+        {/* 🤖 Assistant context indicator (only for AI messages) */}
         {!isUser && !isSystem && (
-          <div className="text-xs text-gray-500 mb-1 font-medium">
-            <span className="hidden sm:inline">AI Assistant</span>
-            <span className="sm:hidden">AI</span>
+          <div className="mb-1.5">
+            {message.assistantName ? (
+              <AssistantBadge 
+                assistantName={message.assistantName}
+                isIntroduction={message.assistantIntroduction}
+              />
+            ) : (
+              <div className="text-xs text-gray-500 font-medium">
+                <span className="hidden sm:inline">AI Assistant</span>
+                <span className="sm:hidden">AI</span>
+              </div>
+            )}
           </div>
         )}
         
@@ -381,14 +391,32 @@ export const MessageList: React.FC<MessageListProps> = ({
           </div>
         </div>
       ) : (
-        // 💬 Render all messages in conversation
-        messages.map((message, index) => (
-          <MessageBubble 
-            key={index} 
-            message={message} 
-            isLast={index === messages.length - 1 && !isLoading}
-          />
-        ))
+        // 💬 Render all messages in conversation with assistant context
+        messages.map((message, index) => {
+          const elements = [];
+          
+          // 🤖 Show assistant divider if assistant changed
+          if (message.assistantChanged && message.assistantName) {
+            elements.push(
+              <AssistantDivider
+                key={`divider-${index}`}
+                previousAssistantName={message.previousAssistantName}
+                newAssistantName={message.assistantName}
+              />
+            );
+          }
+          
+          // 💬 Add the actual message bubble
+          elements.push(
+            <MessageBubble 
+              key={`message-${index}`}
+              message={message} 
+              isLast={index === messages.length - 1 && !isLoading}
+            />
+          );
+          
+          return elements;
+        }).flat() // Flatten array since we're returning arrays of elements
       )}
       
       {/* 💭 Show typing indicator when AI is responding BUT NOT streaming */}

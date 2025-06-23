@@ -199,8 +199,12 @@ class User(Base):
     )
     
     # Usage tracking relationship - shows all LLM interactions by this user
-    usage_logs = relationship("UsageLog", back_populates="user", lazy="dynamic")
-    
+    usage_logs = relationship(
+        "UsageLog",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )    
     # Conversation relationship - user's saved conversations
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan", order_by="Conversation.updated_at.desc()")
     

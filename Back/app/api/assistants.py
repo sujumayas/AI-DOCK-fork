@@ -127,7 +127,8 @@ async def create_assistant(
         )
         
         # Convert model to response schema
-        response = create_assistant_response_from_model(assistant)
+        # For newly created assistants, conversation_count is 0
+        response = create_assistant_response_from_model(assistant, conversation_count=0)
         
         logger.info(f"Successfully created assistant {assistant.id} for user {current_user.email}")
         return response
@@ -223,15 +224,28 @@ async def list_assistants(
         # Convert to summary format
         assistant_summaries = []
         for assistant in assistants:
+            # Compute values safely to avoid lazy loading
+            system_prompt_preview = assistant.system_prompt[:147] + "..." if len(assistant.system_prompt) > 150 else assistant.system_prompt
+            
+            # Use pre-computed conversation count from service layer
+            conversation_count = getattr(assistant, '_conversation_count', 0)
+            
+            # Compute is_new safely
+            is_new = False
+            if assistant.created_at:
+                from datetime import datetime, timedelta
+                day_ago = datetime.utcnow() - timedelta(hours=24)
+                is_new = assistant.created_at > day_ago
+            
             summary = AssistantSummary(
                 id=assistant.id,
                 name=assistant.name,
                 description=assistant.description,
-                system_prompt_preview=assistant.system_prompt_preview,
+                system_prompt_preview=system_prompt_preview,
                 is_active=assistant.is_active,
-                conversation_count=assistant.conversation_count,
+                conversation_count=conversation_count,
                 created_at=assistant.created_at,
-                is_new=assistant.is_new
+                is_new=is_new
             )
             assistant_summaries.append(summary)
         
@@ -319,7 +333,9 @@ async def get_assistant(
             )
         
         # Convert to response schema
-        response = create_assistant_response_from_model(assistant)
+        # Use pre-computed conversation count from service layer
+        conversation_count = getattr(assistant, '_conversation_count', 0)
+        response = create_assistant_response_from_model(assistant, conversation_count=conversation_count)
         
         logger.debug(f"Retrieved assistant {assistant_id} for {current_user.email}")
         return response
@@ -397,7 +413,9 @@ async def update_assistant(
             )
         
         # Convert to response schema
-        response = create_assistant_response_from_model(updated_assistant)
+        # Use pre-computed conversation count from service layer
+        conversation_count = getattr(updated_assistant, '_conversation_count', 0)
+        response = create_assistant_response_from_model(updated_assistant, conversation_count=conversation_count)
         
         logger.info(f"Successfully updated assistant {assistant_id} for {current_user.email}")
         return response
@@ -812,15 +830,28 @@ async def search_assistants(
         # Convert to summary format
         summaries = []
         for assistant in assistants:
+            # Compute values safely to avoid lazy loading
+            system_prompt_preview = assistant.system_prompt[:147] + "..." if len(assistant.system_prompt) > 150 else assistant.system_prompt
+            
+            # Use pre-computed conversation count from service layer
+            conversation_count = getattr(assistant, '_conversation_count', 0)
+            
+            # Compute is_new safely
+            is_new = False
+            if assistant.created_at:
+                from datetime import datetime, timedelta
+                day_ago = datetime.utcnow() - timedelta(hours=24)
+                is_new = assistant.created_at > day_ago
+            
             summary = AssistantSummary(
                 id=assistant.id,
                 name=assistant.name,
                 description=assistant.description,
-                system_prompt_preview=assistant.system_prompt_preview,
+                system_prompt_preview=system_prompt_preview,
                 is_active=assistant.is_active,
-                conversation_count=assistant.conversation_count,
+                conversation_count=conversation_count,
                 created_at=assistant.created_at,
-                is_new=assistant.is_new
+                is_new=is_new
             )
             summaries.append(summary)
         

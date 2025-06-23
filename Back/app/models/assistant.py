@@ -81,7 +81,7 @@ class Assistant(Base):
     # Foreign key to User - who owns this assistant?
     user_id = Column(
         Integer,
-        ForeignKey('users.id'),     # References the 'id' column in 'users' table
+        ForeignKey('users.id',ondelete="CASCADE"),     # References the 'id' column in 'users' table
         nullable=False,             # Every assistant must have an owner
         index=True,                 # Index for fast user lookups
         comment="Foreign key to the user who created this assistant"

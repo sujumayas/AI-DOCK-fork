@@ -53,6 +53,8 @@ export const Dashboard: React.FC = () => {
   const handleManagerDashboard = useCallback(() => {
     navigate('/manager')
   }, [navigate])
+  
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
@@ -165,6 +167,8 @@ export const Dashboard: React.FC = () => {
               </button>
             </div>
           </div>
+          
+
         </div>
 
         {/* 🛡️ Admin & Manager Quick Access - Only show for admin/manager users */}

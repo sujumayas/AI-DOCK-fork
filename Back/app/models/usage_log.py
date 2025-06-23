@@ -41,7 +41,8 @@ class UsageLog(Base):
     # USER AND CONTEXT INFORMATION
     # =============================================================================
     
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # Allow user_id to be nullable and set to NULL on user delete for audit log integrity
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)    
     """Who made this request - essential for per-user tracking"""
     
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True, index=True)

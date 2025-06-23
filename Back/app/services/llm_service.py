@@ -1073,26 +1073,33 @@ class LLMService:
         request_id: Optional[str] = None,  # Added for request tracing
         ip_address: Optional[str] = None,  # Added for client tracking
         user_agent: Optional[str] = None,  # Added for client info
+        assistant_id: Optional[int] = None,  # 🤖 NEW: Assistant ID for logging
         bypass_quota: bool = False,  # NEW: Allow admins to bypass quotas
         **kwargs
     ) -> ChatResponse:
         """
-        Send a chat request with quota enforcement.
+        Send a chat request with quota enforcement and assistant support.
         
-        This method now includes quota checking BEFORE the LLM request
-        and quota usage recording AFTER the LLM request.
+        🤖 STEP 6: LLM Service Integration (UPDATED FOR ASSISTANTS)
+        ==========================================================
+        This method now includes:
+        - Quota checking BEFORE the LLM request
+        - Quota usage recording AFTER the LLM request
+        - Assistant context logging for analytics
+        - Enhanced usage tracking with assistant information
         
         Args:
             config_id: ID of the LLM configuration to use
-            messages: List of message dictionaries (role, content)
+            messages: List of message dictionaries (role, content) - may include assistant system prompts
             user_id: ID of user making the request (for usage tracking)
-            model: Override model (optional)
-            temperature: Override temperature (optional)
-            max_tokens: Override max tokens (optional)
+            model: Override model (optional, may come from assistant preferences)
+            temperature: Override temperature (optional, may come from assistant preferences)
+            max_tokens: Override max tokens (optional, may come from assistant preferences)
             session_id: Session identifier for grouping requests (optional)
             request_id: Unique request identifier for tracing (optional)
             ip_address: Client IP address (optional)
             user_agent: Client user agent string (optional)
+            assistant_id: ID of custom assistant being used (optional, for logging)
             bypass_quota: If True, skip quota checking (admin only)
             **kwargs: Additional provider-specific parameters
             
