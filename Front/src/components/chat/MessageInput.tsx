@@ -309,6 +309,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleFileRemoved = (fileId: string) => {
     console.log('🗑️ File removed from message input:', fileId);
     setFileUploadsInProgress(prev => prev.filter(upload => upload.id !== fileId));
+    setAttachments(prev => prev.filter(attachment => attachment.fileUpload.id !== fileId));
   };
   
   const handleAttachmentRemoved = (attachmentId: string) => {
