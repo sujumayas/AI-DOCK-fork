@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 import logging
 import uuid  # For generating request IDs
 import os     # For file system operations
+from datetime import datetime  # For conversation timestamps
 
 # Import our authentication and database dependencies
 from ..core.security import get_current_user
@@ -220,7 +221,8 @@ async def process_file_attachments(
             # For in-memory, we assume access is validated by DB ownership
 
             # Read file content from DB (in-memory, not disk)
-            file_content = file_record.content if hasattr(file_record, 'content') else None
+            # 🔧 FIXED: Use text_content field (not content)
+            file_content = file_record.text_content
             if file_content:
                 logger.info(f"✅ DEBUG: Successfully read file content from DB - Length: {len(file_content)} characters")
                 # Format the file content for LLM context
@@ -228,7 +230,7 @@ async def process_file_attachments(
                 file_context_parts.append(formatted_content)
                 logger.info(f"✅ DEBUG: Successfully processed file {file_record.original_filename} ({len(file_content)} chars)")
             else:
-                logger.warning(f"❌ DEBUG: Could not read content from DB for file {file_record.original_filename}")
+                logger.warning(f"❌ DEBUG: Could not read content from DB for file {file_record.original_filename} - text_content is None or empty")
 
         except Exception as e:
             logger.error(f"❌ DEBUG: Error processing file {file_id}: {str(e)}")
@@ -996,37 +998,101 @@ async def send_chat_message(
         )
         
         # =============================================================================
-        # 🤖 STEP 8: UPDATE CONVERSATION TRACKING (NEW!)
+        # 🤖 STEP 8: SAVE MESSAGES TO CONVERSATION (FIXED!)
         # =============================================================================
         
-        # Auto-create conversation if needed
-        if should_create_conversation and assistant and first_user_message:
+        # Auto-create conversation if needed (for both assistant and general chat)
+        if should_create_conversation:
             try:
-                new_chat_conversation = await create_chat_conversation_for_assistant(
-                    db=db,
-                    assistant=assistant,
-                    user=current_user,
-                    first_message_content=first_user_message
-                )
+                if assistant and first_user_message:
+                    # Create assistant conversation
+                    new_chat_conversation = await create_chat_conversation_for_assistant(
+                        db=db,
+                        assistant=assistant,
+                        user=current_user,
+                        first_message_content=first_user_message
+                    )
+                    
+                    if new_chat_conversation:
+                        chat_conversation = new_chat_conversation
+                        logger.info(f"🎉 Auto-created assistant conversation {chat_conversation.id}")
                 
-                if new_chat_conversation:
-                    chat_conversation = new_chat_conversation
-                    logger.info(f"🎉 Auto-created conversation {chat_conversation.id} for assistant chat")
+                elif len(chat_request.messages) >= 2:  # Auto-save general chat after 2+ messages
+                    # Create general conversation
+                    first_user_msg = ""
+                    for msg in chat_request.messages:
+                        if msg.role == "user":
+                            first_user_msg = msg.content
+                            break
+                    
+                    if first_user_msg:
+                        from ..services.conversation_service import conversation_service
+                        
+                        conversation_title = generate_conversation_title(
+                            assistant_name="AI Assistant",  # Generic name for general chat
+                            first_message=first_user_msg
+                        )
+                        
+                        # Create the conversation
+                        general_conversation = await conversation_service.create_conversation(
+                            db=db,
+                            user_id=current_user.id,
+                            title=conversation_title,
+                            llm_config_id=chat_request.config_id
+                            # 🔧 FIXED: No model_used field per user request
+                        )
+                        
+                        chat_conversation = general_conversation
+                        logger.info(f"🎉 Auto-created general conversation {chat_conversation.id}")
                 
             except Exception as conv_error:
                 logger.error(f"Failed to auto-create conversation (non-critical): {str(conv_error)}")
         
-        # Update existing conversation activity
+        # 🔧 NEW: Save messages to conversation (if we have one)
         if chat_conversation:
             try:
-                chat_conversation.message_count += 2  # User message + assistant response
-                chat_conversation.last_message_at = datetime.utcnow()
-                chat_conversation.update_activity()
-                await db.commit()
-                logger.info(f"📊 Updated conversation {chat_conversation.id} activity")
+                from ..services.conversation_service import conversation_service
                 
-            except Exception as update_error:
-                logger.error(f"Failed to update conversation activity (non-critical): {str(update_error)}")
+                # Save the user message
+                last_user_message = None
+                for msg in reversed(chat_request.messages):
+                    if msg.role == "user":
+                        last_user_message = msg.content
+                        break
+                
+                if last_user_message:
+                    await conversation_service.save_message_to_conversation(
+                        db=db,
+                        conversation_id=chat_conversation.id,
+                        role="user",
+                        content=last_user_message,
+                        metadata={"file_attachments": chat_request.file_attachment_ids or []}
+                    )
+                    logger.info(f"💾 Saved user message to conversation {chat_conversation.id}")
+                
+                # Save the assistant response
+                await conversation_service.save_message_to_conversation(
+                    db=db,
+                    conversation_id=chat_conversation.id,
+                    role="assistant",
+                    content=response.content,
+                    # 🔧 FIXED: No longer saving model names per user request
+                    # model_used=response.model,  # REMOVED!
+                    tokens_used=response.usage.get("total_tokens"),
+                    cost=str(response.cost) if response.cost else None,
+                    response_time_ms=response.response_time_ms,
+                    metadata={
+                        "provider": response.provider,
+                        "assistant_id": assistant.id if assistant else None
+                    }
+                )
+                logger.info(f"💾 Saved assistant response to conversation {chat_conversation.id}")
+                
+            except Exception as save_error:
+                logger.error(f"Failed to save messages to conversation (non-critical): {str(save_error)}")
+                # Don't fail the request if message saving fails
+        else:
+            logger.info(f"📝 No conversation to save messages to (messages sent but not persisted)")
         
         # =============================================================================
         # STEP 9: BUILD ENHANCED RESPONSE WITH ASSISTANT INFO
@@ -1047,11 +1113,19 @@ async def send_chat_message(
             model_change_reason=model_change_reason
         )
         
+        # 🔄 NEW: Add conversation ID to response for reactive frontend updates
+        if chat_conversation:
+            # We can't modify the ChatResponse schema easily, but we can log the conversation ID
+            # The frontend can track this through auto-save mechanisms
+            logger.info(f"🔄 Chat completed for conversation {chat_conversation.id} with {getattr(chat_conversation, 'message_count', '?')} total messages")
+        
         # Add assistant context to response if available
         if assistant:
             # Note: We could extend ChatResponse schema to include assistant info
             # For now, the assistant context is handled through conversation tracking
             logger.info(f"🤖 Chat completed with assistant '{assistant.name}' - {len(response.content)} chars generated")
+        else:
+            logger.info(f"💬 General chat completed - {len(response.content)} chars generated")
         
         return chat_response
         

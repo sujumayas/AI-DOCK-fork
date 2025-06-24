@@ -374,16 +374,18 @@ class ConversationService {
   
   /**
    * Save current chat messages as a new conversation
+   * 🔧 FIXED: Removed model name storage per user request
    */
   async saveCurrentChat(
     messages: ChatMessage[],
     title?: string,
     configId?: number,
-    model?: string
+    model?: string // Parameter kept for backward compatibility but not used
   ): Promise<ConversationDetail> {
     // Convert ChatMessage to ConversationMessageCreate using utility function
+    // 🔧 FIXED: No longer storing model names per user request
     const conversationMessages = chatMessagesToConversationMessages(messages, {
-      model_used: model
+      // Removed all model_used references - no longer storing model names
     });
     
     // Auto-generate title if not provided using utility function
@@ -393,7 +395,7 @@ class ConversationService {
       title: conversationTitle,
       messages: conversationMessages,
       llm_config_id: configId,
-      model_used: model
+      // 🔧 REMOVED: model_used field completely - no longer storing model names
     });
   }
   

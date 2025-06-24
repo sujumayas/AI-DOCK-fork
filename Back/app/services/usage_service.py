@@ -207,7 +207,7 @@ class UsageService:
                 self.logger.info(
                     f"Usage logged successfully: user={user_email}, provider={provider}, "
                     f"model={model}, tokens={usage_log.total_tokens}, "
-                    f"cost=${cost:.4f if cost else 0:.4f}, success={success}, "
+                    f"cost=${cost:.4f if cost is not None else 0:.4f}, success={success}, "
                     f"request_id={request_id}, log_id={usage_log.id}"
                 )
                 

@@ -292,20 +292,16 @@ async def download_file(
     """
     Download a file with proper access control.
     
-    🎓 LEARNING: File Download Security
-    ==================================
-    File downloads need careful security:
+    🎓 LEARNING: Database-Stored File Downloads
+    ============================================
+    Since files are now stored in the database as text_content,
+    we return the content directly as a downloadable response.
     
-    1. **Access Control**: Only authorized users can download
-    2. **Path Validation**: Prevent directory traversal attacks
-    3. **Content Headers**: Proper MIME types for browser handling
-    4. **Usage Tracking**: Log downloads for analytics
-    5. **Error Handling**: Clear messages for denied access
-    
-    **Access Rules**:
-    - Users can download their own files
-    - Admins can download any file
-    - Department managers can download department files (future)
+    Benefits of this approach:
+    - No file system dependencies
+    - Consistent with database storage
+    - Better for containerized deployments
+    - Easier backup/restore
     
     Args:
         file_record: File to download (from URL path)
@@ -314,7 +310,7 @@ async def download_file(
         db: Database session
         
     Returns:
-        FileResponse with the actual file content
+        Response with file content for download
         
     Raises:
         404: File not found
@@ -322,10 +318,10 @@ async def download_file(
         410: File deleted or corrupted
     """
     try:
-        # Get file path with access control
-        file_path, error_message = file_service.get_file_path(file_record, current_user)
+        # Check access permissions
+        can_access, error_message = file_service.get_file_access(file_record, current_user)
         
-        if error_message:
+        if not can_access:
             if "access denied" in error_message.lower():
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -336,7 +332,7 @@ async def download_file(
                     status_code=status.HTTP_410_GONE,
                     detail=error_message
                 )
-            elif "not found" in error_message.lower():
+            elif "not found" in error_message.lower() or "not available" in error_message.lower():
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=error_message
@@ -347,18 +343,27 @@ async def download_file(
                     detail=error_message
                 )
         
+        # Get file content from database
+        if not file_record.text_content:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="File content is empty or not available"
+            )
+        
         # Update access tracking
         file_service.update_access_tracking(file_record, db)
         
-        # Return file with proper headers
-        return FileResponse(
-            path=str(file_path),
-            filename=file_record.get_download_filename(),
-            media_type=file_record.mime_type,
+        # Return file content as downloadable response
+        from fastapi.responses import Response
+        
+        return Response(
+            content=file_record.text_content.encode('utf-8'),
+            media_type=file_record.mime_type or 'text/plain',
             headers={
                 "Content-Disposition": f"attachment; filename=\"{file_record.original_filename}\"",
                 "X-File-ID": str(file_record.id),
-                "X-File-Hash": file_record.file_hash
+                "X-File-Hash": file_record.file_hash,
+                "Content-Length": str(len(file_record.text_content.encode('utf-8')))
             }
         )
         
@@ -400,8 +405,8 @@ async def get_file_metadata(
         FileUploadResponse with all metadata
     """
     # Check access permissions (same as download)
-    _, error_message = file_service.get_file_path(file_record, current_user)
-    if error_message:
+    can_access, error_message = file_service.get_file_access(file_record, current_user)
+    if not can_access:
         if "access denied" in error_message.lower():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -410,6 +415,11 @@ async def get_file_metadata(
         elif "deleted" in error_message.lower():
             raise HTTPException(
                 status_code=status.HTTP_410_GONE,
+                detail=error_message
+            )
+        elif "not available" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail=error_message
             )
     
@@ -963,8 +973,8 @@ async def preview_file_content(
     """
     try:
         # Check access permissions
-        file_path, error_message = file_service.get_file_path(file_record, current_user)
-        if error_message:
+        can_access, error_message = file_service.get_file_access(file_record, current_user)
+        if not can_access:
             if "access denied" in error_message.lower():
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -983,44 +993,34 @@ async def preview_file_content(
                 detail="Preview is only available for text files"
             )
         
-        # Read file content (safely)
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read(max_length)
-                
-            # Check if file was truncated
-            is_truncated = len(content) == max_length
-            if is_truncated:
-                # Try to read one more character to confirm truncation
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    f.read(max_length)
-                    next_char = f.read(1)
-                    is_truncated = bool(next_char)
-            
-            # Update access tracking
-            file_service.update_access_tracking(file_record, db)
-            
-            return {
-                "file_id": file_record.id,
-                "filename": file_record.original_filename,
-                "content": content,
-                "is_truncated": is_truncated,
-                "content_length": len(content),
-                "total_file_size": file_record.file_size,
-                "encoding": "utf-8",
-                "preview_note": "This is a preview. Download the file for complete content." if is_truncated else None
-            }
-            
-        except UnicodeDecodeError:
+        # Get content from database
+        if not file_record.text_content:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="File contains non-text content and cannot be previewed"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="File content is not available"
             )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to read file: {str(e)}"
-            )
+        
+        # Get content preview (truncate if needed)
+        content = file_record.text_content
+        is_truncated = len(content) > max_length
+        
+        if is_truncated:
+            content = content[:max_length]
+        
+        # Update access tracking
+        file_service.update_access_tracking(file_record, db)
+        
+        return {
+            "file_id": file_record.id,
+            "filename": file_record.original_filename,
+            "content": content,
+            "is_truncated": is_truncated,
+            "content_length": len(content),
+            "total_file_size": file_record.file_size,
+            "total_content_length": len(file_record.text_content),
+            "encoding": "utf-8",
+            "preview_note": "This is a preview. Download the file for complete content." if is_truncated else None
+        }
         
     except HTTPException:
         raise

@@ -29,6 +29,21 @@ import mimetypes
 from datetime import datetime
 from typing import Optional, List, Tuple, Dict, Any
 from pathlib import Path
+from io import BytesIO
+
+# Text extraction libraries
+try:
+    import PyPDF2
+    PDF_EXTRACTION_AVAILABLE = True
+except ImportError:
+    PDF_EXTRACTION_AVAILABLE = False
+
+try:
+    import docx2txt
+    from docx import Document as DocxDocument
+    DOCX_EXTRACTION_AVAILABLE = True
+except ImportError:
+    DOCX_EXTRACTION_AVAILABLE = False
 
 # FastAPI imports
 from fastapi import UploadFile, HTTPException, status
@@ -397,6 +412,224 @@ class FileService:
             return False, f"Word document validation failed for {file.filename}: {str(e)}. File may be corrupted or in an unsupported format."
     
     # =============================================================================
+    # TEXT EXTRACTION METHODS
+    # =============================================================================
+    
+    def extract_text_from_pdf(self, content_bytes: bytes, filename: str) -> Tuple[str, Optional[str]]:
+        """
+        Extract text from PDF file content.
+        
+        🎓 LEARNING: PDF Text Extraction
+        ===============================
+        PDFs can contain:
+        - Selectable text (easy to extract)
+        - Scanned images (need OCR)
+        - Password protection
+        - Corrupted content
+        
+        We use PyPDF2 for basic text extraction. For advanced features
+        like OCR, we'd need additional libraries like Tesseract.
+        
+        Args:
+            content_bytes: PDF file content as bytes
+            filename: Original filename for error messages
+            
+        Returns:
+            Tuple of (extracted_text, error_message)
+        """
+        if not PDF_EXTRACTION_AVAILABLE:
+            return "", "PDF text extraction not available (PyPDF2 not installed)"
+        
+        try:
+            pdf_file = BytesIO(content_bytes)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            # Check if PDF is encrypted
+            if pdf_reader.is_encrypted:
+                return "", f"PDF {filename} is password protected and cannot be processed"
+            
+            # Extract text from all pages
+            extracted_text = ""
+            total_pages = len(pdf_reader.pages)
+            
+            if total_pages == 0:
+                return "", f"PDF {filename} contains no pages"
+            
+            for page_num, page in enumerate(pdf_reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text.strip():  # Only add non-empty text
+                        extracted_text += f"\n--- Page {page_num + 1} ---\n"
+                        extracted_text += page_text.strip() + "\n"
+                except Exception as page_error:
+                    # Continue with other pages if one fails
+                    print(f"Warning: Failed to extract text from page {page_num + 1} of {filename}: {page_error}")
+                    continue
+            
+            if not extracted_text.strip():
+                return "", f"PDF {filename} appears to contain no extractable text (may be scanned images)"
+            
+            # Clean up the text
+            extracted_text = self._clean_extracted_text(extracted_text)
+            
+            return extracted_text, None
+            
+        except Exception as e:
+            error_msg = f"Failed to extract text from PDF {filename}: {str(e)}"
+            print(f"PDF extraction error: {error_msg}")
+            return "", error_msg
+    
+    def extract_text_from_docx(self, content_bytes: bytes, filename: str) -> Tuple[str, Optional[str]]:
+        """
+        Extract text from modern Word (.docx) file content.
+        
+        🎓 LEARNING: DOCX Text Extraction
+        =================================
+        .docx files are ZIP archives containing XML files.
+        We can extract text using:
+        - python-docx: Full document object model
+        - docx2txt: Simple text extraction
+        
+        Both approaches have trade-offs:
+        - python-docx: More features, better structure
+        - docx2txt: Faster, simpler, fewer dependencies
+        
+        Args:
+            content_bytes: DOCX file content as bytes
+            filename: Original filename for error messages
+            
+        Returns:
+            Tuple of (extracted_text, error_message)
+        """
+        if not DOCX_EXTRACTION_AVAILABLE:
+            return "", "DOCX text extraction not available (python-docx or docx2txt not installed)"
+        
+        try:
+            # Try using docx2txt first (simpler and more reliable)
+            try:
+                docx_file = BytesIO(content_bytes)
+                extracted_text = docx2txt.process(docx_file)
+                
+                if extracted_text and extracted_text.strip():
+                    # Clean up the text
+                    cleaned_text = self._clean_extracted_text(extracted_text)
+                    return cleaned_text, None
+                else:
+                    # If docx2txt returns empty, try python-docx
+                    pass
+            except Exception as docx2txt_error:
+                print(f"docx2txt failed for {filename}: {docx2txt_error}, trying python-docx")
+            
+            # Fallback to python-docx
+            try:
+                docx_file = BytesIO(content_bytes)
+                doc = DocxDocument(docx_file)
+                
+                extracted_text = ""
+                
+                # Extract text from paragraphs
+                for para in doc.paragraphs:
+                    if para.text.strip():
+                        extracted_text += para.text + "\n"
+                
+                # Extract text from tables
+                for table in doc.tables:
+                    for row in table.rows:
+                        row_text = []
+                        for cell in row.cells:
+                            if cell.text.strip():
+                                row_text.append(cell.text.strip())
+                        if row_text:
+                            extracted_text += " | ".join(row_text) + "\n"
+                
+                if not extracted_text.strip():
+                    return "", f"Word document {filename} appears to contain no extractable text"
+                
+                # Clean up the text
+                cleaned_text = self._clean_extracted_text(extracted_text)
+                return cleaned_text, None
+                
+            except Exception as python_docx_error:
+                error_msg = f"Failed to extract text from Word document {filename} using python-docx: {python_docx_error}"
+                print(f"python-docx extraction error: {error_msg}")
+                return "", error_msg
+            
+        except Exception as e:
+            error_msg = f"Failed to extract text from Word document {filename}: {str(e)}"
+            print(f"DOCX extraction error: {error_msg}")
+            return "", error_msg
+    
+    def extract_text_from_doc(self, content_bytes: bytes, filename: str) -> Tuple[str, Optional[str]]:
+        """
+        Extract text from legacy Word (.doc) file content.
+        
+        🎓 LEARNING: Legacy DOC Text Extraction
+        ======================================
+        .doc files use the OLE compound document format.
+        They're much harder to parse than .docx files.
+        
+        For now, we'll return a helpful message directing users
+        to convert to .docx format. In the future, we could:
+        - Use python-doc library
+        - Use antiword command-line tool
+        - Use LibreOffice API
+        
+        Args:
+            content_bytes: DOC file content as bytes
+            filename: Original filename for error messages
+            
+        Returns:
+            Tuple of (extracted_text, error_message)
+        """
+        # For now, we don't support .doc extraction
+        # This is a complex format that requires specialized libraries
+        error_msg = (
+            f"Legacy Word document format (.doc) is not yet supported for text extraction. "
+            f"Please convert {filename} to .docx format and upload again."
+        )
+        return "", error_msg
+    
+    def _clean_extracted_text(self, text: str) -> str:
+        """
+        Clean up extracted text by removing excessive whitespace and normalizing.
+        
+        🎓 LEARNING: Text Cleaning
+        =========================
+        Extracted text often contains:
+        - Multiple consecutive spaces
+        - Excessive line breaks
+        - Special characters
+        - Formatting artifacts
+        
+        We clean it up for better readability and processing.
+        
+        Args:
+            text: Raw extracted text
+            
+        Returns:
+            Cleaned text
+        """
+        if not text:
+            return ""
+        
+        # Remove excessive whitespace
+        lines = []
+        for line in text.split('\n'):
+            # Remove extra spaces within lines
+            cleaned_line = ' '.join(line.split())
+            if cleaned_line:  # Only keep non-empty lines
+                lines.append(cleaned_line)
+        
+        # Join lines with single newlines
+        cleaned_text = '\n'.join(lines)
+        
+        # Remove excessive consecutive newlines (max 2)
+        import re
+        cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+        
+        return cleaned_text.strip()
+    
+    # =============================================================================
     # FILE UPLOAD
     # =============================================================================
     
@@ -407,14 +640,16 @@ class FileService:
         db: Session
     ) -> Tuple[FileUpload, Optional[str]]:
         """
-        Save uploaded file to disk and database.
+        Save uploaded file content and metadata to database.
         
-        🎓 LEARNING: Async File Operations
-        =================================
-        File I/O can be slow, so we use async to:
-        - Not block other requests
-        - Handle large files efficiently
-        - Provide better user experience
+        🎓 LEARNING: In-Memory File Storage
+        ==================================
+        This implementation stores file content in the database as text_content
+        rather than saving to disk. This approach:
+        - Simplifies deployment (no file system dependencies)
+        - Ensures data consistency (everything in database)
+        - Works well for text files up to reasonable sizes
+        - Allows easy backup/restore with database
         
         Args:
             file: FastAPI UploadFile object
@@ -433,20 +668,59 @@ class FileService:
             # Read file content in-memory
             await file.seek(0)
             content_bytes = await file.read()
-            try:
-                text_content = content_bytes.decode("utf-8")
-            except Exception:
-                text_content = ""  # Or handle other file types
+            
+            # Extract text based on file type
+            text_content = ""
+            extraction_error = None
+            content_type = file.content_type or get_file_mime_type(file.filename)
+            
+            if content_type == AllowedFileType.PDF.value:
+                # Extract text from PDF
+                text_content, extraction_error = self.extract_text_from_pdf(content_bytes, file.filename)
+                if extraction_error:
+                    print(f"PDF text extraction warning for {file.filename}: {extraction_error}")
+                    # Don't fail upload, just store empty text_content
+                    text_content = ""
+                    
+            elif content_type == AllowedFileType.DOCX.value:
+                # Extract text from modern Word document
+                text_content, extraction_error = self.extract_text_from_docx(content_bytes, file.filename)
+                if extraction_error:
+                    print(f"DOCX text extraction warning for {file.filename}: {extraction_error}")
+                    # Don't fail upload, just store empty text_content
+                    text_content = ""
+                    
+            elif content_type == AllowedFileType.DOC.value:
+                # Extract text from legacy Word document
+                text_content, extraction_error = self.extract_text_from_doc(content_bytes, file.filename)
+                if extraction_error:
+                    print(f"DOC text extraction warning for {file.filename}: {extraction_error}")
+                    # Don't fail upload, just store empty text_content
+                    text_content = ""
+                    
+            else:
+                # For plain text files, try UTF-8 decoding
+                try:
+                    text_content = content_bytes.decode("utf-8")
+                except UnicodeDecodeError:
+                    # For other binary files, leave text_content empty
+                    print(f"Could not decode {file.filename} as UTF-8, storing without text content")
+                    text_content = ""
 
-            # Calculate hash of the text content
+            # Calculate hash of the file content
             import hashlib
             file_hash = hashlib.sha256(content_bytes).hexdigest()
+            
+            # Generate unique file path (even though we're not saving to disk)
+            # This satisfies the database UNIQUE constraint
+            sanitized_filename = FileUpload.sanitize_filename(file.filename)
+            virtual_file_path = create_upload_path(user.id, sanitized_filename)
 
-            # Create database record (no file_path, no disk write)
+            # Create database record with unique file_path
             file_record = FileUpload(
                 original_filename=file.filename,
-                filename=FileUpload.sanitize_filename(file.filename),
-                file_path="",  # Not used
+                filename=sanitized_filename,
+                file_path=virtual_file_path,  # Unique path (virtual, not on disk)
                 file_size=len(content_bytes),
                 mime_type=file.content_type or get_file_mime_type(file.filename),
                 file_extension=os.path.splitext(file.filename)[1].lower(),
@@ -464,7 +738,7 @@ class FileService:
 
         except Exception as e:
             db.rollback()
-            if 'file_record' in locals() and file_record.id:
+            if 'file_record' in locals() and hasattr(file_record, 'id') and file_record.id:
                 try:
                     file_record.mark_as_failed(str(e))
                     db.commit()
@@ -533,43 +807,68 @@ class FileService:
     # FILE RETRIEVAL
     # =============================================================================
     
-    def get_file_path(self, file_record: FileUpload, user: User) -> Tuple[Optional[Path], Optional[str]]:
+    def get_file_access(self, file_record: FileUpload, user: User) -> Tuple[bool, Optional[str]]:
         """
-        Get file path for download with access control.
+        Check if user can access file with proper access control.
         
-        🎓 LEARNING: Access Control
-        ===========================
-        Always check permissions before file access:
+        🎓 LEARNING: Access Control for Database-Stored Files
+        =====================================================
+        Since we now store file content in the database rather than on disk,
+        we only need to check:
         - User owns the file
         - User has admin privileges
         - File is not deleted
-        - File actually exists on disk
+        - File upload is complete
         
         Args:
             file_record: FileUpload database record
             user: User requesting access
             
         Returns:
-            Tuple of (file_path, error_message)
+            Tuple of (can_access, error_message)
         """
         # Check if file is deleted
         if file_record.is_deleted:
-            return None, "File has been deleted"
+            return False, "File has been deleted"
         
         # Check if upload is complete
         if not file_record.is_uploaded:
-            return None, "File upload is not complete"
+            return False, "File upload is not complete"
         
         # Check access permissions
         if not self._can_user_access_file(file_record, user):
-            return None, "Access denied"
+            return False, "Access denied"
         
-        # Check if file exists on disk
-        file_path = Path(file_record.file_path)
-        if not file_path.exists():
-            return None, "File not found on disk"
+        # For database-stored files, check if text_content exists
+        if not hasattr(file_record, 'text_content'):
+            return False, "File content not available"
         
-        return file_path, None
+        return True, None
+    
+    def get_file_path(self, file_record: FileUpload, user: User) -> Tuple[Optional[Path], Optional[str]]:
+        """
+        Legacy method for backward compatibility.
+        
+        🎓 LEARNING: Backward Compatibility
+        ====================================
+        We keep this method for compatibility with existing code,
+        but now it handles database-stored files differently.
+        Use get_file_access() for access control and file_record.text_content for content.
+        
+        Args:
+            file_record: FileUpload database record
+            user: User requesting access
+            
+        Returns:
+            Tuple of (None, error_message) - file_path is None for database storage
+        """
+        can_access, error_message = self.get_file_access(file_record, user)
+        if not can_access:
+            return None, error_message
+        
+        # For database-stored files, we don't have a physical file path
+        # This method is kept for compatibility but should use text_content instead
+        return None, "File content is stored in database, use text_content field"
     
     def _can_user_access_file(self, file_record: FileUpload, user: User) -> bool:
         """

@@ -29,14 +29,14 @@ class ConversationService:
         user_id: int,
         title: str,
         llm_config_id: Optional[int] = None,
-        model_used: Optional[str] = None
+        model_used: Optional[str] = None  # Keep parameter for backward compatibility but ignore it
     ) -> Conversation:
         """Create a new conversation"""
         conversation = Conversation(
             user_id=user_id,
             title=title,
-            llm_config_id=llm_config_id,
-            model_used=model_used
+            llm_config_id=llm_config_id
+            # 🔧 FIXED: No longer storing model_used per user request
         )
         
         db.add(conversation)
@@ -133,8 +133,9 @@ class ConversationService:
             conversation.message_count += 1
             conversation.last_message_at = datetime.utcnow()
             conversation.updated_at = datetime.utcnow()
-            if model_used:
-                conversation.model_used = model_used
+            # 🔧 FIXED: No longer updating model_used per user request
+            # if model_used:
+            #     conversation.model_used = model_used
         
         await db.commit()
         await db.refresh(message)
@@ -147,7 +148,7 @@ class ConversationService:
         user_id: int,
         messages: List[Dict[str, Any]],
         llm_config_id: Optional[int] = None,
-        model_used: Optional[str] = None,
+        model_used: Optional[str] = None,  # Keep for backward compatibility but ignore
         title: Optional[str] = None
     ) -> Conversation:
         """Save a complete conversation from message list"""
@@ -161,8 +162,8 @@ class ConversationService:
             db=db,
             user_id=user_id,
             title=title,
-            llm_config_id=llm_config_id,
-            model_used=model_used
+            llm_config_id=llm_config_id
+            # 🔧 FIXED: No longer passing model_used per user request
         )
         
         # Add all messages
@@ -172,7 +173,8 @@ class ConversationService:
                 conversation_id=conversation.id,
                 role=msg.get('role', 'user'),
                 content=msg.get('content', ''),
-                model_used=msg.get('model_used', model_used),
+                # 🔧 FIXED: No longer passing model_used per user request
+                # model_used=msg.get('model_used', model_used),
                 tokens_used=msg.get('tokens_used'),
                 cost=msg.get('cost'),
                 response_time_ms=msg.get('response_time_ms'),

@@ -85,6 +85,35 @@ export const ChatInterface: React.FC = () => {
   const [lastAutoSaveMessageCount, setLastAutoSaveMessageCount] = useState(0);
   const [autoSaveFailedAt, setAutoSaveFailedAt] = useState<number | null>(null); // 🔧 Track auto-save failures
   
+  // 🔄 ENHANCED: Reactive updates for conversation sidebar with better callback system
+  const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
+  const [sidebarUpdateFunction, setSidebarUpdateFunction] = useState<((id: number, count: number) => void) | null>(null);
+  const [sidebarAddConversationFunction, setSidebarAddConversationFunction] = useState<((conv: any) => void) | null>(null);
+  
+  // 🔄 ENHANCED: Update message count in real-time when messages change
+  useEffect(() => {
+    if (currentConversationId && sidebarUpdateFunction && messages.length > 0) {
+      // Update the message count in the sidebar for the current conversation
+      sidebarUpdateFunction(currentConversationId, messages.length);
+      console.log('🔄 Updated message count for conversation', currentConversationId, 'to', messages.length);
+    }
+  }, [messages.length, currentConversationId, sidebarUpdateFunction]);
+  
+  // 🔄 ENHANCED: Handle conversation updates from sidebar
+  const handleConversationUpdate = useCallback((conversationId: number, messageCount: number) => {
+    console.log('🔄 Received conversation update:', conversationId, messageCount);
+    // This callback can be used for future enhancements
+    // For now, the sidebar manages its own state updates
+  }, []);
+  
+  // 🔄 NEW: Handle adding new conversations to sidebar
+  const handleAddConversationToSidebar = useCallback((conversation: any) => {
+    if (sidebarAddConversationFunction) {
+      sidebarAddConversationFunction(conversation);
+      console.log('🔄 Added conversation to sidebar:', conversation.id);
+    }
+  }, [sidebarAddConversationFunction]);
+  
   // 🌊 STREAMING STATE: Always-on streaming functionality
   const {
     accumulatedContent,
@@ -439,7 +468,9 @@ export const ChatInterface: React.FC = () => {
         // 📁 Include file attachments in streaming request
         file_attachment_ids: fileAttachmentIds,
         // 🤖 Include assistant context for backend processing
-        assistant_id: selectedAssistantId || undefined
+        assistant_id: selectedAssistantId || undefined,
+        // 🔄 FIXED: Include conversation_id so backend can save messages to existing conversation
+        conversation_id: currentConversationId || undefined
       };
       
       const streamingSuccess = await streamMessage(
@@ -526,7 +557,9 @@ export const ChatInterface: React.FC = () => {
         // 📁 Include file attachments in regular request
         file_attachment_ids: fileAttachmentIds,
         // 🤖 Include assistant context for backend processing
-        assistant_id: selectedAssistantId || undefined
+        assistant_id: selectedAssistantId || undefined,
+        // 🔄 FIXED: Include conversation_id so backend can save messages to existing conversation
+        conversation_id: currentConversationId || undefined
       });
       
       // 🤖 Add AI response to conversation (including assistant context)
@@ -652,6 +685,22 @@ export const ChatInterface: React.FC = () => {
       setLastAutoSaveMessageCount(messages.length);
       setAutoSaveFailedAt(null); // 🔧 Clear failure tracking on success
       
+      // 🔄 ENHANCED: Add conversation to sidebar immediately (more reactive)
+      if (sidebarAddConversationFunction) {
+        // Create a ConversationSummary object for the sidebar
+        const conversationSummary = {
+          id: savedConversation.id,
+          title: savedConversation.title,
+          message_count: messages.length,
+          created_at: savedConversation.created_at || new Date().toISOString(),
+          updated_at: savedConversation.updated_at || new Date().toISOString()
+        };
+        handleAddConversationToSidebar(conversationSummary);
+      } else {
+        // Fallback to refresh trigger if add function not available
+        setConversationRefreshTrigger(prev => prev + 1);
+      }
+      
       console.log('✅ Conversation auto-saved:', savedConversation.id);
       
     } catch (error) {
@@ -692,6 +741,26 @@ export const ChatInterface: React.FC = () => {
         setConversationTitle(savedConversation.title);
         setLastAutoSaveMessageCount(messages.length);
         setAutoSaveFailedAt(null); // 🔧 Clear failure tracking on successful manual save
+        
+        // 🔄 ENHANCED: Add conversation to sidebar immediately (more reactive)
+        if (sidebarAddConversationFunction) {
+          const conversationSummary = {
+            id: savedConversation.id,
+            title: savedConversation.title,
+            message_count: messages.length,
+            created_at: savedConversation.created_at || new Date().toISOString(),
+            updated_at: savedConversation.updated_at || new Date().toISOString()
+          };
+          handleAddConversationToSidebar(conversationSummary);
+        } else {
+          // Fallback to refresh trigger if add function not available
+          setConversationRefreshTrigger(prev => prev + 1);
+        }
+        
+        // 🔄 NEW: Auto-update message count in sidebar since we now have a conversation ID
+        if (sidebarUpdateFunction) {
+          sidebarUpdateFunction(savedConversation.id, messages.length);
+        }
         
         console.log('✅ Conversation saved:', savedConversation.id);
       }
@@ -873,6 +942,13 @@ export const ChatInterface: React.FC = () => {
         onSelectConversation={handleLoadConversation}
         onCreateNew={handleNewConversation}
         currentConversationId={currentConversationId || undefined}
+        onConversationUpdate={handleConversationUpdate}
+        refreshTrigger={conversationRefreshTrigger}
+        onSidebarReady={(updateFn, addFn) => {
+          setSidebarUpdateFunction(() => updateFn);
+          setSidebarAddConversationFunction(() => addFn);
+          console.log('🔄 Connected sidebar functions for reactive updates');
+        }}
       />
       
       {/* 🤖 RESPONSIVE EMBEDDED ASSISTANT MANAGER */}

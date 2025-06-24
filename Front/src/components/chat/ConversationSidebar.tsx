@@ -29,6 +29,11 @@ interface ConversationSidebarProps {
   onSelectConversation: (conversationId: number) => void;
   onCreateNew: () => void;
   currentConversationId?: number;
+  // 🔄 NEW: Reactive update support
+  onConversationUpdate?: (conversationId: number, messageCount: number) => void;
+  refreshTrigger?: number; // Increment this to trigger refresh
+  // 🔄 NEW: Expose sidebar functions to parent for reactive updates
+  onSidebarReady?: (updateFn: (id: number, count: number) => void, addFn: (conv: any) => void) => void;
 }
 
 export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
@@ -36,7 +41,10 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onClose,
   onSelectConversation,
   onCreateNew,
-  currentConversationId
+  currentConversationId,
+  onConversationUpdate,
+  refreshTrigger,
+  onSidebarReady
 }) => {
   // State management
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -60,6 +68,14 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   }, [isOpen]);
   
+  // 🔄 NEW: Reactive refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0 && isOpen) {
+      console.log('🔄 Refreshing conversations due to trigger:', refreshTrigger);
+      loadConversations();
+    }
+  }, [refreshTrigger, isOpen]);
+  
   // Search conversations when query changes
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -68,6 +84,65 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       setSearchResults([]);
     }
   }, [searchQuery]);
+  
+  // 🔄 ENHANCED: Update individual conversation message count with better state management
+  const updateConversationMessageCount = useCallback((conversationId: number, newMessageCount: number) => {
+    console.log('🔄 Updating message count for conversation', conversationId, 'to', newMessageCount);
+    
+    // Update main conversations list
+    setConversations(prev => prev.map(conv => 
+      conv.id === conversationId 
+        ? { 
+            ...conv, 
+            message_count: newMessageCount,
+            // 🔧 FIXED: Also update the updated_at timestamp for reactive sorting
+            updated_at: new Date().toISOString()
+          }
+        : conv
+    ));
+    
+    // Update search results if they exist
+    setSearchResults(prev => prev.map(conv => 
+      conv.id === conversationId 
+        ? { 
+            ...conv, 
+            message_count: newMessageCount,
+            updated_at: new Date().toISOString()
+          }
+        : conv
+    ));
+  }, []);
+  
+  // 🔄 NEW: Function to add new conversation to the list (when auto-saved)
+  const addNewConversation = useCallback((newConversation: ConversationSummary) => {
+    console.log('🔄 Adding new conversation to sidebar:', newConversation.id, newConversation.title);
+    
+    // Add to the beginning of the list (most recent first)
+    setConversations(prev => {
+      // Check if it already exists to avoid duplicates
+      const exists = prev.some(conv => conv.id === newConversation.id);
+      if (exists) {
+        console.log('🔄 Conversation already exists, updating instead');
+        return prev.map(conv => 
+          conv.id === newConversation.id ? newConversation : conv
+        );
+      } else {
+        return [newConversation, ...prev];
+      }
+    });
+    
+    // Also update total count
+    setTotalCount(prev => prev + 1);
+  }, []);
+  
+  // 🔄 NEW: Expose update and add functions to parent
+  useEffect(() => {
+    if (onSidebarReady) {
+      // Pass our internal functions to the parent for reactive updates
+      onSidebarReady(updateConversationMessageCount, addNewConversation);
+      console.log('🔄 Sidebar functions exposed to parent for reactive updates');
+    }
+  }, [onSidebarReady, updateConversationMessageCount, addNewConversation]);
   
   // Load user's conversations
   const loadConversations = useCallback(async () => {
@@ -352,14 +427,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                         
                         <div className="flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
-                          {formatDate(conversation.updated_at)}
+                          {/* 🔧 FIXED: Using created_at for creation date display */}
+                          {formatDate(conversation.created_at)}
                         </div>
-                        
-                        {conversation.model_used && (
-                          <div className="px-1 py-0.5 bg-gray-100 rounded text-xs">
-                            {conversation.model_used}
-                          </div>
-                        )}
                       </div>
                     </div>
                     

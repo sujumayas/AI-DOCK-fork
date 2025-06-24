@@ -36,6 +36,9 @@ export interface ChatRequest {
   
   // 🤖 NEW: Assistant integration support
   assistant_id?: number;                 // Custom assistant ID for system prompt injection
+  
+  // 🔄 NEW: Conversation tracking support
+  conversation_id?: number;              // Existing conversation ID to save messages to
 }
 
 export interface ChatResponse {
