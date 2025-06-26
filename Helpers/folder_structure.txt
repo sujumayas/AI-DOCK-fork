@@ -1,12 +1,263 @@
-INRE-AI-DOCK/
+INRE-DOCK-2/
 ├── Back/
-│   ├── DATABASE_MODELS.md
-│   └── tests/
+│   ├── ai_dock_env/
+│   ├── alembic/
+│   │   ├── env.py
+│   │   ├── README
+│   │   ├── script.py.mako
+│   │   └── versions/
+│   ├── alembic.ini
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── admin/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── departments.py
+│   │   │   │   ├── llm_configs.py
+│   │   │   │   ├── quotas.py
+│   │   │   │   ├── roles.py
+│   │   │   │   ├── usage_analytics.py
+│   │   │   │   └── users.py
+│   │   │   ├── assistants.py
+│   │   │   ├── auth.py
+│   │   │   ├── chat_assistant_integrated.py
+│   │   │   ├── chat_streaming.py
+│   │   │   ├── chat.py
+│   │   │   ├── conversations.py
+│   │   │   ├── files.py
+│   │   │   └── manager/
+│   │   │       ├── __init__.py
+│   │   │       ├── quotas.py
+│   │   │       └── users.py
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py
+│   │   │   ├── database.py
+│   │   │   └── security.py
+│   │   ├── main.py
+│   │   ├── middleware/
+│   │   │   ├── __init__.py
+│   │   │   └── security.py
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── assistant.py
+│   │   │   ├── chat_conversation.py
+│   │   │   ├── chat.py
+│   │   │   ├── conversation.py
+│   │   │   ├── department.py
+│   │   │   ├── file_upload.py
+│   │   │   ├── folder.py
+│   │   │   ├── llm_config.py
+│   │   │   ├── quota.py
+│   │   │   ├── role.py
+│   │   │   ├── usage_log.py
+│   │   │   └── user.py
+│   │   ├── schemas/
+│   │   │   ├── __init__.py
+│   │   │   ├── admin.py
+│   │   │   ├── assistant.py
+│   │   │   ├── auth.py
+│   │   │   ├── chat.py
+│   │   │   ├── conversation.py
+│   │   │   ├── department.py
+│   │   │   ├── file_upload.py
+│   │   │   ├── llm_config.py
+│   │   │   ├── quota.py
+│   │   │   └── role.py
+│   │   ├── services/
+│   │   │   ├── __init__.py
+│   │   │   ├── admin_service.py
+│   │   │   ├── assistant_service.py
+│   │   │   ├── auth_service.py
+│   │   │   ├── conversation_service.py
+│   │   │   ├── file_processor.py
+│   │   │   ├── file_service.py
+│   │   │   ├── llm_service_with_quotas.py
+│   │   │   ├── llm_service.py
+│   │   │   ├── manager_service.py
+│   │   │   ├── mock_llm_provider.py
+│   │   │   ├── model_filter.py
+│   │   │   ├── quota_service.py
+│   │   │   └── usage_service.py
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── quick_start.sh
+│   ├── README.md
+│   ├── removed/
+│   ├── requirements.txt
+│   ├── scripts/
+│   │   ├── create_admin_user.py
+│   │   ├── explore_database.py
+│   │   └── view_all_data.py
+│   ├── test_llm_quota.py
+│   └── uploads/
+│       └── 2025/
+│           └── 06/
+│               └── 23/
+│                   ├── user_1_00e13996_myfile.txt
+│                   ├── user_1_0e4d9123_myfile.txt
+│                   ├── user_1_18beb797_myfile.txt
+│                   ├── user_1_9051c2a7_myfile.txt
+│                   ├── user_1_bc58a163_myfile.txt
+│                   └── user_1_cd0001d0_myfile.txt
+├── development_checklist.md
 ├── Front/
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── public/
+│   │   └── favicon.svg
+│   ├── REFACTORING_PLAN.md
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── components/
+│   │   │   ├── admin/
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── DepartmentModals.tsx
+│   │   │   │   │   ├── DepartmentStatsCards.tsx
+│   │   │   │   │   ├── DepartmentTable.tsx
+│   │   │   │   │   └── DepartmentToolbar.tsx
+│   │   │   │   ├── DepartmentManagement.tsx
+│   │   │   │   ├── LLMConfiguration.tsx
+│   │   │   │   ├── LLMCreateModal.tsx
+│   │   │   │   ├── LLMDeleteModal.tsx
+│   │   │   │   ├── LLMEditModal.tsx
+│   │   │   │   ├── LLMSimpleCreateModal.tsx
+│   │   │   │   ├── QuotaCreateModal.tsx
+│   │   │   │   ├── QuotaEditModal.tsx
+│   │   │   │   ├── QuotaManagement.tsx
+│   │   │   │   ├── QuotaTable.tsx
+│   │   │   │   ├── RecentActivity.tsx
+│   │   │   │   ├── TopUsersTable.tsx
+│   │   │   │   ├── UsageCharts.tsx
+│   │   │   │   ├── UsageDashboard.tsx
+│   │   │   │   ├── UsageDashboardOverview.tsx
+│   │   │   │   ├── user/
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   └── UserSearch.tsx
+│   │   │   │   ├── UserCreateModal.tsx
+│   │   │   │   ├── UserEditModal.tsx
+│   │   │   │   └── UserManagement.tsx
+│   │   │   ├── assistant/
+│   │   │   │   ├── AssistantBadge.tsx
+│   │   │   │   ├── AssistantCard.tsx
+│   │   │   │   ├── AssistantDiagnostic.tsx
+│   │   │   │   ├── AssistantDivider.tsx
+│   │   │   │   ├── CreateAssistantModal.tsx
+│   │   │   │   ├── EditAssistantModal.tsx
+│   │   │   │   └── index.ts
+│   │   │   ├── chat/
+│   │   │   │   ├── AssistantInfoTooltip.tsx
+│   │   │   │   ├── AssistantQuickSwitcher.tsx
+│   │   │   │   ├── AssistantSelectorCard.tsx
+│   │   │   │   ├── AssistantSuggestions.tsx
+│   │   │   │   ├── conversation/
+│   │   │   │   │   ├── ConversationExample.tsx
+│   │   │   │   │   ├── ConversationItem.tsx
+│   │   │   │   │   ├── ConversationList.tsx
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── README.md
+│   │   │   │   │   └── SaveConversationModal.tsx
+│   │   │   │   ├── ConversationSidebar.tsx
+│   │   │   │   ├── EmbeddedAssistantManager.tsx
+│   │   │   │   ├── FileAttachment.tsx
+│   │   │   │   ├── FileUpload.tsx
+│   │   │   │   ├── FloatingAssistantButton.tsx
+│   │   │   │   ├── MessageInput.tsx
+│   │   │   │   ├── MessageList.tsx
+│   │   │   │   └── QuotaErrorDisplay.tsx
+│   │   │   ├── ProtectedRoute.tsx
+│   │   │   └── ui/
+│   │   │       └── CodeBlock.tsx
+│   │   ├── contexts/
+│   │   │   └── AuthContext.tsx
+│   │   ├── hooks/
+│   │   │   ├── useAuth.ts
+│   │   │   └── useAutoScroll.ts
+│   │   ├── index.css
+│   │   ├── main.tsx
+│   │   ├── pages/
+│   │   │   ├── AdminSettings.tsx
+│   │   │   ├── AssistantDiagnosticPage.tsx
+│   │   │   ├── ChatInterface.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Login.tsx
+│   │   │   ├── ManagerDashboard.tsx
+│   │   │   └── UserSettings.tsx
+│   │   ├── services/
+│   │   │   ├── adminService.ts
+│   │   │   ├── assistantService.ts
+│   │   │   ├── authService.ts
+│   │   │   ├── chat/
+│   │   │   ├── chatService.ts
+│   │   │   ├── conversationService.ts
+│   │   │   ├── coreAuthService.ts
+│   │   │   ├── departmentService.ts
+│   │   │   ├── fileService.ts
+│   │   │   ├── llmConfigService.ts
+│   │   │   ├── managerService.ts
+│   │   │   ├── profileService.ts
+│   │   │   ├── quotaService.ts
+│   │   │   ├── roleService.ts
+│   │   │   └── usageAnalyticsService.ts
+│   │   ├── styles/
+│   │   │   └── thinking-animations.css
+│   │   ├── types/
+│   │   │   ├── admin/
+│   │   │   │   └── index.ts
+│   │   │   ├── admin.ts
+│   │   │   ├── assistant.ts
+│   │   │   ├── auth.ts
+│   │   │   ├── chat.ts
+│   │   │   ├── conversation.ts
+│   │   │   ├── file/
+│   │   │   │   ├── constants.ts
+│   │   │   │   ├── core.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── pdf.ts
+│   │   │   │   ├── utilities.ts
+│   │   │   │   ├── validation.ts
+│   │   │   │   └── word.ts
+│   │   │   ├── index.ts
+│   │   │   ├── manager.ts
+│   │   │   ├── quota.ts
+│   │   │   └── usage.ts
+│   │   ├── utils/
+│   │   │   ├── llmUtils.ts
+│   │   │   ├── modelNameUtils.ts
+│   │   │   ├── streamingAuth.ts
+│   │   │   ├── streamingStateManager.ts
+│   │   │   └── tokenManager.ts
+│   ├── STEP-7-IMPLEMENTATION-SUMMARY.md
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
 ├── Helpers/
 │   ├── assistant_prompt.md
 │   ├── backlog.md
+│   ├── file-upload-prompts/
+│   │   ├── 01-backend-file-storage.md
+│   │   ├── 02-frontend-upload-ui.md
+│   │   ├── 03-text-file-processing.md
+│   │   ├── 04-pdf-support.md
+│   │   ├── 05-word-document-support.md
+│   │   ├── 06-file-management-optimization.md
+│   │   └── README.md
 │   ├── folder_structure.txt
-│   └── project_details.md
-├── LICENSE
-└── README.md
+│   ├── project_details.md
+│   ├── project_integration_guide.md
+│   └── refactoring/
+│       ├── backend_example.md
+│       ├── example_refactor.md
+│       ├── progress_tracker.md
+│       ├── quick_start.md
+│       └── refactor_prompt.md
+├── nuclear_reset.sh
+├── package-lock.json
+├── package.json
+├── PRE_PUSH_CHECKLIST.md
+├── test_usage_logging.py
+└── USAGE_LOGGING_FIX_SUMMARY.md

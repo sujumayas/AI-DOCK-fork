@@ -163,11 +163,6 @@ export const ChatInterface: React.FC = () => {
     }
   }, [selectedModelId, unifiedModelsData]);
 
-  // Update user role when user changes
-  useEffect(() => {
-    // No need to update user role as it's not used in the new code
-  }, [user?.is_admin]);
-  
   // �� URL PARAMETER HANDLING: Support ?assistant=id for direct assistant selection
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -1176,7 +1171,7 @@ export const ChatInterface: React.FC = () => {
               <div className="flex items-center">
                 <Zap className="w-3 h-3 md:w-4 md:h-4 mr-1 text-yellow-300 flex-shrink-0" />
                 <span className="whitespace-nowrap">
-                  Model: <strong className="text-white">{currentModelInfo.displayName}</strong>
+                  Model: <strong className="text-white">{currentModelInfo.display_name}</strong>
                 </span>
               </div>
               <div className="flex items-center">
@@ -1461,6 +1456,7 @@ export const ChatInterface: React.FC = () => {
     </div>
   );
 };
+
 
 // 🎯 Enhanced Chat Interface Features:
 //
