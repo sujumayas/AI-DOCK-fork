@@ -53,6 +53,7 @@ import { sortConfigsByModel, getCleanModelName, getShortProviderName } from '../
 function filterClassicModels(models: UnifiedModelInfo[]): UnifiedModelInfo[] {
   // Only allow GPT-4o, GPT-4 Turbo, and GPT-3.5
   const allowedIds = [
+    'gpt-4o',        // ✅ Fixed: Added missing GPT-4o (the actual default model)
     'gpt-4o-mini',
     "gpt-o4-mini",
     'gpt-4-turbo',
