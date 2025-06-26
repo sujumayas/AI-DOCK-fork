@@ -90,6 +90,9 @@ class ChatHandler(BaseRequestHandler):
         chat_request = prepared_data['chat_request']
         provider = prepared_data['provider']
         
+        # 🔍 ENHANCED LOGGING: Log model selection details
+        self.logger.info(f"🔍 CHAT HANDLER: model_override='{model}', config_default='{config_data.get('default_model')}', chat_request.model='{chat_request.model}'")
+        
         # =============================================================================
         # STEP 2: CHECK QUOTAS
         # =============================================================================

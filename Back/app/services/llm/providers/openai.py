@@ -64,7 +64,9 @@ class OpenAIProvider(BaseLLMProvider):
         # Make the API request
         async with self._get_http_client() as client:
             try:
-                self.logger.info(f"Sending OpenAI request: model={payload['model']}")
+                # 🔍 ENHANCED LOGGING: Log exactly what model is being sent to OpenAI API
+                self.logger.info(f"🔍 SENDING TO OPENAI API: model='{payload['model']}', config_default='{self.config.default_model}', request_model_override='{request.model}'")
+                self.logger.info(f"🔍 Full OpenAI payload: {payload}")
                 
                 response = await client.post(
                     f"{self.config.api_endpoint}/chat/completions",
@@ -99,6 +101,9 @@ class OpenAIProvider(BaseLLMProvider):
         # Extract response content
         content = data["choices"][0]["message"]["content"]
         model = data["model"]
+        
+        # 🔍 ENHANCED LOGGING: Log what model OpenAI actually used
+        self.logger.info(f"🔍 RECEIVED FROM OPENAI API: model='{model}', content_length={len(content)} chars")
         
         # Extract usage information
         usage = {}
