@@ -175,6 +175,15 @@ app.include_router(
     tags=["Admin Departments"]
 )
 
+# Include admin role management endpoints
+# This adds all /admin/roles/* endpoints to our application
+from .api.admin.roles import router as admin_roles_router
+app.include_router(
+    admin_roles_router,
+    prefix="/admin",
+    tags=["Admin Roles"]
+)
+
 # Include admin usage analytics endpoints
 # This adds all /admin/usage/* endpoints to our application
 from .api.admin.usage_analytics import router as admin_usage_router
@@ -262,6 +271,13 @@ def read_root():
                     "reset_quota": "/admin/quotas/{id}/reset",
                     "bulk_reset": "/admin/quotas/bulk/reset",
                     "analytics": "/admin/quotas/analytics/summary"
+                },
+                "role_management": {
+                    "list_roles": "/admin/roles/list",
+                    "get_all_roles": "/admin/roles/",
+                    "get_role": "/admin/roles/{id}",
+                    "all_permissions": "/admin/roles/permissions/all",
+                    "permissions_by_category": "/admin/roles/permissions/by-category"
                 },
                 "usage_analytics": {
                     "summary": "/admin/usage/summary",

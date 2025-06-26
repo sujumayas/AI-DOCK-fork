@@ -113,6 +113,13 @@ from .assistant import (
     create_assistant_response_from_model,
     validate_assistant_ownership
 )
+from .role import (
+    RoleDropdownOption,
+    RoleResponse,
+    RoleCreateRequest,
+    RoleUpdateRequest,
+    RoleListResponse
+)
 
 __all__ = [
     # Auth schemas
@@ -228,4 +235,11 @@ __all__ = [
     "AssistantImport",
     "create_assistant_response_from_model",
     "validate_assistant_ownership",
+    
+    # Role schemas
+    "RoleDropdownOption",
+    "RoleResponse",
+    "RoleCreateRequest",
+    "RoleUpdateRequest",
+    "RoleListResponse",
 ]

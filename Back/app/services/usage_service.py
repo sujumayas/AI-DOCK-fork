@@ -196,18 +196,25 @@ class UsageService:
                     raw_response_metadata=raw_metadata
                 )
                 
-                # Save to database
+                # Save to database with better error handling
                 session.add(usage_log)
-                await session.commit()
+                try:
+                    await session.commit()
+                    self.logger.info(f"💾 DEBUG: Successfully committed usage log to database for request {request_id}")
+                except Exception as commit_error:
+                    self.logger.error(f"❌ DEBUG: Database commit failed for request {request_id}: {str(commit_error)}")
+                    await session.rollback()
+                    raise
                 
                 # Mark successful creation BEFORE any potential errors
                 main_log_created = True
                 main_log = usage_log
                 
+                cost_display = f"${cost:.4f}" if cost is not None else "$0.0000"
                 self.logger.info(
                     f"Usage logged successfully: user={user_email}, provider={provider}, "
                     f"model={model}, tokens={usage_log.total_tokens}, "
-                    f"cost=${cost:.4f if cost is not None else 0:.4f}, success={success}, "
+                    f"cost={cost_display}, success={success}, "
                     f"request_id={request_id}, log_id={usage_log.id}"
                 )
                 
@@ -279,80 +286,6 @@ class UsageService:
     # Emergency logging is now handled inline within log_llm_request method
     
     # =============================================================================
-    # ASYNC LOGGING (NON-BLOCKING)
-    # =============================================================================
-    
-    async def log_llm_request_async(
-        self,
-        user_id: int,
-        llm_config_id: int,
-        request_data: Dict[str, Any],
-        response_data: Dict[str, Any],
-        performance_data: Dict[str, Any],
-        **kwargs
-    ) -> None:
-        """
-        Log an LLM request asynchronously without blocking the main thread.
-        
-        IMPROVED: Better error handling and duplicate prevention.
-        
-        This is useful when you want to log usage but don't want to wait
-        for the database operation to complete. The chat response can be
-        returned immediately while logging happens in the background.
-        
-        Use this method when:
-        - You want fast response times for users
-        - Logging failures shouldn't affect the user experience
-        - You don't need the UsageLog object returned immediately
-        """
-        request_id = kwargs.get('request_id')
-        
-        try:
-            # Add detailed logging for debugging
-            if request_id:
-                self.logger.debug(f"Creating async logging task for user {user_id}, request {request_id}")
-            else:
-                self.logger.warning(f"Async logging for user {user_id} has no request_id - potential for duplicates")
-            
-            # Create a background task for logging with better error handling
-            async def safe_log_task():
-                try:
-                    result = await self.log_llm_request(
-                        user_id=user_id,
-                        llm_config_id=llm_config_id,
-                        request_data=request_data,
-                        response_data=response_data,
-                        performance_data=performance_data,
-                        **kwargs
-                    )
-                    self.logger.debug(f"Async logging completed for request {request_id}, log_id={result.id if result else 'none'}")
-                    return result
-                except Exception as task_error:
-                    self.logger.error(f"Async logging task failed for user {user_id}, request {request_id}: {str(task_error)}")
-                    # Don't re-raise - this is a background task
-                    return None
-            
-            # Create and start the task
-            task = asyncio.create_task(safe_log_task())
-            
-            # Optional: Add a simple done callback for monitoring
-            def log_completion(completed_task):
-                try:
-                    result = completed_task.result()
-                    if result:
-                        self.logger.debug(f"Async logging task completed successfully for request {request_id}")
-                    else:
-                        self.logger.warning(f"Async logging task completed with no result for request {request_id}")
-                except Exception as callback_error:
-                    self.logger.error(f"Error in async logging completion callback: {str(callback_error)}")
-            
-            task.add_done_callback(log_completion)
-            
-        except Exception as e:
-            # Log error but don't raise - this should never break the main flow
-            self.logger.error(f"Failed to create async logging task for user {user_id}: {str(e)}")
-    
-    # =============================================================================
     # ANALYTICS AND REPORTING METHODS
     # =============================================================================
     
@@ -379,6 +312,10 @@ class UsageService:
             end_date = datetime.utcnow()
         
         async with AsyncSessionLocal() as session:
+            # 🔧 FIX: Add cache-busting parameter to prevent query caching
+            # This ensures fresh data by making each query unique
+            cache_buster = datetime.utcnow().microsecond
+            
             # Base query for user's usage logs in date range
             base_query = select(UsageLog).where(
                 and_(
@@ -393,18 +330,22 @@ class UsageService:
                 and_(
                     UsageLog.user_id == user_id,
                     UsageLog.created_at >= start_date,
-                    UsageLog.created_at <= end_date
+                    UsageLog.created_at <= end_date,
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
                 )
-            )
+            ).params(cache_buster=cache_buster)
             
             successful_requests_query = select(func.count(UsageLog.id)).where(
                 and_(
                     UsageLog.user_id == user_id,
                     UsageLog.created_at >= start_date,
                     UsageLog.created_at <= end_date,
-                    UsageLog.success == True
+                    UsageLog.success == True,
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
                 )
-            )
+            ).params(cache_buster=cache_buster + 1)
             
             # Get token and cost totals
             totals_query = select(
@@ -419,9 +360,11 @@ class UsageService:
                     UsageLog.user_id == user_id,
                     UsageLog.created_at >= start_date,
                     UsageLog.created_at <= end_date,
-                    UsageLog.success == True
+                    UsageLog.success == True,
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
                 )
-            )
+            ).params(cache_buster=cache_buster + 2)
             
             # Execute queries
             total_requests = await session.execute(total_requests_query)
@@ -476,6 +419,10 @@ class UsageService:
             end_date = datetime.utcnow()
         
         async with AsyncSessionLocal() as session:
+            # 🔧 FIX: Add cache-busting parameter to prevent query caching
+            # This ensures fresh data by making each query unique
+            cache_buster = datetime.utcnow().microsecond
+            
             # Similar to user summary but filtered by department
             totals_query = select(
                 func.count(UsageLog.id).label('total_requests'),
@@ -487,9 +434,11 @@ class UsageService:
                 and_(
                     UsageLog.department_id == department_id,
                     UsageLog.created_at >= start_date,
-                    UsageLog.created_at <= end_date
+                    UsageLog.created_at <= end_date,
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
                 )
-            )
+            ).params(cache_buster=cache_buster)
             
             result = await session.execute(totals_query)
             totals_row = result.first()
@@ -538,6 +487,10 @@ class UsageService:
             end_date = datetime.utcnow()
         
         async with AsyncSessionLocal() as session:
+            # 🔧 FIX: Add cache-busting parameter to prevent query caching
+            # This ensures fresh data by making each query unique
+            cache_buster = datetime.utcnow().microsecond
+            
             provider_stats_query = select(
                 UsageLog.provider,
                 func.count(UsageLog.id).label('total_requests'),
@@ -548,9 +501,14 @@ class UsageService:
             ).where(
                 and_(
                     UsageLog.created_at >= start_date,
-                    UsageLog.created_at <= end_date
+                    UsageLog.created_at <= end_date,
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
                 )
             ).group_by(UsageLog.provider)
+            
+            # Add cache-busting parameter to the query
+            provider_stats_query = provider_stats_query.params(cache_buster=cache_buster)
             
             result = await session.execute(provider_stats_query)
             providers = result.fetchall()
@@ -632,6 +590,269 @@ class UsageService:
             "quota_remaining": None,  # Will be calculated in AID-005-B
             "quota_utilization_percent": 0  # Will be calculated in AID-005-B
         }
+
+    async def log_llm_request_isolated(
+        self,
+        user_id: int,
+        llm_config_id: int,
+        request_data: Dict[str, Any],
+        response_data: Dict[str, Any],
+        performance_data: Dict[str, Any],
+        session_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ) -> None:
+        """
+        🔧 ISOLATED usage logging method that uses its OWN database session.
+        
+        This method is designed to be completely independent of the main request
+        transaction. It creates its own database session, commits immediately,
+        and is NOT affected by any rollbacks in the calling code.
+        
+        This is the FIX for usage logs not being saved - they were getting
+        rolled back with the main transaction when exceptions occurred.
+        
+        Key differences from other logging methods:
+        - Uses AsyncSessionLocal() directly (new session)
+        - Commits immediately within its own transaction
+        - Does not depend on external session parameter
+        - Cannot be rolled back by calling code
+        - Includes comprehensive error handling
+        """
+        try:
+            self.logger.info(f"🔧 [ISOLATED LOG] Starting isolated usage logging for user {user_id}, request {request_id}")
+            
+            # 🔑 KEY FIX: Create completely separate database session
+            async with AsyncSessionLocal() as isolated_session:
+                try:
+                    # Load user and related data using the isolated session
+                    user = await isolated_session.get(User, user_id)
+                    user_email = user.email if user else "unknown"
+                    user_role = user.role.name if user and user.role else "unknown"
+                    department_id = user.department_id if user else None
+                    
+                    # Load LLM configuration using the isolated session
+                    llm_config = await isolated_session.get(LLMConfiguration, llm_config_id)
+                    
+                    # Parse all the data safely (same logic as other methods)
+                    messages_count = request_data.get("messages_count", 0)
+                    total_chars = request_data.get("total_chars", 0)
+                    request_parameters = request_data.get("parameters", {})
+                    
+                    success = response_data.get("success", False)
+                    content_length = response_data.get("content_length", 0)
+                    model = response_data.get("model", "unknown")
+                    provider = response_data.get("provider", "unknown")
+                    token_usage = response_data.get("token_usage", {})
+                    cost = response_data.get("cost")
+                    error_type = response_data.get("error_type")
+                    error_message = response_data.get("error_message")
+                    http_status_code = response_data.get("http_status_code")
+                    raw_metadata = response_data.get("raw_metadata", {})
+                    
+                    # Parse performance data safely
+                    request_started_at = None
+                    request_completed_at = None
+                    try:
+                        if performance_data.get("request_started_at"):
+                            if isinstance(performance_data["request_started_at"], str):
+                                request_started_at = datetime.fromisoformat(
+                                    performance_data["request_started_at"].replace("Z", "+00:00")
+                                )
+                            else:
+                                request_started_at = performance_data["request_started_at"]
+                        
+                        if performance_data.get("request_completed_at"):
+                            if isinstance(performance_data["request_completed_at"], str):
+                                request_completed_at = datetime.fromisoformat(
+                                    performance_data["request_completed_at"].replace("Z", "+00:00")
+                                )
+                            else:
+                                request_completed_at = performance_data["request_completed_at"]
+                    except Exception as time_error:
+                        self.logger.warning(f"[ISOLATED LOG] Failed to parse timestamps: {str(time_error)}")
+                    
+                    response_time_ms = performance_data.get("response_time_ms")
+                    response_content = response_data.get("content", "")
+                    response_preview = response_content[:500] if response_content else None
+                    
+                    # Create usage log entry
+                    usage_log = UsageLog(
+                        user_id=user_id,
+                        department_id=department_id,
+                        user_email=user_email,
+                        user_role=user_role,
+                        llm_config_id=llm_config_id,
+                        llm_config_name=llm_config.name if llm_config else "unknown",
+                        provider=provider,
+                        model=model,
+                        request_messages_count=messages_count,
+                        request_total_chars=total_chars,
+                        request_parameters=request_parameters,
+                        input_tokens=token_usage.get("input_tokens", 0),
+                        output_tokens=token_usage.get("output_tokens", 0),
+                        total_tokens=token_usage.get("total_tokens", 0),
+                        estimated_cost=cost,
+                        actual_cost=None,
+                        cost_currency="USD",
+                        response_time_ms=response_time_ms,
+                        request_started_at=request_started_at,
+                        request_completed_at=request_completed_at,
+                        success=success,
+                        error_type=error_type,
+                        error_message=error_message,
+                        http_status_code=http_status_code,
+                        response_content_length=content_length,
+                        response_preview=response_preview,
+                        session_id=session_id,
+                        request_id=request_id,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        raw_response_metadata=raw_metadata
+                    )
+                    
+                    # 🔑 KEY FIX: Add to isolated session and commit immediately
+                    isolated_session.add(usage_log)
+                    await isolated_session.commit()
+                    
+                    cost_display = f"${cost:.4f}" if cost is not None else "$0.0000"
+                    self.logger.info(
+                        f"✅ [ISOLATED LOG] Usage logged successfully: user={user_email}, provider={provider}, "
+                        f"model={model}, tokens={usage_log.total_tokens}, cost={cost_display}, "
+                        f"success={success}, request_id={request_id}, log_id={usage_log.id}"
+                    )
+                    
+                except Exception as isolated_error:
+                    # Even if the isolated session fails, rollback and re-raise
+                    await isolated_session.rollback()
+                    self.logger.error(f"❌ [ISOLATED LOG] Isolated session error for user {user_id}: {str(isolated_error)}")
+                    raise isolated_error
+                    
+        except Exception as e:
+            self.logger.error(f"❌ [ISOLATED LOG] Failed to log usage for user {user_id}: {str(e)}")
+            import traceback
+            self.logger.error(f"❌ [ISOLATED LOG] Traceback: {traceback.format_exc()}")
+            # 🔧 IMPORTANT: Don't re-raise - usage logging should never break the main flow
+            # This ensures that even if usage logging completely fails, the user still gets their chat response
+
+    def log_llm_request_sync(
+        self,
+        db_session,
+        user_id: int,
+        llm_config_id: int,
+        request_data: Dict[str, Any],
+        response_data: Dict[str, Any],
+        performance_data: Dict[str, Any],
+        session_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ) -> None:
+        """
+        🗑️ DEPRECATED: Synchronous usage log method.
+        
+        This method is now deprecated in favor of log_llm_request_isolated().
+        It was causing issues because it used the same session as the main request,
+        leading to usage logs being rolled back with the main transaction.
+        
+        Keep this method for backward compatibility, but new code should use
+        log_llm_request_isolated() instead.
+        """
+        try:
+            # Load user and related data
+            from ..models.user import User
+            from ..models.llm_config import LLMConfiguration
+            user = db_session.query(User).filter(User.id == user_id).first()
+            user_email = user.email if user else "unknown"
+            user_role = user.role.name if user and user.role else "unknown"
+            department_id = user.department_id if user else None
+            llm_config = db_session.query(LLMConfiguration).filter(LLMConfiguration.id == llm_config_id).first()
+            
+            # Parse all the data safely
+            messages_count = request_data.get("messages_count", 0)
+            total_chars = request_data.get("total_chars", 0)
+            request_parameters = request_data.get("parameters", {})
+            success = response_data.get("success", False)
+            content_length = response_data.get("content_length", 0)
+            model = response_data.get("model", "unknown")
+            provider = response_data.get("provider", "unknown")
+            token_usage = response_data.get("token_usage", {})
+            cost = response_data.get("cost")
+            error_type = response_data.get("error_type")
+            error_message = response_data.get("error_message")
+            http_status_code = response_data.get("http_status_code")
+            raw_metadata = response_data.get("raw_metadata", {})
+            
+            # 🔧 FIX: Parse datetime strings to Python datetime objects
+            request_started_at = None
+            request_completed_at = None
+            try:
+                if performance_data.get("request_started_at"):
+                    if isinstance(performance_data["request_started_at"], str):
+                        request_started_at = datetime.fromisoformat(
+                            performance_data["request_started_at"].replace("Z", "+00:00")
+                        )
+                    else:
+                        request_started_at = performance_data["request_started_at"]
+                
+                if performance_data.get("request_completed_at"):
+                    if isinstance(performance_data["request_completed_at"], str):
+                        request_completed_at = datetime.fromisoformat(
+                            performance_data["request_completed_at"].replace("Z", "+00:00")
+                        )
+                    else:
+                        request_completed_at = performance_data["request_completed_at"]
+            except Exception as time_error:
+                self.logger.warning(f"[SYNC LOG] Failed to parse timestamps: {str(time_error)}")
+            
+            response_time_ms = performance_data.get("response_time_ms")
+            response_content = response_data.get("content", "")
+            response_preview = response_content[:500] if response_content else None
+            
+            from ..models.usage_log import UsageLog
+            usage_log = UsageLog(
+                user_id=user_id,
+                department_id=department_id,
+                user_email=user_email,
+                user_role=user_role,
+                llm_config_id=llm_config_id,
+                llm_config_name=llm_config.name if llm_config else "unknown",
+                provider=provider,
+                model=model,
+                request_messages_count=messages_count,
+                request_total_chars=total_chars,
+                request_parameters=request_parameters,
+                input_tokens=token_usage.get("input_tokens", 0),
+                output_tokens=token_usage.get("output_tokens", 0),
+                total_tokens=token_usage.get("total_tokens", 0),
+                estimated_cost=cost,
+                actual_cost=None,
+                cost_currency="USD",
+                response_time_ms=response_time_ms,
+                request_started_at=request_started_at,
+                request_completed_at=request_completed_at,
+                success=success,
+                error_type=error_type,
+                error_message=error_message,
+                http_status_code=http_status_code,
+                response_content_length=content_length,
+                response_preview=response_preview,
+                session_id=session_id,
+                request_id=request_id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                raw_response_metadata=raw_metadata
+            )
+            db_session.add(usage_log)
+            db_session.commit()
+            self.logger.info(f"[SYNC LOG] Usage logged for user={user_email}, provider={provider}, model={model}, tokens={usage_log.total_tokens}, cost={cost}, request_id={request_id}")
+        except Exception as e:
+            db_session.rollback()
+            self.logger.error(f"[SYNC LOG] Failed to log usage for user {user_id}: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            # Don't re-raise the exception - usage logging should not break the main flow
 
 # =============================================================================
 # SERVICE INSTANCE

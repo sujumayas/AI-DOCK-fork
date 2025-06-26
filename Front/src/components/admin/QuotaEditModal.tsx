@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { quotaService } from '../../services/quotaService';
+import { departmentService, DepartmentDropdownOption } from '../../services/departmentService';
 import { 
   QuotaResponse,
   QuotaUpdateRequest, 
@@ -33,7 +34,7 @@ interface EditFormState {
 }
 
 interface ReferenceData {
-  departments: DepartmentOption[];
+  departments: DepartmentDropdownOption[];
   llmConfigs: LLMConfigOption[];
   loading: boolean;
   error: string | null;
@@ -94,7 +95,7 @@ export function QuotaEditModal({ isOpen, quota, onClose, onSuccess, className = 
 
       // Load departments and LLM configs in parallel
       const [departments, llmConfigs] = await Promise.all([
-        quotaService.getDepartments(),
+        departmentService.getDepartmentsForDropdown(),
         quotaService.getLLMConfigs(),
       ]);
 

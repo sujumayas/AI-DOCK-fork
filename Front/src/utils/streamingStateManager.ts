@@ -82,7 +82,7 @@ export const useStreamingChat = () => {
         }));
       };
 
-      // 🚨 Error handler: Called when streaming fails
+      // 🚨 Error handler: Called when streaming fails with enhanced cleanup
       const handleError = (error: StreamingError) => {
         console.error('🚨 Streaming error in React hook:', error);
         
@@ -90,8 +90,15 @@ export const useStreamingChat = () => {
           ...prev,
           connectionState: 'error',
           error,
-          isStreaming: !error.shouldFallback, // Stop streaming if fallback will happen
+          isStreaming: false, // 🔧 ENHANCED: Always stop streaming on error
         }));
+
+        // 🧹 ENHANCED: Ensure connection cleanup on error
+        if (connectionRef.current) {
+          console.log('🧹 Cleaning up connection due to error:', error.type);
+          connectionRef.current.close();
+          connectionRef.current = null;
+        }
 
         // Note: chatService will handle fallback automatically if enabled
       };

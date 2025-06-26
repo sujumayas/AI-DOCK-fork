@@ -10,6 +10,7 @@ import { ConversationSidebar } from '../components/chat/ConversationSidebar';
 import { EmbeddedAssistantManager } from '../components/chat/EmbeddedAssistantManager';
 import { AssistantSelectorCard } from '../components/chat/AssistantSelectorCard';
 import { AssistantSuggestions } from '../components/chat/AssistantSuggestions';
+import { QuotaErrorDisplay } from '../components/chat/QuotaErrorDisplay';
 import { chatService, UnifiedModelsResponse, UnifiedModelInfo } from '../services/chatService';
 import { conversationService } from '../services/conversationService';
 import { useAuth } from '../hooks/useAuth';
@@ -1318,7 +1319,7 @@ export const ChatInterface: React.FC = () => {
         )}
       </div>
       
-      {/* 🚨 Error display with glassmorphism */}
+      {/* 🚨 Enhanced Error Display with Streaming Error Support */}
       {error && (
         <div className="bg-red-500/20 backdrop-blur-sm border-l-4 border-red-300 p-3 md:p-4 mx-3 md:mx-4 mt-4 rounded-lg">
           <div className="flex items-start md:items-center gap-2">
@@ -1331,6 +1332,46 @@ export const ChatInterface: React.FC = () => {
               ×
             </button>
           </div>
+        </div>
+      )}
+      
+      {/* 🚨 Enhanced Streaming Error Display with Quota Support */}
+      {streamingHasError && streamingError && (
+        <div className="mt-4">
+          {streamingError.type === 'QUOTA_EXCEEDED' ? (
+            <QuotaErrorDisplay
+              error={streamingError}
+              onDismiss={() => {
+                // Reset streaming state to clear the error
+                // Note: This will be handled by the streaming hook's cleanup
+                console.log('🧹 User dismissed quota error');
+              }}
+              onContactAdmin={() => {
+                // Open admin contact - you can customize this
+                window.open('mailto:admin@company.com?subject=AI%20Usage%20Quota%20Exceeded', '_blank');
+              }}
+            />
+          ) : (
+            // Generic streaming error display
+            <div className="bg-orange-500/20 backdrop-blur-sm border-l-4 border-orange-300 p-3 md:p-4 mx-3 md:mx-4 rounded-lg">
+              <div className="flex items-start md:items-center gap-2">
+                <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-orange-200 flex-shrink-0 mt-0.5 md:mt-0" />
+                <div className="flex-1">
+                  <p className="text-orange-100 text-xs md:text-sm font-medium mb-1">
+                    Streaming Error: {streamingError.type}
+                  </p>
+                  <p className="text-orange-200 text-xs leading-relaxed">
+                    {streamingError.message}
+                  </p>
+                  {streamingError.shouldFallback && (
+                    <p className="text-orange-300 text-xs mt-1">
+                      ℹ️ Automatically falling back to regular chat...
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       

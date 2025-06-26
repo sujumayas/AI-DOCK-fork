@@ -321,13 +321,31 @@ class ChatService {
         } catch (parseError) {
           console.error('❌ Error parsing streaming chunk:', parseError);
           
-          const streamingError: StreamingError = {
-            type: 'SERVER_ERROR',
-            message: 'Failed to parse streaming response',
-            shouldFallback: true,
-            retryable: false
-          };
+          // 🚨 ENHANCED: Better error categorization based on error type
+          let streamingError: StreamingError;
           
+          if (parseError instanceof Error && parseError.message.includes('Backend error:')) {
+            // This is a backend error (like quota exceeded)
+            const errorMessage = parseError.message.replace('Backend error: ', '');
+            
+            streamingError = {
+              type: errorMessage.toLowerCase().includes('quota') ? 'QUOTA_EXCEEDED' : 'SERVER_ERROR',
+              message: errorMessage,
+              shouldFallback: false, // Don't fallback for quota errors
+              retryable: false
+            };
+          } else {
+            // This is a parsing error
+            streamingError = {
+              type: 'PARSE_ERROR',
+              message: 'Failed to parse streaming response',
+              shouldFallback: true,
+              retryable: false
+            };
+          }
+          
+          // 📧 ENHANCED: Always ensure connection is closed on error
+          eventSource?.close();
           onError(streamingError);
         }
       };
@@ -374,16 +392,29 @@ class ChatService {
     return connection;
   }
 
-  // 🔧 PARSE STREAMING CHUNK: Convert SSE data to structured chunk
-  // 🎓 Learning: SSE sends data as strings, we need to parse JSON
+  // 🔧 PARSE STREAMING CHUNK: Convert SSE data to structured chunk with error handling
+  // 🎓 Learning: SSE sends data as strings, we need to parse JSON and handle both content and error responses
   private parseStreamingChunk(data: string): StreamingChatChunk {
     try {
       // SSE data format is typically JSON
       const parsed = JSON.parse(data);
       
-      // Validate required fields
-      if (typeof parsed.content !== 'string') {
-        throw new Error('Invalid chunk: missing content field');
+      // 🚨 ENHANCED: Check for error responses first
+      if (parsed.error === true || parsed.error_type || parsed.error_message) {
+        console.error('❌ Streaming error received from backend:', {
+          errorType: parsed.error_type,
+          errorMessage: parsed.error_message,
+          chunkIndex: parsed.chunk_index
+        });
+        
+        // Throw a specific error that will be handled by the error handler
+        throw new Error(`Backend error: ${parsed.error_type}: ${parsed.error_message}`);
+      }
+      
+      // 🔍 ENHANCED: Better validation for content chunks
+      if (typeof parsed.content !== 'string' && parsed.content !== null && parsed.content !== undefined) {
+        console.warn('⚠️ Invalid content type in chunk:', typeof parsed.content, parsed);
+        throw new Error('Invalid chunk: content field must be string, null, or undefined');
       }
       
       return {
@@ -401,11 +432,8 @@ class ChatService {
     } catch (error) {
       console.error('❌ Failed to parse streaming chunk:', { data, error });
       
-      // Return minimal valid chunk to prevent breaking the stream
-      return {
-        content: '',
-        is_final: false
-      };
+      // Re-throw parsing errors so they can be handled by the error handler
+      throw error;
     }
   }
 

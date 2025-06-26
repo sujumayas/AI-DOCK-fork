@@ -19,13 +19,13 @@ from sqlalchemy import select
 
 # Import our LLM service and schemas
 from ..services.llm_service import (
-    llm_service, 
     LLMServiceError, 
     LLMProviderError, 
     LLMConfigurationError, 
     LLMQuotaExceededError,
     LLMDepartmentQuotaExceededError
 )
+from ..services.llm_service import llm_service
 
 # Import existing chat schemas (we'll reuse them)
 from .chat import ChatRequest, ChatMessage

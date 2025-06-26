@@ -1281,7 +1281,10 @@ class LLMService:
                 }
                 
                 try:
-                    await usage_service.log_llm_request_async(
+                    self.logger.info(f"🔍 DEBUG: About to call usage_service.log_llm_request_isolated for user {user_id}, request_id {request_id}")
+                    # 🔧 FIX: Use ISOLATED logging with separate database session
+                    # This ensures usage logging is NOT affected by main transaction rollbacks
+                    await usage_service.log_llm_request_isolated(
                         user_id=user_id,
                         llm_config_id=config_id,
                         request_data=request_data,
@@ -1292,10 +1295,14 @@ class LLMService:
                         ip_address=ip_address,
                         user_agent=user_agent
                     )
-                    self.logger.debug(f"Usage logged for user {user_id}: {response.usage.get('total_tokens', 0)} tokens, ${response.cost:.4f if response.cost else 0:.4f}")
+                    # Fixed f-string formatting
+                    cost_display = f"${response.cost:.4f}" if response.cost else "$0.0000"
+                    self.logger.info(f"✅ DEBUG: Usage logging isolated call completed for user {user_id}: {response.usage.get('total_tokens', 0)} tokens, {cost_display}")
                     
                 except Exception as logging_error:
-                    self.logger.error(f"Failed to log usage (non-critical): {str(logging_error)}")
+                    self.logger.error(f"❌ DEBUG: Failed to log usage (non-critical): {str(logging_error)}")
+                    import traceback
+                    self.logger.error(f"❌ DEBUG: Usage logging traceback: {traceback.format_exc()}")
                 
                 return response
                 
@@ -1335,9 +1342,10 @@ class LLMService:
                     "quota_details": quota_check_result.quota_details if quota_check_result else {}
                 }
                 
-                # Log failed usage
+                # Log failed usage with isolated session
                 try:
-                    await usage_service.log_llm_request_async(
+                    # 🔧 FIX: Use isolated logging for error cases too
+                    await usage_service.log_llm_request_isolated(
                         user_id=user_id,
                         llm_config_id=config_id,
                         request_data=request_data,
@@ -1348,7 +1356,7 @@ class LLMService:
                         ip_address=ip_address,
                         user_agent=user_agent
                     )
-                    self.logger.debug(f"Failed usage logged for user {user_id}: {error_type}")
+                    self.logger.info(f"✅ DEBUG: Failed usage logging isolated call completed for user {user_id}: {error_type}")
                     
                 except Exception as logging_error:
                     self.logger.error(f"Failed to log error usage (non-critical): {str(logging_error)}")
@@ -1906,6 +1914,8 @@ class LLMService:
         # STEP 1: CONFIGURATION VALIDATION (Same as regular chat)
         # =============================================================================
         
+        # 🔧 FIX: Use isolated database session for configuration validation
+        # This prevents the main session from being rolled back
         with next(get_db()) as db_session:
             
             # Get and validate configuration
@@ -2038,107 +2048,114 @@ class LLMService:
                     if "usage" in chunk_data:
                         accumulated_usage.update(chunk_data["usage"])
                     
-                    # 📡 Yield formatted chunk
-                    yield {
-                        "content": chunk_content,
-                        "is_final": chunk_data.get("is_final", False),
-                        "model": chunk_data.get("model"),
-                        "provider": provider.provider_name,
-                        "chunk_index": chunk_count - 1,
-                        "timestamp": datetime.utcnow().isoformat(),
-                        "usage": chunk_data.get("usage") if chunk_data.get("is_final") else None,
-                        "cost": chunk_data.get("cost") if chunk_data.get("is_final") else None,
-                        "response_time_ms": chunk_data.get("response_time_ms") if chunk_data.get("is_final") else None
-                    }
-                    
-                    # 🏁 If final chunk, break the loop
+                    # 🏁 If final chunk, prepare usage logging and yield
                     if chunk_data.get("is_final"):
-                        break
-                
-                # =============================================================================
-                # STEP 6: FINALIZE STREAMING RESPONSE
-                # =============================================================================
-                
-                request_completed_at = datetime.utcnow()
-                total_response_time_ms = int((request_completed_at - request_started_at).total_seconds() * 1000)
-                
-                performance_data.update({
-                    "request_completed_at": request_completed_at.isoformat(),
-                    "response_time_ms": total_response_time_ms,
-                    "chunks_sent": chunk_count
-                })
-                
-                # Create a final response object for usage recording
-                final_response = ChatResponse(
-                    content=accumulated_content,
-                    model=model or config_data['default_model'],
-                    provider=provider.provider_name,
-                    usage=accumulated_usage,
-                    cost=self._calculate_streaming_cost(accumulated_usage, final_config),
-                    response_time_ms=total_response_time_ms
-                )
-                
-                # =============================================================================
-                # STEP 7: RECORD QUOTA USAGE (Same as regular chat)
-                # =============================================================================
-                
-                if not bypass_quota:
-                    try:
-                        quota_usage_result = self._record_quota_usage_improved(
-                            user_id, config_id, final_response, db_session
+                        self.logger.info(f"🔍 DEBUG: Received final chunk for user {user_id}, preparing usage logging")
+                        
+                        # Calculate final response data for usage logging
+                        request_completed_at = datetime.utcnow()
+                        total_response_time_ms = int((request_completed_at - request_started_at).total_seconds() * 1000)
+                        
+                        performance_data.update({
+                            "request_completed_at": request_completed_at.isoformat(),
+                            "response_time_ms": total_response_time_ms,
+                            "chunks_sent": chunk_count
+                        })
+                        
+                        # Create final response object for usage recording
+                        final_response = ChatResponse(
+                            content=accumulated_content,
+                            model=model or config_data['default_model'],
+                            provider=provider.provider_name,
+                            usage=accumulated_usage,
+                            cost=self._calculate_streaming_cost(accumulated_usage, final_config),
+                            response_time_ms=total_response_time_ms
                         )
                         
-                        if quota_usage_result["success"]:
-                            self.logger.info(f"Streaming quota usage recorded: {quota_usage_result.get('updated_quotas', [])} quotas updated")
+                        # Prepare response data for usage logging
+                        response_data = {
+                            "success": True,
+                            "content": accumulated_content,
+                            "content_length": len(accumulated_content),
+                            "model": final_response.model,
+                            "provider": final_response.provider,
+                            "token_usage": final_response.usage,
+                            "cost": final_response.cost,
+                            "error_type": None,
+                            "error_message": None,
+                            "http_status_code": 200,
+                            "streaming": True,
+                            "chunks_sent": chunk_count,
+                            "raw_metadata": {},
+                            "quota_check_passed": quota_check_result is not None,
+                            "quota_details": quota_check_result.quota_details if quota_check_result else {}
+                        }
                         
-                    except Exception as quota_error:
-                        self.logger.error(f"Failed to record streaming quota usage (non-critical): {str(quota_error)}")
+                        # 🔧 FIX: Start background usage logging task BEFORE yielding final chunk
+                        # This ensures usage logging happens even if client disconnects immediately
+                        self.logger.info(f"🔧 Starting background usage logging for streaming user {user_id}, request_id {request_id}")
+                        
+                        # Create background task for usage logging
+                        asyncio.create_task(
+                            self._log_streaming_usage_background(
+                                user_id=user_id,
+                                config_id=config_id,
+                                request_data=request_data,
+                                response_data=response_data,
+                                performance_data=performance_data,
+                                session_id=session_id,
+                                request_id=request_id,
+                                ip_address=ip_address,
+                                user_agent=user_agent,
+                                final_response=final_response,
+                                bypass_quota=bypass_quota,
+                                db_session=db_session
+                            )
+                        )
+                        
+                        # 📡 Yield final formatted chunk
+                        yield {
+                            "content": chunk_content,
+                            "is_final": True,
+                            "model": chunk_data.get("model"),
+                            "provider": provider.provider_name,
+                            "chunk_index": chunk_count - 1,
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "usage": chunk_data.get("usage"),
+                            "cost": chunk_data.get("cost"),
+                            "response_time_ms": chunk_data.get("response_time_ms")
+                        }
+                        
+                        break
+                    else:
+                        # 📡 Yield regular formatted chunk
+                        yield {
+                            "content": chunk_content,
+                            "is_final": False,
+                            "model": chunk_data.get("model"),
+                            "provider": provider.provider_name,
+                            "chunk_index": chunk_count - 1,
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "usage": None,
+                            "cost": None,
+                            "response_time_ms": None
+                        }
                 
                 # =============================================================================
-                # STEP 8: LOG SUCCESSFUL STREAMING USAGE
+                # STEP 6: STREAMING COMPLETED (Usage logging now handled in background task)
                 # =============================================================================
-                
-                response_data = {
-                    "success": True,
-                    "content": accumulated_content,
-                    "content_length": len(accumulated_content),
-                    "model": final_response.model,
-                    "provider": final_response.provider,
-                    "token_usage": final_response.usage,
-                    "cost": final_response.cost,
-                    "error_type": None,
-                    "error_message": None,
-                    "http_status_code": 200,
-                    "streaming": True,
-                    "chunks_sent": chunk_count,
-                    "raw_metadata": {},
-                    "quota_check_passed": quota_check_result is not None,
-                    "quota_details": quota_check_result.quota_details if quota_check_result else {}
-                }
-                
-                try:
-                    await usage_service.log_llm_request_async(
-                        user_id=user_id,
-                        llm_config_id=config_id,
-                        request_data=request_data,
-                        response_data=response_data,
-                        performance_data=performance_data,
-                        session_id=session_id,
-                        request_id=request_id,
-                        ip_address=ip_address,
-                        user_agent=user_agent
-                    )
-                    self.logger.debug(f"Streaming usage logged for user {user_id}: {accumulated_usage.get('total_tokens', 0)} tokens, ${final_response.cost:.4f if final_response.cost else 0:.4f}")
-                    
-                except Exception as logging_error:
-                    self.logger.error(f"Failed to log streaming usage (non-critical): {str(logging_error)}")
                 
                 self.logger.info(f"Streaming completed successfully for user {user_id}: {chunk_count} chunks sent")
                 
             except Exception as e:
                 # =============================================================================
-                # STEP 9: HANDLE STREAMING ERRORS
+                # STEP 7: HANDLE STREAMING ERRORS
                 # =============================================================================
+                
+                # 🔍 DEBUG: Add logging to see if we reach error handling
+                self.logger.error(f"🔍 DEBUG: Streaming error occurred for user {user_id}: {str(e)}")
+                import traceback
+                self.logger.error(f"🔍 DEBUG: Streaming error traceback: {traceback.format_exc()}")
                 
                 request_completed_at = datetime.utcnow()
                 error_response_time_ms = int((request_completed_at - request_started_at).total_seconds() * 1000)
@@ -2178,23 +2195,23 @@ class LLMService:
                     "quota_details": quota_check_result.quota_details if quota_check_result else {}
                 }
                 
-                # Log failed streaming usage
-                try:
-                    await usage_service.log_llm_request_async(
+                # 🔧 FIX: Start background error logging task
+                asyncio.create_task(
+                    self._log_streaming_usage_background(
                         user_id=user_id,
-                        llm_config_id=config_id,
+                        config_id=config_id,
                         request_data=request_data,
                         response_data=response_data,
                         performance_data=performance_data,
                         session_id=session_id,
                         request_id=request_id,
                         ip_address=ip_address,
-                        user_agent=user_agent
+                        user_agent=user_agent,
+                        final_response=None,  # No final response for errors
+                        bypass_quota=bypass_quota,
+                        db_session=db_session
                     )
-                    self.logger.debug(f"Failed streaming usage logged for user {user_id}: {error_type}")
-                    
-                except Exception as logging_error:
-                    self.logger.error(f"Failed to log streaming error usage (non-critical): {str(logging_error)}")
+                )
                 
                 # Re-raise the original error
                 self.logger.error(f"Streaming chat request failed: {str(e)}")
@@ -2490,6 +2507,89 @@ class LLMService:
             "output_tokens": output_tokens,
             "total_tokens": input_tokens + output_tokens
         }
+    
+    async def _log_streaming_usage_background(
+        self,
+        user_id: int,
+        config_id: int,
+        request_data: Dict[str, Any],
+        response_data: Dict[str, Any],
+        performance_data: Dict[str, Any],
+        session_id: Optional[str],
+        request_id: Optional[str],
+        ip_address: Optional[str],
+        user_agent: Optional[str],
+        final_response: Optional[ChatResponse],
+        bypass_quota: bool,
+        db_session: Session
+    ) -> None:
+        """
+        🔧 Background task for logging streaming usage.
+        
+        This method runs as a background task to ensure usage logging happens
+        even if the client disconnects immediately after receiving the final chunk.
+        
+        Args:
+            user_id: User making the request
+            config_id: LLM configuration used
+            request_data: Request data for logging
+            response_data: Response data for logging
+            performance_data: Performance metrics
+            session_id: Session identifier
+            request_id: Request identifier
+            ip_address: Client IP address
+            user_agent: Client user agent
+            final_response: Final chat response (None for errors)
+            bypass_quota: Whether quota checking was bypassed
+            db_session: Database session (for quota recording)
+        """
+        try:
+            self.logger.info(f"🔧 [BACKGROUND] Starting background usage logging for user {user_id}, request_id {request_id}")
+            
+            # Record quota usage if not bypassed and we have a final response
+            if not bypass_quota and final_response:
+                try:
+                    quota_usage_result = self._record_quota_usage_improved(
+                        user_id, config_id, final_response, db_session
+                    )
+                    
+                    if quota_usage_result["success"]:
+                        self.logger.info(f"🔧 [BACKGROUND] Streaming quota usage recorded: {quota_usage_result.get('updated_quotas', [])} quotas updated")
+                    
+                except Exception as quota_error:
+                    self.logger.error(f"🔧 [BACKGROUND] Failed to record streaming quota usage (non-critical): {str(quota_error)}")
+            
+            # 🔧 FIX: Use SYNCHRONOUS usage logging instead of async
+            # This prevents the "greenlet_spawn has not been called" error
+            try:
+                # Use the synchronous version of usage logging
+                usage_service.log_llm_request_sync(
+                    db_session=next(get_db()),  # Get a fresh synchronous session
+                    user_id=user_id,
+                    llm_config_id=config_id,
+                    request_data=request_data,
+                    response_data=response_data,
+                    performance_data=performance_data,
+                    session_id=session_id,
+                    request_id=request_id,
+                    ip_address=ip_address,
+                    user_agent=user_agent
+                )
+                
+                cost_display = f"${final_response.cost:.4f}" if final_response and final_response.cost else "$0.0000"
+                tokens = final_response.usage.get('total_tokens', 0) if final_response else 0
+                self.logger.info(f"✅ [BACKGROUND] Streaming usage logging completed for user {user_id}: {tokens} tokens, {cost_display}")
+                
+            except Exception as logging_error:
+                self.logger.error(f"❌ [BACKGROUND] Failed to log streaming usage (non-critical): {str(logging_error)}")
+                import traceback
+                self.logger.error(f"❌ [BACKGROUND] Usage logging traceback: {traceback.format_exc()}")
+            
+        except Exception as e:
+            self.logger.error(f"❌ [BACKGROUND] Background usage logging failed for user {user_id}: {str(e)}")
+            import traceback
+            self.logger.error(f"❌ [BACKGROUND] Background logging traceback: {traceback.format_exc()}")
+            # Don't re-raise - background tasks should not break the main flow
 
 # =============================================================================
 # SERVICE INSTANCE

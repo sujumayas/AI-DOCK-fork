@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { quotaService } from '../../services/quotaService';
+import { departmentService, DepartmentDropdownOption } from '../../services/departmentService';
 import { 
   QuotaCreateRequest, 
   QuotaFormState, 
@@ -27,7 +28,7 @@ interface QuotaCreateModalProps {
 }
 
 interface ReferenceData {
-  departments: DepartmentOption[];
+  departments: DepartmentDropdownOption[];
   llmConfigs: LLMConfigOption[];
   loading: boolean;
   error: string | null;
@@ -99,8 +100,9 @@ export function QuotaCreateModal({ isOpen, onClose, onSuccess, className = '' }:
       setReferenceData(prev => ({ ...prev, loading: true, error: null }));
 
       // Load departments and LLM configs in parallel
+      // Use departmentService for dynamic department loading (same as UserCreateModal)
       const [departments, llmConfigs] = await Promise.all([
-        quotaService.getDepartments(),
+        departmentService.getDepartmentsForDropdown(),
         quotaService.getLLMConfigs(),
       ]);
 
@@ -289,11 +291,11 @@ export function QuotaCreateModal({ isOpen, onClose, onSuccess, className = '' }:
     
     if (!department_id || !quota_type || !quota_period) return '';
 
-    const department = referenceData.departments.find(d => d.id === department_id);
+    const department = referenceData.departments.find(d => d.value === department_id);
     const llmConfig = referenceData.llmConfigs.find(c => c.id === llm_config_id);
     
     const parts = [
-      department?.name || 'Department',
+      department?.label || 'Department',
       llmConfig?.name || 'All Providers',
       quota_period.charAt(0).toUpperCase() + quota_period.slice(1),
       quota_type.charAt(0).toUpperCase() + quota_type.slice(1)
@@ -444,22 +446,52 @@ export function QuotaCreateModal({ isOpen, onClose, onSuccess, className = '' }:
             {/* Department selection */}
             {renderField(
               'Department',
-              <select
-                id="quota-department"
-                name="quota-department"
-                value={formState.data.department_id || ''}
-                onChange={(e) => updateFormData({ department_id: Number(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={formState.isSubmitting}
-                required
-              >
-                <option value="">Select a department</option>
-                {referenceData.departments.map(dept => (
-                  <option key={dept.id} value={dept.id} disabled={!dept.is_active}>
-                    {dept.name} {!dept.is_active && '(Inactive)'}
-                  </option>
-                ))}
-              </select>,
+              <div>
+                {/* Show loading state while departments are being fetched */}
+                {referenceData.loading ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                    <span className="text-gray-500">Loading departments...</span>
+                  </div>
+                ) : (
+                  <select
+                    id="quota-department"
+                    name="quota-department"
+                    value={formState.data.department_id || ''}
+                    onChange={(e) => updateFormData({ department_id: Number(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={formState.isSubmitting}
+                    required
+                  >
+                    <option value="">Select a department</option>
+                    {referenceData.departments.map(dept => (
+                      <option key={dept.value} value={dept.value}>
+                        {dept.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                
+                {/* Show error state if departments failed to load */}
+                {referenceData.error && (
+                  <p className="mt-1 text-sm text-amber-600 flex items-center">
+                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    {referenceData.error}
+                  </p>
+                )}
+                
+                {/* Show helpful info if no departments available */}
+                {!referenceData.loading && referenceData.departments.length === 0 && !referenceData.error && (
+                  <p className="mt-1 text-sm text-blue-600 flex items-center">
+                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    No departments available. Create departments in the Admin Panel first.
+                  </p>
+                )}
+              </div>,
               formState.errors.department_id,
               true,
               'Choose which department this quota applies to',

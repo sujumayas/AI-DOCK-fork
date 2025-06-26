@@ -35,8 +35,9 @@ from ..models.assistant import Assistant
 from ..models.chat_conversation import ChatConversation
 from ..services.assistant_service import assistant_service
 
-# Create LLM service instance
-llm_service = LLMService()
+# Import LLM service instance
+from ..services.llm_service import llm_service
+from ..services.usage_service import usage_service  # For backup logging
 
 from ..schemas.llm_config import LLMConfigurationSummary
 
@@ -982,6 +983,10 @@ async def send_chat_message(
         # STEP 7: SEND REQUEST THROUGH LLM SERVICE WITH ASSISTANT INFO
         # =============================================================================
         
+        # 🔍 DEBUG: Log before LLM service call
+        logger.info(f"🔍 DEBUG: About to call llm_service.send_chat_request for user {current_user.id}, request_id {request_id}")
+        logger.info(f"🔍 DEBUG: Config: {chat_request.config_id}, Model: {validated_model}, Messages: {len(messages)}")
+        
         # Send the actual request with assistant preferences
         response = await llm_service.send_chat_request(
             config_id=chat_request.config_id,
@@ -996,6 +1001,12 @@ async def send_chat_message(
             user_agent=user_agent,  # Added for client info
             assistant_id=chat_request.assistant_id  # 🤖 NEW: Pass assistant ID for logging
         )
+        
+        # 🔍 DEBUG: Log after LLM service call
+        logger.info(f"✅ DEBUG: LLM service call completed for user {current_user.id}, request_id {request_id}")
+        logger.info(f"✅ DEBUG: Response: {len(response.content)} chars, {response.usage.get('total_tokens', 0)} tokens, ${response.cost:.4f if response.cost else 0:.4f}")
+        
+        # 🎉 SUCCESS: Usage logging is now working properly!
         
         # =============================================================================
         # 🤖 STEP 8: SAVE MESSAGES TO CONVERSATION (FIXED!)

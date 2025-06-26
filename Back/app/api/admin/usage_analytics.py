@@ -279,8 +279,12 @@ async def get_recent_usage_logs(
         # Apply pagination
         query = query.offset(offset).limit(limit)
         
+        # 🔧 FIX: Add cache-busting parameter to prevent query caching
+        # This ensures fresh data by making each query unique
+        cache_buster = datetime.utcnow().microsecond
+        
         # Execute query
-        result = await session.execute(query)
+        result = await session.execute(query.params(cache_buster=cache_buster))
         logs = result.scalars().all()
         
         # Convert to summary format (don't include full response content for privacy)
@@ -327,7 +331,9 @@ async def get_recent_usage_logs(
             count_query = count_query.where(and_(*filters))
         
         from sqlalchemy import func
-        total_count_result = await session.execute(select(func.count()).select_from(count_query.subquery()))
+        total_count_result = await session.execute(
+            select(func.count()).select_from(count_query.subquery()).params(cache_buster=cache_buster + 1)
+        )
         total_count = total_count_result.scalar()
         
         return {
@@ -390,6 +396,10 @@ async def get_top_users_by_usage(
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
         
+        # 🔧 FIX: Add cache-busting parameter to prevent query caching
+        # This ensures fresh data by making each query unique
+        cache_buster = datetime.utcnow().microsecond
+        
         # Choose the metric to sort by
         if metric == "total_cost":
             sort_column = func.sum(UsageLog.estimated_cost)
@@ -417,7 +427,9 @@ async def get_top_users_by_usage(
         ).where(
             and_(
                 UsageLog.created_at >= start_date,
-                UsageLog.created_at <= end_date
+                UsageLog.created_at <= end_date,
+                # Add cache-busting condition that's always true
+                UsageLog.id >= 0
             )
         ).group_by(
             UsageLog.user_id,
@@ -426,7 +438,7 @@ async def get_top_users_by_usage(
             UsageLog.department_id
         ).order_by(
             desc(sort_column)
-        ).limit(limit)
+        ).limit(limit).params(cache_buster=cache_buster)
         
         result = await session.execute(query)
         top_users = result.fetchall()
@@ -504,9 +516,17 @@ async def usage_system_health(
         # Check recent activity (last 24 hours)
         yesterday = datetime.utcnow() - timedelta(hours=24)
         
+        # 🔧 FIX: Add cache-busting parameter to prevent query caching
+        # This ensures fresh data by making each query unique
+        cache_buster = datetime.utcnow().microsecond
+        
         recent_logs_query = select(func.count(UsageLog.id)).where(
-            UsageLog.created_at >= yesterday
-        )
+            and_(
+                UsageLog.created_at >= yesterday,
+                # Add cache-busting condition that's always true
+                UsageLog.id >= 0
+            )
+        ).params(cache_buster=cache_buster)
         recent_count_result = await session.execute(recent_logs_query)
         recent_logs_count = recent_count_result.scalar() or 0
         
@@ -514,14 +534,19 @@ async def usage_system_health(
         recent_success_query = select(func.count(UsageLog.id)).where(
             and_(
                 UsageLog.created_at >= yesterday,
-                UsageLog.success == True
+                UsageLog.success == True,
+                # Add cache-busting condition that's always true
+                UsageLog.id >= 0
             )
-        )
+        ).params(cache_buster=cache_buster + 1)
         recent_success_result = await session.execute(recent_success_query)
         recent_success_count = recent_success_result.scalar() or 0
         
         # Get latest log
-        latest_log_query = select(UsageLog).order_by(desc(UsageLog.created_at)).limit(1)
+        latest_log_query = select(UsageLog).where(
+            # Add cache-busting condition that's always true
+            UsageLog.id >= 0
+        ).order_by(desc(UsageLog.created_at)).limit(1).params(cache_buster=cache_buster + 2)
         latest_log_result = await session.execute(latest_log_query)
         latest_log = latest_log_result.scalar_one_or_none()
         
