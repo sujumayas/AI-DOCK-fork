@@ -424,20 +424,87 @@ class LLMOrchestrator:
         }
     
     def get_available_operations(self) -> List[str]:
-        """
-        Get list of available operations for API documentation.
-        
-        Returns:
-            List of operation names
-        """
+        """Get list of available operations this orchestrator supports."""
         return [
             "process_chat_request",
             "process_streaming_request", 
             "test_configuration",
             "estimate_request_cost",
             "get_user_quota_status",
-            "check_user_can_use_config"
+            "check_user_can_use_config",
+            "get_provider_models"
         ]
+    
+    async def get_provider_models(self, config_id: int) -> list[str]:
+        """
+        Fetch available models from a provider's API.
+        
+        Args:
+            config_id: ID of the LLM configuration to use
+            
+        Returns:
+            List of model IDs available from the provider
+            
+        Raises:
+            LLMServiceError: If configuration not found or provider error
+        """
+        # 🐛 DEBUG: Add detailed logging
+        self.logger.info(f"🔍 Orchestrator fetching models for config {config_id}")
+        
+        # Import here to avoid circular imports
+        from app.core.database import get_async_db
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from sqlalchemy import select
+        
+        try:
+            # Use proper async database session
+            async for db_session in get_async_db():
+                try:
+                    # Query config using async syntax
+                    query = select(LLMConfiguration).where(LLMConfiguration.id == config_id)
+                    result = await db_session.execute(query)
+                    config = result.scalar_one_or_none()
+                    
+                    if not config:
+                        self.logger.error(f"❌ LLM configuration {config_id} not found in database")
+                        raise LLMServiceError(f"LLM configuration {config_id} not found")
+                    
+                    self.logger.info(f"✅ Found config {config_id}: {config.name} ({config.provider})")
+                    
+                    # Get the appropriate provider
+                    provider = self._get_provider(config)
+                    self.logger.info(f"✅ Created {provider.provider_name} provider instance")
+                    
+                    try:
+                        # Fetch models from the provider
+                        self.logger.info(f"🔍 Calling provider.get_available_models() for {provider.provider_name}")
+                        models = await provider.get_available_models()
+                        self.logger.info(f"✅ Successfully fetched {len(models)} models from {provider.provider_name}: {models[:10]}...")
+                        return models
+                        
+                    except Exception as provider_error:
+                        self.logger.error(f"❌ Provider {provider.provider_name} failed to fetch models: {type(provider_error).__name__}: {str(provider_error)}")
+                        self.logger.error(f"❌ Provider error details: {repr(provider_error)}")
+                        raise LLMServiceError(f"Failed to fetch models from {provider.provider_name}: {str(provider_error)}")
+                        
+                finally:
+                    # Ensure session is closed
+                    await db_session.close()
+                    
+        except LLMServiceError:
+            # Re-raise LLMServiceError without wrapping
+            raise
+        except Exception as db_error:
+            self.logger.error(f"❌ Database error in get_provider_models: {type(db_error).__name__}: {str(db_error)}")
+            self.logger.error(f"❌ Database error details: {repr(db_error)}")
+            raise LLMServiceError(f"Database error while fetching configuration: {str(db_error)}")
+    
+    def _get_provider(self, config: LLMConfiguration):
+        """Get provider instance for a configuration."""
+        # Import here to avoid circular imports
+        from app.services.llm.provider_factory import get_provider
+        
+        return get_provider(config)
 
 
 # Factory function for dependency injection

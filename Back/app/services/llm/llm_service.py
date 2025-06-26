@@ -294,6 +294,74 @@ class LLMService:
             "get_available_methods"
         ]
 
+    async def get_dynamic_models(
+        self,
+        config_id: int,
+        db,
+        use_cache: bool = True,
+        show_all_models: bool = False
+    ) -> dict:
+        from app.models.llm_config import LLMConfiguration
+        from app.services.llm.core.orchestrator import LLMOrchestrator
+        from app.services.model_filter import ModelFilterLevel
+
+        config = await db.get(LLMConfiguration, config_id)
+        if not config:
+            raise ValueError(f"LLM config {config_id} not found")
+
+        provider = config.provider.value if hasattr(config.provider, "value") else str(config.provider)
+        default_model = config.default_model
+
+        # Get orchestrator instance
+        orchestrator = LLMOrchestrator()
+        
+        try:
+            # 🐛 DEBUG: Add detailed logging to see what's happening
+            self.logger.info(f"🔍 Attempting to fetch models from {provider} API for config {config_id}")
+            self.logger.info(f"🔍 show_all_models={show_all_models}, use_cache={use_cache}")
+            
+            # Fetch models from the provider using the orchestrator
+            models = await orchestrator.get_provider_models(config_id)
+            
+            self.logger.info(f"✅ Successfully fetched {len(models)} models from {provider} API: {models[:5]}...")
+            
+            # Apply filtering if not showing all models
+            if not show_all_models:
+                from app.services.model_filter import OpenAIModelFilter, ModelFilterLevel
+                filter_engine = OpenAIModelFilter()
+                filtered_models, metadata = filter_engine.filter_models(
+                    models, 
+                    ModelFilterLevel.RECOMMENDED
+                )
+                self.logger.info(f"🔍 Applied filtering: {len(models)} -> {len(filtered_models)} models")
+                models = filtered_models
+            
+            return {
+                "models": models,
+                "provider": provider,
+                "default_model": default_model,
+                "cached": use_cache,
+                "filtering_applied": not show_all_models
+            }
+            
+        except Exception as e:
+            # 🐛 DEBUG: Add detailed error logging to see what's failing
+            self.logger.error(f"❌ Failed to fetch models from {provider} API for config {config_id}: {type(e).__name__}: {str(e)}")
+            self.logger.error(f"❌ Exception details: {repr(e)}")
+            
+            # Fallback to configuration models if API fails
+            fallback_models = [default_model] if default_model else []
+            self.logger.warning(f"🔄 Falling back to configuration models for config {config_id}: {fallback_models}")
+            
+            return {
+                "models": fallback_models,
+                "provider": provider,
+                "default_model": default_model,
+                "cached": False,
+                "filtering_applied": False,
+                "error": str(e)
+            }
+
 
 # Global service instance (singleton pattern - maintains backward compatibility)
 _llm_service = None

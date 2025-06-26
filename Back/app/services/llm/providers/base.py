@@ -75,6 +75,20 @@ class BaseLLMProvider(ABC):
         """
         pass
     
+    @abstractmethod
+    async def get_available_models(self) -> list[str]:
+        """
+        Fetch available models from the provider's API.
+        
+        Returns:
+            List of model IDs available from the provider
+            
+        Raises:
+            LLMProviderError: If API call fails
+            LLMConfigurationError: If configuration is invalid
+        """
+        pass
+    
     # =============================================================================
     # COMMON HELPER METHODS
     # =============================================================================

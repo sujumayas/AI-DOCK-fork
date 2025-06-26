@@ -201,5 +201,25 @@ def get_provider_factory() -> LLMProviderFactory:
 # Export factory classes and functions
 __all__ = [
     'LLMProviderFactory',
-    'get_provider_factory'
+    'get_provider_factory',
+    'get_provider'
 ]
+
+
+def get_provider(config: LLMConfiguration) -> BaseLLMProvider:
+    """
+    Get a provider instance for the given configuration.
+    
+    This is a module-level convenience function that delegates to the factory.
+    
+    Args:
+        config: LLM configuration from database
+        
+    Returns:
+        Provider instance ready to handle requests
+        
+    Raises:
+        LLMServiceError: If provider type is not supported
+    """
+    factory = get_provider_factory()
+    return factory.get_provider(config)

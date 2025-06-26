@@ -146,6 +146,7 @@ async def get_dynamic_models(
         # Get dynamic models through service with filtering control
         models_data = await llm_service.get_dynamic_models(
             config_id=config_id,
+            db=db,
             use_cache=use_cache,
             show_all_models=show_all_models
         )
@@ -280,6 +281,7 @@ async def get_all_models(
                 try:
                     models_data = await llm_service.get_dynamic_models(
                         config_id=config.id,
+                        db=db,
                         use_cache=use_cache,
                         show_all_models=show_all_models
                     )

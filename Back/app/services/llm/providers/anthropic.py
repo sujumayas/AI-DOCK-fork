@@ -221,6 +221,24 @@ class AnthropicProvider(BaseLLMProvider):
         
         return self.config.calculate_request_cost(estimated_input_tokens, estimated_output_tokens)
     
+    async def get_available_models(self) -> list[str]:
+        """
+        Get available Claude models.
+        
+        Note: Anthropic doesn't have a public models endpoint, so we return
+        the known list of Claude models.
+        
+        Returns:
+            List of known Claude model identifiers
+        """
+        self._validate_configuration()
+        
+        # Since Anthropic doesn't have a public models endpoint,
+        # we return the known list of Claude models
+        known_models = self.get_known_models()
+        self.logger.info(f"Returning {len(known_models)} known Claude models")
+        return known_models
+    
     # =============================================================================
     # SIMULATED STREAMING FOR ANTHROPIC
     # =============================================================================

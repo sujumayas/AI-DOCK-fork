@@ -191,6 +191,53 @@ class OpenAIProvider(BaseLLMProvider):
         
         return self.config.calculate_request_cost(estimated_input_tokens, estimated_output_tokens)
     
+    async def get_available_models(self) -> list[str]:
+        """
+        Fetch available models from OpenAI API.
+        
+        Returns:
+            List of model IDs available from OpenAI
+            
+        Raises:
+            LLMProviderError: If API call fails
+            LLMConfigurationError: If configuration is invalid
+        """
+        self._validate_configuration()
+        
+        async with self._get_http_client() as client:
+            try:
+                self.logger.info("Fetching available models from OpenAI API")
+                
+                response = await client.get(f"{self.config.api_endpoint}/models")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    models = []
+                    
+                    # Extract model IDs from the response
+                    for model in data.get("data", []):
+                        model_id = model.get("id")
+                        if model_id:
+                            models.append(model_id)
+                    
+                    self.logger.info(f"Fetched {len(models)} models from OpenAI API")
+                    return models
+                else:
+                    await self._handle_error_response(response)
+                    
+            except httpx.TimeoutException:
+                raise LLMProviderError(
+                    "Request timed out while fetching models",
+                    provider=self.provider_name,
+                    error_details={"timeout": True}
+                )
+            except httpx.RequestError as e:
+                raise LLMProviderError(
+                    f"Network error while fetching models: {str(e)}",
+                    provider=self.provider_name,
+                    error_details={"network_error": str(e)}
+                )
+    
     # =============================================================================
     # STREAMING SUPPORT FOR OPENAI
     # =============================================================================
