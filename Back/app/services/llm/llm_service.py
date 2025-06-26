@@ -316,32 +316,89 @@ class LLMService:
         orchestrator = LLMOrchestrator()
         
         try:
-            # 🐛 DEBUG: Add detailed logging to see what's happening
-            self.logger.info(f"🔍 Attempting to fetch models from {provider} API for config {config_id}")
+            # 🚀 NEW: Check cache first if caching is enabled
+            if use_cache:
+                try:
+                    from app.services.llm.cache import get_model_cache_manager
+                    cache_manager = get_model_cache_manager()
+                    
+                    # Try to get cached models
+                    cached_data = await cache_manager.get_models(
+                        config_id=config_id,
+                        show_all_models=show_all_models
+                    )
+                    
+                    if cached_data:
+                        self.logger.info(f"📋 Cache HIT: Returning cached models for config {config_id} (filtering: {not show_all_models})")
+                        return {
+                            "models": cached_data.models,
+                            "provider": cached_data.provider,
+                            "default_model": cached_data.default_model,
+                            "cached": True,
+                            "cached_at": cached_data.cached_at.isoformat(),
+                            "expires_at": cached_data.expires_at.isoformat(),
+                            "filtering_applied": cached_data.filtering_applied,
+                            "total_api_models": cached_data.total_api_models,
+                            "original_total_models": cached_data.original_total_models
+                        }
+                    else:
+                        self.logger.info(f"📋 Cache MISS: Will fetch fresh models for config {config_id}")
+                        
+                except Exception as cache_error:
+                    self.logger.warning(f"⚠️ Cache error, will fetch fresh models: {str(cache_error)}")
+            
+            # 🌐 Fetch fresh models from provider
+            self.logger.info(f"🔍 Fetching fresh models from {provider} API for config {config_id}")
             self.logger.info(f"🔍 show_all_models={show_all_models}, use_cache={use_cache}")
             
             # Fetch models from the provider using the orchestrator
-            models = await orchestrator.get_provider_models(config_id)
+            # The orchestrator now handles caching internally for the full model list
+            all_models = await orchestrator.get_provider_models(config_id)
             
-            self.logger.info(f"✅ Successfully fetched {len(models)} models from {provider} API: {models[:5]}...")
+            self.logger.info(f"✅ Successfully fetched {len(all_models)} models from {provider} API: {all_models[:5]}...")
             
             # Apply filtering if not showing all models
+            original_count = len(all_models)
+            filtered_models = all_models
+            
             if not show_all_models:
                 from app.services.model_filter import OpenAIModelFilter, ModelFilterLevel
                 filter_engine = OpenAIModelFilter()
                 filtered_models, metadata = filter_engine.filter_models(
-                    models, 
+                    all_models, 
                     ModelFilterLevel.RECOMMENDED
                 )
-                self.logger.info(f"🔍 Applied filtering: {len(models)} -> {len(filtered_models)} models")
-                models = filtered_models
+                self.logger.info(f"🔍 Applied filtering: {len(all_models)} -> {len(filtered_models)} models")
+            
+            # 🚀 NEW: Cache the filtered results if caching is enabled
+            if use_cache and not show_all_models:
+                try:
+                    cache_success = await cache_manager.set_models(
+                        config_id=config_id,
+                        models=filtered_models,
+                        provider=provider,
+                        config_name=config.name,
+                        default_model=default_model,
+                        show_all_models=show_all_models,
+                        ttl_seconds=3600,  # 1 hour cache
+                        total_api_models=original_count,
+                        original_total_models=original_count
+                    )
+                    
+                    if cache_success:
+                        self.logger.info(f"💾 Cached filtered models for config {config_id} (filtered: {len(filtered_models)} of {original_count})")
+                    
+                except Exception as cache_error:
+                    self.logger.error(f"❌ Error caching filtered models: {str(cache_error)}")
             
             return {
-                "models": models,
+                "models": filtered_models,
                 "provider": provider,
                 "default_model": default_model,
-                "cached": use_cache,
-                "filtering_applied": not show_all_models
+                "cached": False,  # This is fresh data
+                "filtering_applied": not show_all_models,
+                "total_api_models": original_count,
+                "original_total_models": original_count if not show_all_models else None
             }
             
         except Exception as e:

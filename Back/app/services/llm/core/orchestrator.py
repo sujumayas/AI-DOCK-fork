@@ -437,7 +437,7 @@ class LLMOrchestrator:
     
     async def get_provider_models(self, config_id: int) -> list[str]:
         """
-        Fetch available models from a provider's API.
+        Fetch available models from a provider's API with intelligent caching.
         
         Args:
             config_id: ID of the LLM configuration to use
@@ -451,60 +451,78 @@ class LLMOrchestrator:
         # 🐛 DEBUG: Add detailed logging
         self.logger.info(f"🔍 Orchestrator fetching models for config {config_id}")
         
-        # Import here to avoid circular imports
-        from app.core.database import get_async_db
-        from sqlalchemy.ext.asyncio import AsyncSession
-        from sqlalchemy import select
-        
+        # 🚀 NEW: Try to get models from cache first
         try:
-            # Use proper async database session
-            async for db_session in get_async_db():
-                try:
-                    # Query config using async syntax
-                    query = select(LLMConfiguration).where(LLMConfiguration.id == config_id)
-                    result = await db_session.execute(query)
-                    config = result.scalar_one_or_none()
-                    
-                    if not config:
-                        self.logger.error(f"❌ LLM configuration {config_id} not found in database")
-                        raise LLMServiceError(f"LLM configuration {config_id} not found")
-                    
-                    self.logger.info(f"✅ Found config {config_id}: {config.name} ({config.provider})")
-                    
-                    # Get the appropriate provider
-                    provider = self._get_provider(config)
-                    self.logger.info(f"✅ Created {provider.provider_name} provider instance")
-                    
-                    try:
-                        # Fetch models from the provider
-                        self.logger.info(f"🔍 Calling provider.get_available_models() for {provider.provider_name}")
-                        models = await provider.get_available_models()
-                        self.logger.info(f"✅ Successfully fetched {len(models)} models from {provider.provider_name}: {models[:10]}...")
-                        return models
-                        
-                    except Exception as provider_error:
-                        self.logger.error(f"❌ Provider {provider.provider_name} failed to fetch models: {type(provider_error).__name__}: {str(provider_error)}")
-                        self.logger.error(f"❌ Provider error details: {repr(provider_error)}")
-                        raise LLMServiceError(f"Failed to fetch models from {provider.provider_name}: {str(provider_error)}")
-                        
-                finally:
-                    # Ensure session is closed
-                    await db_session.close()
-                    
-        except LLMServiceError:
-            # Re-raise LLMServiceError without wrapping
-            raise
-        except Exception as db_error:
-            self.logger.error(f"❌ Database error in get_provider_models: {type(db_error).__name__}: {str(db_error)}")
-            self.logger.error(f"❌ Database error details: {repr(db_error)}")
-            raise LLMServiceError(f"Database error while fetching configuration: {str(db_error)}")
-    
-    def _get_provider(self, config: LLMConfiguration):
-        """Get provider instance for a configuration."""
-        # Import here to avoid circular imports
-        from app.services.llm.provider_factory import get_provider
+            from ..cache import get_model_cache_manager
+            cache_manager = get_model_cache_manager()
+            
+            # Check cache for models (try both filtered and unfiltered versions)
+            cached_data = await cache_manager.get_models(config_id, show_all_models=True)
+            
+            if cached_data:
+                self.logger.info(f"📋 Cache HIT: Using cached models for config {config_id} (expires in {cached_data.time_until_expiry()})")
+                return cached_data.models
+            else:
+                self.logger.info(f"📋 Cache MISS: Fetching fresh models for config {config_id}")
         
-        return get_provider(config)
+        except Exception as cache_error:
+            self.logger.warning(f"⚠️ Cache error, fetching fresh models: {str(cache_error)}")
+        
+        # Import here to avoid circular imports
+        from app.core.database import SyncSessionLocal
+        from sqlalchemy import select
+        from app.models.llm_config import LLMConfiguration
+        from ..provider_factory import get_provider
+        
+        # Use synchronous database session for now
+        # TODO: Convert to async session in future refactor
+        try:
+            with SyncSessionLocal() as db_session:
+                # Get configuration
+                config = db_session.get(LLMConfiguration, config_id)
+                if not config:
+                    raise LLMServiceError(f"Configuration {config_id} not found")
+                
+                self.logger.info(f"🔍 Found config: {config.name} (Provider: {config.provider})")
+                
+                # Get provider instance
+                provider = get_provider(config)
+                
+                # 🌐 Fetch models from provider API
+                self.logger.info(f"🌐 Fetching models from {config.provider} API...")
+                models = await provider.get_available_models()
+                
+                self.logger.info(f"✅ Successfully fetched {len(models)} models from {config.provider} API")
+                
+                # 🚀 NEW: Cache the fetched models for future requests
+                try:
+                    cache_success = await cache_manager.set_models(
+                        config_id=config_id,
+                        models=models,
+                        provider=config.provider.value if hasattr(config.provider, 'value') else str(config.provider),
+                        config_name=config.name,
+                        default_model=config.default_model,
+                        show_all_models=True,  # Cache the full unfiltered list
+                        ttl_seconds=3600,  # 1 hour cache
+                        total_api_models=len(models)
+                    )
+                    
+                    if cache_success:
+                        self.logger.info(f"💾 Successfully cached {len(models)} models for config {config_id}")
+                    else:
+                        self.logger.warning(f"⚠️ Failed to cache models for config {config_id}")
+                
+                except Exception as cache_error:
+                    self.logger.error(f"❌ Error caching models: {str(cache_error)}")
+                    # Don't fail the request if caching fails
+                
+                return models
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error fetching models from provider: {str(e)}")
+            raise LLMServiceError(f"Failed to fetch models from provider: {str(e)}")
+        
+        return []
 
 
 # Factory function for dependency injection

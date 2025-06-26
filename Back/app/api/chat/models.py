@@ -10,6 +10,7 @@ from typing import List
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import datetime
 
 # Authentication and database dependencies
 from ...core.security import get_current_user
@@ -412,4 +413,134 @@ async def get_all_models(
             cached=False,
             providers=[],
             filtering_applied=False
+        )
+
+# =============================================================================
+# CACHE MANAGEMENT ENDPOINTS (ADMIN ONLY)
+# =============================================================================
+
+@router.get("/cache/stats")
+async def get_cache_stats(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get cache statistics for model data.
+    
+    This endpoint provides detailed information about cache performance,
+    memory usage, and hit rates.
+    
+    Args:
+        current_user: Current authenticated user (admin access recommended)
+        
+    Returns:
+        Cache statistics including hit rates, memory usage, and entry counts
+    """
+    try:
+        # Import cache manager
+        from ...services.llm.cache import get_model_cache_manager
+        
+        cache_manager = get_model_cache_manager()
+        stats = await cache_manager.get_cache_stats()
+        
+        logger.info(f"User {current_user.email} requested cache statistics")
+        
+        return {
+            "cache_stats": stats,
+            "timestamp": datetime.utcnow().isoformat(),
+            "user": current_user.email
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving cache statistics"
+        )
+
+@router.delete("/cache/clear")
+async def clear_model_cache(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Clear all cached model data.
+    
+    This endpoint clears all cached model information, forcing fresh
+    fetches from provider APIs on the next request.
+    
+    Note: Requires admin privileges for security.
+    
+    Args:
+        current_user: Current authenticated user (must be admin)
+        
+    Returns:
+        Number of cache entries cleared
+    """
+    # Check admin privileges
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required to clear cache"
+        )
+    
+    try:
+        from ...services.llm.cache import get_model_cache_manager
+        
+        cache_manager = get_model_cache_manager()
+        cleared_count = await cache_manager.cache.clear_all()
+        
+        logger.info(f"Admin {current_user.email} cleared all model cache ({cleared_count} entries)")
+        
+        return {
+            "message": "Cache cleared successfully",
+            "entries_cleared": cleared_count,
+            "timestamp": datetime.utcnow().isoformat(),
+            "cleared_by": current_user.email
+        }
+        
+    except Exception as e:
+        logger.error(f"Error clearing cache: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error clearing cache"
+        )
+
+@router.delete("/cache/config/{config_id}")
+async def invalidate_config_cache(
+    config_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Invalidate cached model data for a specific configuration.
+    
+    This endpoint clears cached models for a single LLM configuration,
+    useful when a configuration has been updated or when testing.
+    
+    Args:
+        config_id: ID of the LLM configuration to invalidate
+        current_user: Current authenticated user (admin recommended)
+        
+    Returns:
+        Number of cache entries invalidated for the configuration
+    """
+    try:
+        from ...services.llm.cache import get_model_cache_manager
+        
+        cache_manager = get_model_cache_manager()
+        invalidated_count = await cache_manager.invalidate_config(config_id)
+        
+        logger.info(f"User {current_user.email} invalidated cache for config {config_id} ({invalidated_count} entries)")
+        
+        return {
+            "message": f"Cache invalidated for configuration {config_id}",
+            "config_id": config_id,
+            "entries_invalidated": invalidated_count,
+            "timestamp": datetime.utcnow().isoformat(),
+            "invalidated_by": current_user.email
+        }
+        
+    except Exception as e:
+        logger.error(f"Error invalidating config cache: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error invalidating configuration cache"
         )
