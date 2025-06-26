@@ -28,7 +28,7 @@ from ..services.llm_service import (
 from ..services.llm_service import llm_service
 
 # Import existing chat schemas (we'll reuse them)
-from .chat import ChatRequest, ChatMessage
+from ..schemas.chat_api.requests import ChatRequest, ChatMessage
 from pydantic import BaseModel, Field
 
 # =============================================================================
