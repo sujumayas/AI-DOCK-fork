@@ -227,9 +227,14 @@ app.include_router(
 
 # Include assistant endpoints
 # This adds all /assistants/* endpoints to our application
-from .api.assistants import router as assistants_router
+from .api.assistants import router as assistants_router, health_router_public as assistants_health_router
 app.include_router(
     assistants_router,
+    tags=["Assistants"]
+)
+# Include assistant health endpoints (no auth required)
+app.include_router(
+    assistants_health_router,
     tags=["Assistants"]
 )
 
