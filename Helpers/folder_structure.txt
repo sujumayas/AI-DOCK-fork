@@ -89,7 +89,19 @@ INRE-DOCK-2/
 │   │   │   │   └── model_service.py         #   - Model processing and filtering (250 lines)
 │   │   │   ├── conversation_service.py
 │   │   │   ├── file_processor.py
-│   │   │   ├── file_service.py
+│   │   │   ├── file_service.py             # 🔄 REFACTORED: Now orchestrator for atomic services
+│   │   │   ├── file_services/              # 🆕 NEW: Modular file processing services (1,360 lines → 8 atomic services)
+│   │   │   │   ├── __init__.py                #   - Clean service exports and instantiation helpers
+│   │   │   │   ├── validation_service.py      #   - File validation and safety checks (~300 lines)
+│   │   │   │   ├── extraction_service.py      #   - Multi-format text extraction (~400 lines)
+│   │   │   │   ├── storage_service.py         #   - Database storage operations (~200 lines)
+│   │   │   │   ├── retrieval_service.py       #   - Access control and retrieval (~150 lines)
+│   │   │   │   ├── deletion_service.py        #   - Soft and hard deletion operations (~120 lines)
+│   │   │   │   ├── analytics_service.py       #   - Statistics and usage analytics (~100 lines)
+│   │   │   │   ├── health_service.py          #   - System health monitoring (~80 lines)
+│   │   │   │   └── utility_service.py         #   - Configuration and utility functions (~110 lines)
+│   │   │   ├── file_processing/
+│   │   │   ├── llm/
 │   │   │   ├── llm_service_with_quotas.py
 │   │   │   ├── llm_service.py
 │   │   │   ├── manager_service.py
@@ -108,7 +120,6 @@ INRE-DOCK-2/
 │   │   ├── create_admin_user.py
 │   │   ├── explore_database.py
 │   │   └── view_all_data.py
-│   ├── test_llm_quota.py
 │   └── uploads/
 │       └── 2025/
 │           └── 06/

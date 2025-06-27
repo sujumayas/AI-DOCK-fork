@@ -626,8 +626,17 @@ class UsageService:
             # 🔑 KEY FIX: Create completely separate database session
             async with AsyncSessionLocal() as isolated_session:
                 try:
-                    # Load user and related data using the isolated session
-                    user = await isolated_session.get(User, user_id)
+                    # Load user and related data using the isolated session with eager loading
+                    from sqlalchemy.orm import selectinload
+                    from sqlalchemy import select
+                    
+                    user_query = select(User).options(
+                        selectinload(User.role),
+                        selectinload(User.department)
+                    ).where(User.id == user_id)
+                    user_result = await isolated_session.execute(user_query)
+                    user = user_result.scalar_one_or_none()
+                    
                     user_email = user.email if user else "unknown"
                     user_role = user.role.name if user and user.role else "unknown"
                     department_id = user.department_id if user else None

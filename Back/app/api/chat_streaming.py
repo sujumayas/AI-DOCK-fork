@@ -489,8 +489,8 @@ async def stream_chat_generator(
                 from ..models.file_upload import FileUpload
                 from ..services.file_service import get_file_service
                 
-                # Import the file processing function from chat.py
-                from .chat import process_file_attachments
+                # Import the file processing function from chat services
+                from ..services.chat import process_file_attachments
                 
                 logger.info(f"🔍 DEBUG: About to call process_file_attachments with IDs: {stream_request.file_attachment_ids}")
                 
