@@ -12,6 +12,7 @@ import { QuotaResponse, QuotaType, QuotaPeriod, QuotaStatus } from '../../types/
 export interface QuotaTableState {
   quotas: QuotaResponse[];
   loading: boolean;
+  refreshing: boolean;
   error: string | null;
   pagination: {
     page: number;
@@ -50,6 +51,7 @@ interface UseQuotaTableReturn {
   
   // Actions
   loadQuotas: () => Promise<void>;
+  refreshQuotas: () => Promise<void>;
   setFilters: (filters: Partial<FilterState>) => void;
   resetFilters: () => void;
   handlePageChange: (page: number) => void;
@@ -78,6 +80,7 @@ export const useQuotaTable = (): UseQuotaTableReturn => {
   const [tableState, setTableState] = useState<QuotaTableState>({
     quotas: [],
     loading: true,
+    refreshing: false,
     error: null,
     pagination: {
       page: 1,
@@ -172,6 +175,68 @@ export const useQuotaTable = (): UseQuotaTableReturn => {
         ...prev,
         loading: false,
         error: error instanceof Error ? error.message : 'Failed to load quotas',
+      }));
+    }
+  }, [filters, tableState.pagination.page, tableState.pagination.pageSize, sortBy, sortOrder]);
+
+  /**
+   * Refresh quotas (refresh button action)
+   */
+  const refreshQuotas = useCallback(async () => {
+    try {
+      console.log('🔄 Refreshing quotas...');
+      setTableState(prev => ({ ...prev, refreshing: true, error: null }));
+
+      // Build search filters from UI state
+      const searchFilters: QuotaSearchFilters = {
+        page: tableState.pagination.page,
+        page_size: tableState.pagination.pageSize,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      };
+
+      // Add active filters
+      if (filters.search.trim()) searchFilters.search = filters.search.trim();
+      if (filters.departmentId) searchFilters.department_id = filters.departmentId;
+      if (filters.llmConfigId) searchFilters.llm_config_id = filters.llmConfigId;
+      if (filters.quotaType) searchFilters.quota_type = filters.quotaType;
+      if (filters.quotaPeriod) searchFilters.quota_period = filters.quotaPeriod;
+      if (filters.status) searchFilters.status = filters.status;
+      if (filters.isEnforced !== null) searchFilters.is_enforced = filters.isEnforced;
+      if (filters.isExceeded !== null) searchFilters.is_exceeded = filters.isExceeded;
+
+      // Call the API
+      const response: QuotaListResponse = await quotaService.getQuotas(searchFilters);
+
+      // Update state with response data
+      setTableState(prev => ({
+        ...prev,
+        quotas: response.quotas,
+        refreshing: false,
+        pagination: {
+          page: response.page,
+          pageSize: response.page_size,
+          totalCount: response.total_count,
+          totalPages: response.total_pages,
+          hasNext: response.has_next,
+          hasPrevious: response.has_previous,
+        },
+        summary: {
+          totalQuotas: response.summary.total_quotas,
+          activeQuotas: response.summary.active_quotas,
+          exceededQuotas: response.summary.exceeded_quotas,
+          nearLimitQuotas: response.summary.near_limit_quotas,
+        },
+      }));
+
+      console.log('✅ Quotas refreshed successfully:', response.quotas.length, 'items');
+
+    } catch (error) {
+      console.error('❌ Error refreshing quotas:', error);
+      setTableState(prev => ({
+        ...prev,
+        refreshing: false,
+        error: error instanceof Error ? error.message : 'Failed to refresh quotas',
       }));
     }
   }, [filters, tableState.pagination.page, tableState.pagination.pageSize, sortBy, sortOrder]);
@@ -351,6 +416,7 @@ export const useQuotaTable = (): UseQuotaTableReturn => {
     
     // Actions
     loadQuotas,
+    refreshQuotas,
     setFilters,
     resetFilters,
     handlePageChange,

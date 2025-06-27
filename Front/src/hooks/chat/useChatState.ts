@@ -2,7 +2,7 @@
 // Manages messages, loading states, and chat operations
 // Extracted from ChatInterface.tsx for better modularity
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChatMessage, ChatServiceError, StreamingChatRequest, ChatResponse } from '../../types/chat';
 import { AssistantSummary } from '../../types/assistant';
@@ -57,6 +57,29 @@ export const useChatState = (config: ChatStateConfig): ChatStateReturn => {
     connectionState,
     stopStreaming
   } = useStreamingChat();
+  
+  // 🔧 ENHANCED: Clean up streaming placeholder when streaming errors occur
+  useEffect(() => {
+    if (streamingHasError && streamingError) {
+      console.log('🧹 Streaming error detected, cleaning up states:', streamingError.type);
+      
+      // Remove empty streaming placeholder and stop loading
+      setMessages(prev => {
+        if (prev.length > 0) {
+          const lastMessage = prev[prev.length - 1];
+          // If the last message is an empty assistant message (streaming placeholder), remove it
+          if (lastMessage && lastMessage.role === 'assistant' && 
+              (!lastMessage.content || lastMessage.content.trim() === '')) {
+            console.log('🧹 Removing empty streaming placeholder');
+            return prev.slice(0, -1);
+          }
+        }
+        return prev;
+      });
+      
+      setIsLoading(false); // Stop loading state since streaming failed
+    }
+  }, [streamingHasError, streamingError]);
   
   // 📤 Send message handler
   const sendMessage = useCallback(async (content: string, attachments?: FileAttachment[]) => {

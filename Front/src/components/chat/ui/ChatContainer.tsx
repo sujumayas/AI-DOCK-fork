@@ -54,7 +54,8 @@ export const ChatContainer: React.FC = () => {
     handleAssistantSelect,
     handleAssistantChange,
     setShowAssistantManager,
-    clearAssistantFromUrl
+    clearAssistantFromUrl,
+    loadAvailableAssistants
   } = useAssistantManager((message) => {
     // Handle assistant messages
     addMessage(message);
@@ -187,7 +188,9 @@ export const ChatContainer: React.FC = () => {
   const handleAssistantManagerChange = useCallback(() => {
     // This will be called when assistants are created/edited/deleted
     console.log('🔄 Assistant list updated from embedded manager');
-  }, []);
+    // Refresh available assistants to reflect any changes
+    loadAvailableAssistants();
+  }, [loadAvailableAssistants]);
   
   // 🎯 Handle change assistant button click
   const handleChangeAssistantClick = useCallback(() => {

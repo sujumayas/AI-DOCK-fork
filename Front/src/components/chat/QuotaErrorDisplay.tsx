@@ -7,14 +7,12 @@ import { StreamingError } from '../../types/chat';
 
 interface QuotaErrorDisplayProps {
   error: StreamingError;
-  onDismiss?: () => void;
   onContactAdmin?: () => void;
   className?: string;
 }
 
 export const QuotaErrorDisplay: React.FC<QuotaErrorDisplayProps> = ({
   error,
-  onDismiss,
   onContactAdmin,
   className = ''
 }) => {
@@ -105,24 +103,18 @@ export const QuotaErrorDisplay: React.FC<QuotaErrorDisplayProps> = ({
             
             {/* 💡 User guidance */}
             <div className={`text-sm ${styling.textColor} bg-white/5 rounded-md p-3 border border-white/10`}>
-              <h4 className="font-medium mb-2 flex items-center gap-2">
+              <h4 className="font-medium mb-2 flex items-center gap-2 italic">
                 <HelpCircle className="w-4 h-4" />
-                What can you do?
+                Contact administrator or manager to increase quota or wait for the quota to reset.
               </h4>
-              <ul className="space-y-1 text-xs">
-                <li>• Wait for the quota to reset (usually monthly)</li>
-                <li>• Contact your department administrator for quota increases</li>
-                <li>• Try using a different AI model if available</li>
-                <li>• Check if other team members have available quota</li>
-              </ul>
             </div>
             
             {/* 🔧 Technical details (expandable) */}
             <details className="group">
               <summary className={`cursor-pointer text-xs ${styling.textColor} opacity-70 hover:opacity-100`}>
-                Technical details ▼
+                Technical details
               </summary>
-              <div className="mt-2 text-xs font-mono bg-black/20 rounded p-2 break-all">
+              <div className="mt-2 text-xs font-mono bg-black/20 rounded p-2 break-all text-red-100 italic" >
                 {quotaInfo.fullMessage}
               </div>
             </details>
@@ -139,15 +131,6 @@ export const QuotaErrorDisplay: React.FC<QuotaErrorDisplayProps> = ({
               Contact Admin
             </button>
           )}
-          
-          {onDismiss && (
-            <button
-              onClick={onDismiss}
-              className={`px-3 py-1.5 text-xs ${styling.bgColor} hover:bg-white/10 ${styling.textColor} rounded-md transition-colors`}
-            >
-              Dismiss
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -161,7 +144,6 @@ export default QuotaErrorDisplay;
 /*
 <QuotaErrorDisplay
   error={streamingError}
-  onDismiss={() => setError(null)}
   onContactAdmin={() => window.open('mailto:admin@company.com')}
 />
 */

@@ -6,6 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Eye, EyeOff, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 import { adminService } from '../../services/adminService';
+import { departmentService, DepartmentDropdownOption } from '../../services/departmentService';
+import { roleService, RoleDropdownOption } from '../../services/roleService';
 import { User as UserType, UpdateUserRequest, FormState, FormErrors } from '../../types/admin';
 
 interface UserEditModalProps {
@@ -50,6 +52,16 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   // UI states
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Department data - dynamic from API
+  const [departments, setDepartments] = useState<DepartmentDropdownOption[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+
+  // Role data - dynamic from API
+  const [roles, setRoles] = useState<RoleDropdownOption[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [rolesError, setRolesError] = useState<string | null>(null);
 
   // =============================================================================
   // EFFECTS
@@ -106,6 +118,91 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  /**
+   * Load reference data when modal opens
+   * 
+   * Learning: This useEffect demonstrates dependency arrays:
+   * - Runs when `isOpen` changes from false to true
+   * - Only fetches data when we actually need it
+   * - Prevents unnecessary API calls when modal is closed
+   * - Loads both departments and roles in parallel for efficiency
+   */
+  useEffect(() => {
+    if (isOpen) {
+      // Load departments and roles in parallel for better performance
+      Promise.all([
+        fetchDepartments(),
+        fetchRoles()
+      ]).catch(error => {
+        console.error('❌ Failed to load reference data:', error);
+      });
+    }
+  }, [isOpen]);
+
+  // =============================================================================
+  // DATA LOADING
+  // =============================================================================
+
+  /**
+   * Fetch departments for dropdown
+   * 
+   * Learning: This function demonstrates API integration patterns:
+   * - Loading states to show user something is happening
+   * - Error handling for when API calls fail
+   * - Async/await for clean promise handling
+   */
+  const fetchDepartments = async () => {
+    try {
+      setDepartmentsLoading(true);
+      setDepartmentsError(null);
+      
+      // Call the department service to get dropdown options
+      const departmentOptions = await departmentService.getDepartmentsForDropdown();
+      
+      // Update state with the fetched departments
+      setDepartments(departmentOptions);
+      
+      console.log('✅ Departments loaded for edit modal:', departmentOptions.length);
+    } catch (error) {
+      console.error('❌ Failed to load departments:', error);
+      setDepartmentsError('Failed to load departments. Please try again.');
+      
+      // Fallback: Use empty array so form still works
+      setDepartments([]);
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
+
+  /**
+   * Fetch roles for dropdown
+   * 
+   * Learning: This follows the same pattern as departments,
+   * demonstrating consistent API integration across different entity types.
+   */
+  const fetchRoles = async () => {
+    try {
+      setRolesLoading(true);
+      setRolesError(null);
+      
+      // Call the role service to get dropdown options
+      const roleOptions = await roleService.getRolesForDropdown();
+      
+      // Update state with the fetched roles
+      setRoles(roleOptions);
+      
+      console.log('✅ Roles loaded for edit modal:', roleOptions.length);
+    } catch (error) {
+      console.error('❌ Failed to load roles:', error);
+      setRolesError('Failed to load roles. Please try again.');
+      
+      // Fallback: Use empty array so form still works
+      setRoles([]);
+    } finally {
+      setRolesLoading(false);
+    }
+  };
 
   // =============================================================================
   // FORM VALIDATION
@@ -166,18 +263,19 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
    * Learning: Send only modified data to the API for efficiency.
    */
   const getChangedFields = (): UpdateUserRequest => {
-    const changes: UpdateUserRequest = {};
+    const changes: Partial<UpdateUserRequest> = {};
     
     Object.keys(formData).forEach(key => {
-      const formValue = formData[key as keyof UpdateUserRequest];
-      const originalValue = originalData[key as keyof UpdateUserRequest];
+      const fieldKey = key as keyof UpdateUserRequest;
+      const formValue = formData[fieldKey];
+      const originalValue = originalData[fieldKey];
       
       if (formValue !== originalValue) {
-        changes[key as keyof UpdateUserRequest] = formValue;
+        (changes as any)[fieldKey] = formValue;
       }
     });
     
-    return changes;
+    return changes as UpdateUserRequest;
   };
 
   // =============================================================================
@@ -302,6 +400,14 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
     setSubmitSuccess(false);
     setIsLoading(false);
     
+    // Reset department and role data
+    setDepartments([]);
+    setDepartmentsLoading(false);
+    setDepartmentsError(null);
+    setRoles([]);
+    setRolesLoading(false);
+    setRolesError(null);
+    
     onClose();
   };
 
@@ -351,43 +457,145 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
   };
 
   /**
-   * Render select field with validation
+   * Render department field with dynamic loading
+   * 
+   * Learning: This function demonstrates dynamic dropdown patterns:
+   * - Loading states while fetching data
+   * - Error handling for failed API calls
+   * - Real-time data from backend
+   * - Graceful fallback when no data available
    */
-  const renderSelectField = (
-    name: keyof UpdateUserRequest,
-    label: string,
-    options: { value: any; label: string }[]
-  ) => {
-    const hasError = !!formState.errors[name];
-    const value = formData[name];
+  const renderDepartmentField = () => {
+    const hasError = !!formState.errors.department_id;
+    const value = formData.department_id;
 
     return (
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
+          Department
         </label>
-        <select
-          value={value || ''}
-          onChange={(e) => handleInputChange(name, e.target.value === '' ? undefined : Number(e.target.value))}
-          onBlur={() => handleFieldBlur(name)}
-          className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition-colors ${
-            hasError
-              ? 'border-red-300 focus:border-red-500'
-              : 'border-gray-300 focus:border-blue-500'
-          }`}
-        >
-          <option value="">Select {label}</option>
-          {options.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        {hasError && (
-          <p className="mt-1 text-sm text-red-600 flex items-center">
-            <AlertCircle className="h-4 w-4 mr-1" />
-            {formState.errors[name]}
-          </p>
+        
+        {/* Show loading state while departments are being fetched */}
+        {departmentsLoading ? (
+          <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+            <span className="text-gray-500">Loading departments...</span>
+          </div>
+        ) : (
+          <>
+            <select
+              value={value || ''}
+              onChange={(e) => handleInputChange('department_id', e.target.value === '' ? undefined : Number(e.target.value))}
+              onBlur={() => handleFieldBlur('department_id')}
+              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition-colors ${
+                hasError
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-blue-500'
+              }`}
+            >
+              <option value="">Select Department</option>
+              {departments.map(dept => (
+                <option key={dept.value} value={dept.value}>
+                  {dept.label}
+                </option>
+              ))}
+            </select>
+            
+            {/* Show error state if departments failed to load */}
+            {departmentsError && (
+              <p className="mt-1 text-sm text-amber-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {departmentsError}
+              </p>
+            )}
+            
+            {/* Show validation error if user hasn't selected a department */}
+            {hasError && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {formState.errors.department_id}
+              </p>
+            )}
+            
+            {/* Show helpful info about department management */}
+            {!departmentsLoading && departments.length === 0 && !departmentsError && (
+              <p className="mt-1 text-sm text-blue-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                No departments available. Contact your system administrator.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * Render role field with dynamic loading
+   * 
+   * Learning: This function demonstrates comprehensive dropdown UX patterns,
+   * showing how to create consistent dropdown components with dynamic data.
+   */
+  const renderRoleField = () => {
+    const hasError = !!formState.errors.role_id;
+    const value = formData.role_id;
+
+    return (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Role
+        </label>
+        
+        {/* Show loading state while roles are being fetched */}
+        {rolesLoading ? (
+          <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+            <span className="text-gray-500">Loading roles...</span>
+          </div>
+        ) : (
+          <>
+            <select
+              value={value || ''}
+              onChange={(e) => handleInputChange('role_id', e.target.value === '' ? undefined : Number(e.target.value))}
+              onBlur={() => handleFieldBlur('role_id')}
+              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition-colors ${
+                hasError
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-blue-500'
+              }`}
+            >
+              <option value="">Select Role</option>
+              {roles.map(role => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+            
+            {/* Show error state if roles failed to load */}
+            {rolesError && (
+              <p className="mt-1 text-sm text-amber-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {rolesError}
+              </p>
+            )}
+            
+            {/* Show validation error if user hasn't selected a role */}
+            {hasError && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {formState.errors.role_id}
+              </p>
+            )}
+            
+            {/* Show helpful info about role management */}
+            {!rolesLoading && roles.length === 0 && !rolesError && (
+              <p className="mt-1 text-sm text-blue-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                No roles available. Contact your system administrator.
+              </p>
+            )}
+          </>
         )}
       </div>
     );
@@ -451,20 +659,9 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
             {/* Role and Department */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {renderSelectField('role_id', 'Role', [
-                { value: 1, label: 'Admin' },
-                { value: 2, label: 'Standard User' },
-                { value: 3, label: 'Manager' },
-                { value: 4, label: 'Guest' }
-              ])}
+              {renderRoleField()}
               
-              {renderSelectField('department_id', 'Department', [
-                { value: 1, label: 'Engineering' },
-                { value: 2, label: 'Marketing' },
-                { value: 3, label: 'Human Resources' },
-                { value: 4, label: 'Sales' },
-                { value: 5, label: 'Finance' }
-              ])}
+              {renderDepartmentField()}
             </div>
 
             {/* Optional Information */}

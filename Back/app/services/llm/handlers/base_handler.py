@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from ..models import ChatMessage, ChatRequest
 from ..core.config_validator import get_config_validator
-from ..quota_manager import get_quota_manager
-from ..provider_factory import get_provider_factory
-from ..exceptions import LLMServiceError
+from ..quota_manager import get_quota_manager, LLMQuotaManager
+from ..provider_factory import get_provider_factory, LLMProviderFactory
+from ..exceptions import LLMServiceError, LLMDepartmentQuotaExceededError, LLMUserNotFoundError
 
 
 class BaseRequestHandler:
@@ -97,6 +97,10 @@ class BaseRequestHandler:
             
         Returns:
             Quota check result or None if bypassed
+            
+        Raises:
+            LLMDepartmentQuotaExceededError: If quota is exceeded and enforced
+            LLMUserNotFoundError: If user/department not found
         """
         if bypass_quota:
             self.logger.info(f"Bypassing quota check for user {user_id} (admin override)")
@@ -106,8 +110,12 @@ class BaseRequestHandler:
             return await self.quota_manager.check_quotas_before_request(
                 user_id, config_id, request, db_session, config_data
             )
+        except (LLMDepartmentQuotaExceededError, LLMUserNotFoundError):
+            # Re-raise quota and user errors - these should block the request
+            raise
         except Exception as e:
-            self.logger.error(f"Quota check failed (allowing request): {str(e)}")
+            # Only catch unexpected errors and allow request to proceed with logging
+            self.logger.error(f"Unexpected error during quota check (allowing request): {str(e)}")
             return None
     
     def prepare_logging_data(

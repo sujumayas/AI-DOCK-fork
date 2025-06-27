@@ -52,12 +52,6 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
           {streamingError.type === 'QUOTA_EXCEEDED' ? (
             <QuotaErrorDisplay
               error={streamingError}
-              onDismiss={() => {
-                console.log('🧹 User dismissed quota error');
-                if (onDismissStreamingError) {
-                  onDismissStreamingError();
-                }
-              }}
               onContactAdmin={() => {
                 if (onContactAdmin) {
                   onContactAdmin();

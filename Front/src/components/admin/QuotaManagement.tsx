@@ -19,7 +19,8 @@ import {
   QuotaSummaryCards,
   QuotaFilters,
   QuotaPagination,
-  QuotaBulkActions
+  QuotaBulkActions,
+  QuotaToolbar
 } from './quota';
 
 // Business logic services
@@ -62,6 +63,7 @@ export function QuotaManagement({ onCreateQuota, onEditQuota, className = '' }: 
     sortBy,
     sortOrder,
     loadQuotas,
+    refreshQuotas,
     setFilters,
     resetFilters,
     handlePageChange,
@@ -198,7 +200,9 @@ export function QuotaManagement({ onCreateQuota, onEditQuota, className = '' }: 
   const renderLoading = () => (
     <div className="bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-white/20 text-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <div className="text-gray-600">Loading quotas...</div>
+      <div className="text-gray-600">
+        {tableState.refreshing ? 'Refreshing quotas...' : 'Loading quotas...'}
+      </div>
     </div>
   );
 
@@ -213,7 +217,7 @@ export function QuotaManagement({ onCreateQuota, onEditQuota, className = '' }: 
         </div>
         <div className="text-gray-600 mb-4">{tableState.error}</div>
         <button
-          onClick={loadQuotas}
+          onClick={refreshQuotas}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
           Try Again
@@ -281,22 +285,14 @@ export function QuotaManagement({ onCreateQuota, onEditQuota, className = '' }: 
 
   return (
     <div className={`quota-management ${className}`}>
-      {/* Page header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Quota Management</h2>
-          <p className="text-blue-100 mt-1">
-            Manage department usage limits and monitor consumption
-          </p>
-        </div>
-        
-        <button
-          onClick={handleCreateQuota}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-        >
-          + Create Quota
-        </button>
-      </div>
+      {/* Toolbar with refresh button */}
+      <QuotaToolbar
+        loading={tableState.loading}
+        refreshing={tableState.refreshing}
+        onRefresh={refreshQuotas}
+        onCreateQuota={handleCreateQuota}
+        className="mb-6"
+      />
 
       {/* Summary cards */}
       <QuotaSummaryCards
@@ -324,7 +320,7 @@ export function QuotaManagement({ onCreateQuota, onEditQuota, className = '' }: 
       />
 
       {/* Main content */}
-      {tableState.loading ? (
+      {tableState.loading || tableState.refreshing ? (
         renderLoading()
       ) : tableState.error ? (
         renderError()
