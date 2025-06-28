@@ -2,7 +2,7 @@
 // Orchestrates all chat functionality using modular hooks and components
 // Replaces the large ChatInterface.tsx with clean, maintainable architecture
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { Settings, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
@@ -141,6 +141,15 @@ export const ChatContainer: React.FC = () => {
       DEFAULT_AUTO_SAVE_CONFIG.triggerAfterMessages
     );
     
+    console.log('🔍 Auto-save check:', {
+      shouldTriggerAutoSave,
+      currentConversationId,
+      messagesLength: messages.length,
+      lastAutoSaveMessageCount,
+      isSavingConversation,
+      autoSaveFailedAt
+    });
+    
     if (
       shouldTriggerAutoSave && 
       !currentConversationId && 
@@ -148,7 +157,11 @@ export const ChatContainer: React.FC = () => {
       !isSavingConversation &&
       autoSaveFailedAt !== messages.length
     ) {
-      handleAutoSaveConversation(messages, { selectedConfigId, selectedModelId });
+      console.log('🚀 Triggering auto-save for conversation');
+      handleAutoSaveConversation(messages, { 
+        selectedConfigId: selectedConfigId || undefined, 
+        selectedModelId: selectedModelId || undefined 
+      });
     }
   }, [
     messages, 
@@ -161,12 +174,49 @@ export const ChatContainer: React.FC = () => {
     selectedModelId
   ]);
   
-  // 🔄 Update sidebar message count
+  // 🔄 Track previous message count to detect new messages vs loaded messages
+  const [previousMessageCount, setPreviousMessageCount] = useState(0);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [previousConversationId, setPreviousConversationId] = useState<number | null>(null);
+
+  // 🔄 Update sidebar message count only when messages are sent (not loaded)
   useEffect(() => {
+    console.log('🔄 Sidebar update check:', {
+      currentConversationId,
+      sidebarUpdateFunction: !!sidebarUpdateFunction,
+      messagesLength: messages.length,
+      isLoadingConversation,
+      previousMessageCount,
+      previousConversationId
+    });
+    
     if (currentConversationId && sidebarUpdateFunction && messages.length > 0) {
-      sidebarUpdateFunction(currentConversationId, messages.length);
+      // Case 1: New message sent (message count increased)
+      const isNewMessage = !isLoadingConversation && 
+                          messages.length > previousMessageCount && 
+                          previousMessageCount > 0;
+      
+      // Case 2: Conversation just got auto-saved (conversation ID appeared)
+      const isNewlySaved = previousConversationId === null && 
+                          currentConversationId !== null && 
+                          messages.length > 1; // Has actual conversation content
+      
+      console.log('🔄 Update conditions:', {
+        isNewMessage,
+        isNewlySaved,
+        willUpdate: isNewMessage || isNewlySaved
+      });
+      
+      if (isNewMessage || isNewlySaved) {
+        console.log('🔄 Updating conversation position:', 
+          isNewMessage ? 'new message' : 'newly saved');
+        sidebarUpdateFunction(currentConversationId, messages.length);
+      }
+      
+      setPreviousMessageCount(messages.length);
+      setPreviousConversationId(currentConversationId);
     }
-  }, [messages.length, currentConversationId, sidebarUpdateFunction]);
+  }, [messages.length, currentConversationId, sidebarUpdateFunction, isLoadingConversation, previousMessageCount, previousConversationId]);
   
   // 📤 Handle sending messages
   const handleSendMessage = useCallback(async (content: string, attachments?: FileAttachment[]) => {
@@ -175,14 +225,31 @@ export const ChatContainer: React.FC = () => {
   
   // 💾 Handle saving conversation
   const handleSaveCurrentConversation = useCallback(async () => {
-    await handleSaveConversation(messages, { selectedConfigId, selectedModelId });
+    await handleSaveConversation(messages, { 
+      selectedConfigId: selectedConfigId || undefined, 
+      selectedModelId: selectedModelId || undefined 
+    });
   }, [handleSaveConversation, messages, selectedConfigId, selectedModelId]);
   
   // 📖 Handle loading conversation
   const handleLoadSelectedConversation = useCallback(async (conversationId: number) => {
-    const loadedMessages = await handleLoadConversation(conversationId);
-    // Messages are set via the conversation manager callback
-  }, [handleLoadConversation]);
+    // 🚫 Prevent conversation switching while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot switch conversations while streaming is active');
+      return;
+    }
+    
+    setIsLoadingConversation(true);
+    try {
+      const loadedMessages = await handleLoadConversation(conversationId);
+      // Messages are set via the conversation manager callback
+      // Reset message count tracking for the loaded conversation
+      setPreviousMessageCount(loadedMessages.length);
+      setPreviousConversationId(conversationId);
+    } finally {
+      setIsLoadingConversation(false);
+    }
+  }, [handleLoadConversation, isStreaming]);
   
   // 🤖 Handle assistant manager changes
   const handleAssistantManagerChange = useCallback(() => {
@@ -197,6 +264,20 @@ export const ChatContainer: React.FC = () => {
     setShowAssistantManager(true);
     console.log('🎯 Opening assistant manager from selector card');
   }, [setShowAssistantManager]);
+  
+  // 🆕 Handle new conversation with streaming check
+  const handleNewConversationClick = useCallback(() => {
+    // 🚫 Prevent new conversation while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot create new conversation while streaming is active');
+      return;
+    }
+    
+    handleNewConversation();
+    // Reset tracking state for new conversation
+    setPreviousMessageCount(0);
+    setPreviousConversationId(null);
+  }, [handleNewConversation, isStreaming]);
   
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600 overflow-hidden">
@@ -222,13 +303,14 @@ export const ChatContainer: React.FC = () => {
         isOpen={showConversationSidebar}
         onClose={() => setShowConversationSidebar(false)}
         onSelectConversation={handleLoadSelectedConversation}
-        onCreateNew={handleNewConversation}
+        onCreateNew={handleNewConversationClick}
         currentConversationId={currentConversationId || undefined}
         onConversationUpdate={() => {}}
         refreshTrigger={conversationRefreshTrigger}
         onSidebarReady={(updateFn, addFn) => {
           setSidebarFunctions(updateFn, addFn);
         }}
+        isStreaming={isStreaming}
       />
       
       {/* 🤖 Assistant Manager */}
@@ -288,7 +370,7 @@ export const ChatContainer: React.FC = () => {
           conversationTitle={conversationTitle}
           isSavingConversation={isSavingConversation}
           onSaveConversation={handleSaveCurrentConversation}
-          onNewConversation={handleNewConversation}
+          onNewConversation={handleNewConversationClick}
           isStreaming={isStreaming}
           streamingHasError={streamingHasError}
           streamingError={streamingError}

@@ -205,8 +205,8 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
             Total Cost
           </h3>
           <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
             </svg>
           </div>
         </div>
@@ -270,11 +270,24 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
               {formatResponseTime(summary.overview.average_response_time_ms)}
             </p>
             <p className="text-sm text-gray-600">
-              System: {systemHealth}
+              System: {systemHealth === 'error' ? 'Not Set Up' : systemHealth}
             </p>
+            {systemHealth === 'error' && (
+              <div className="mt-1">
+                <p className="text-xs text-orange-600">
+                  API connectivity issue
+                </p>
+                <button
+                  onClick={onRefresh}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline mt-1"
+                >
+                  Retry connection
+                </button>
+              </div>
+            )}
           </div>
           <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(systemHealth)}`}>
-            {systemHealth}
+            {systemHealth === 'error' ? 'Setup Needed' : systemHealth}
           </div>
         </div>
       </div>

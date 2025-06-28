@@ -150,7 +150,7 @@ export interface BudgetAnalysis {
 export interface TopUsersResponse {
   period: TimePeriod;
   top_users: TopUserStats[];
-  sort_metric: TopUserMetric;
+  sort_metric: TopUserMetric | string;
   limit: number;
   generated_at: string;
 }

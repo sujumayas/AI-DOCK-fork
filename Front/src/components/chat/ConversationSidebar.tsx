@@ -12,7 +12,6 @@ import {
   Clock,
   X,
   ChevronRight,
-  ChevronDown,
   Loader2,
   Archive
 } from 'lucide-react';
@@ -34,6 +33,8 @@ interface ConversationSidebarProps {
   refreshTrigger?: number; // Increment this to trigger refresh
   // 🔄 NEW: Expose sidebar functions to parent for reactive updates
   onSidebarReady?: (updateFn: (id: number, count: number) => void, addFn: (conv: any) => void) => void;
+  // 🌊 NEW: Streaming state to prevent conversation switching during streaming
+  isStreaming?: boolean;
 }
 
 export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
@@ -42,9 +43,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onSelectConversation,
   onCreateNew,
   currentConversationId,
-  onConversationUpdate,
   refreshTrigger,
-  onSidebarReady
+  onSidebarReady,
+  isStreaming = false
 }) => {
   // State management
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -60,6 +61,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   // Pagination state
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Load conversations on mount and when sidebar opens
   useEffect(() => {
@@ -85,32 +87,52 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   }, [searchQuery]);
   
-  // 🔄 ENHANCED: Update individual conversation message count with better state management
+  // 🔄 Update conversation message count only (without changing position)
   const updateConversationMessageCount = useCallback((conversationId: number, newMessageCount: number) => {
     console.log('🔄 Updating message count for conversation', conversationId, 'to', newMessageCount);
     
-    // Update main conversations list
-    setConversations(prev => prev.map(conv => 
+    const updateConversation = (conv: ConversationSummary) => 
       conv.id === conversationId 
         ? { 
             ...conv, 
-            message_count: newMessageCount,
-            // 🔧 FIXED: Also update the updated_at timestamp for reactive sorting
-            updated_at: new Date().toISOString()
+            message_count: newMessageCount
+            // Don't update updated_at here - only when messages are actually sent
           }
-        : conv
-    ));
+        : conv;
+    
+    // Update main conversations list without resorting
+    setConversations(prev => prev.map(updateConversation));
     
     // Update search results if they exist
-    setSearchResults(prev => prev.map(conv => 
+    setSearchResults(prev => prev.map(updateConversation));
+  }, []);
+
+  // 🔄 NEW: Move conversation to top when a new message is sent
+  const moveConversationToTop = useCallback((conversationId: number, newMessageCount: number) => {
+    console.log('🔄 Moving conversation to top due to new message:', conversationId);
+    
+    const updateConversation = (conv: ConversationSummary) => 
       conv.id === conversationId 
         ? { 
             ...conv, 
             message_count: newMessageCount,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString() // Update timestamp only when message is sent
           }
-        : conv
-    ));
+        : conv;
+    
+    // Update main conversations list and resort by recency
+    setConversations(prev => {
+      const updated = prev.map(updateConversation);
+      // Sort by updated_at to maintain recency order
+      return updated.sort((a, b) => {
+        const dateA = new Date(a.updated_at || a.created_at);
+        const dateB = new Date(b.updated_at || b.created_at);
+        return dateB.getTime() - dateA.getTime();
+      });
+    });
+    
+    // Update search results if they exist
+    setSearchResults(prev => prev.map(updateConversation));
   }, []);
   
   // 🔄 NEW: Function to add new conversation to the list (when auto-saved)
@@ -139,23 +161,35 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   useEffect(() => {
     if (onSidebarReady) {
       // Pass our internal functions to the parent for reactive updates
-      onSidebarReady(updateConversationMessageCount, addNewConversation);
+      // Use moveConversationToTop for actual message updates (which should move to top)
+      onSidebarReady(moveConversationToTop, addNewConversation);
       console.log('🔄 Sidebar functions exposed to parent for reactive updates');
     }
-  }, [onSidebarReady, updateConversationMessageCount, addNewConversation]);
+  }, [onSidebarReady, moveConversationToTop, addNewConversation]);
   
   // Load user's conversations
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (append = false) => {
     try {
-      setIsLoading(true);
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
+      
+      const offset = append ? conversations.length : 0;
       
       const response: ConversationListResponse = await conversationService.getConversations({
         limit: 50,
-        offset: 0
+        offset
       });
       
-      setConversations(response.conversations);
+      if (append) {
+        setConversations(prev => [...prev, ...response.conversations]);
+      } else {
+        setConversations(response.conversations);
+      }
+      
       setTotalCount(response.total_count);
       setHasMore(response.has_more);
       
@@ -167,9 +201,13 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           : 'Failed to load conversations'
       );
     } finally {
-      setIsLoading(false);
+      if (append) {
+        setIsLoadingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [conversations.length]);
   
   // Search conversations
   const searchConversations = useCallback(async () => {
@@ -195,6 +233,13 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   
   // Handle conversation selection
   const handleSelectConversation = (conversationId: number) => {
+    // 🚫 Prevent conversation switching while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot switch conversations while AI is streaming a response');
+      // Could optionally show a toast notification here
+      return;
+    }
+    
     onSelectConversation(conversationId);
     // Don't close sidebar on mobile - let parent decide
   };
@@ -253,26 +298,225 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   };
   
-  // Format date for display
+  // Format date for display with enhanced recency information
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (diffMinutes < 1) {
+      return 'Just now';
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
     } else if (diffDays === 1) {
       return 'Yesterday';
     } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
+      return `${diffDays}d ago`;
+    } else if (diffDays < 30) {
+      return `${Math.floor(diffDays / 7)}w ago`;
     } else {
-      return date.toLocaleDateString();
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   };
   
+  // Handle scroll for infinite loading
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100; // Load when 100px from bottom
+    
+    if (isNearBottom && hasMore && !isLoadingMore && !isLoading && !searchQuery.trim()) {
+      console.log('🔄 Loading more conversations due to scroll');
+      loadConversations(true);
+    }
+  }, [hasMore, isLoadingMore, isLoading, searchQuery, loadConversations]);
+
+  // Group conversations by time periods for better organization
+  const groupConversationsByTime = useCallback((conversations: ConversationSummary[]) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thisMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const groups = {
+      today: [] as ConversationSummary[],
+      yesterday: [] as ConversationSummary[],
+      thisWeek: [] as ConversationSummary[],
+      thisMonth: [] as ConversationSummary[],
+      older: [] as ConversationSummary[]
+    };
+
+    // Sort conversations by updated_at (most recent first)
+    const sortedConversations = [...conversations].sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    sortedConversations.forEach(conversation => {
+      const conversationDate = new Date(conversation.updated_at || conversation.created_at);
+      
+      if (conversationDate >= today) {
+        groups.today.push(conversation);
+      } else if (conversationDate >= yesterday) {
+        groups.yesterday.push(conversation);
+      } else if (conversationDate >= thisWeek) {
+        groups.thisWeek.push(conversation);
+      } else if (conversationDate >= thisMonth) {
+        groups.thisMonth.push(conversation);
+      } else {
+        groups.older.push(conversation);
+      }
+    });
+
+    return groups;
+  }, []);
+
   // Get conversations to display (search results or all)
   const displayConversations = searchQuery.trim() ? searchResults : conversations;
+  const groupedConversations = !searchQuery.trim() ? groupConversationsByTime(displayConversations) : null;
+
+  // Render a conversation item
+  const renderConversationItem = (conversation: ConversationSummary) => (
+    <div
+      key={conversation.id}
+      className={`group relative mx-2 mb-1 rounded-lg transition-all duration-200 ${
+        currentConversationId === conversation.id
+          ? 'bg-blue-50 border border-blue-200'
+          : isStreaming
+          ? 'bg-gray-50 border border-gray-200 opacity-60'
+          : 'hover:bg-gray-50 border border-transparent'
+      }`}
+    >
+      {/* Conversation item */}
+      <div
+        onClick={() => handleSelectConversation(conversation.id)}
+        className={`flex items-start p-3 transition-colors ${
+          isStreaming 
+            ? 'cursor-not-allowed' 
+            : 'cursor-pointer'
+        }`}
+        title={isStreaming ? 'Cannot switch conversations while AI is responding' : ''}
+      >
+        <div className="flex-1 min-w-0">
+          {/* Title */}
+          {editingTitle === conversation.id ? (
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onBlur={() => handleEditTitle(conversation.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleEditTitle(conversation.id);
+                } else if (e.key === 'Escape') {
+                  setEditingTitle(null);
+                  setNewTitle('');
+                }
+              }}
+              className="w-full px-2 py-1 text-sm font-medium border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <h3 className="text-sm font-medium text-gray-800 truncate">
+              {conversation.title}
+            </h3>
+          )}
+          
+          {/* Metadata */}
+          <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
+            <div className="flex items-center">
+              <MessageSquare className="w-3 h-3 mr-1" />
+              {conversation.message_count} messages
+            </div>
+            
+            <div className="flex items-center">
+              <Clock className="w-3 h-3 mr-1" />
+              {formatDate(conversation.updated_at || conversation.created_at)}
+            </div>
+          </div>
+        </div>
+        
+        {/* Action buttons */}
+        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingTitle(conversation.id);
+              setNewTitle(conversation.title);
+            }}
+            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+            title="Rename conversation"
+          >
+            <Edit3 className="w-3 h-3" />
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedForDelete(conversation.id);
+            }}
+            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+            title="Delete conversation"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+      
+      {/* Delete confirmation */}
+      {selectedForDelete === conversation.id && (
+        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-lg border border-red-200 flex items-center justify-center">
+          <div className="text-center p-4">
+            <p className="text-sm text-gray-700 mb-3">Delete this conversation?</p>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleDeleteConversation(conversation.id)}
+                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setSelectedForDelete(null)}
+                className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Render a time group section
+  const renderTimeGroup = (title: string, conversations: ConversationSummary[]) => {
+    if (conversations.length === 0) return null;
+    
+    return (
+      <div key={title} className="mb-6">
+        <div className="sticky top-0 z-10 px-4 py-2 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+              {title}
+            </h3>
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              {conversations.length}
+            </span>
+          </div>
+        </div>
+        <div className="py-1">
+          {conversations.map(renderConversationItem)}
+        </div>
+      </div>
+    );
+  };
   
   if (!isOpen) return null;
   
@@ -285,9 +529,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       />
       
       {/* Sidebar content */}
-      <div className="absolute left-0 top-0 h-full w-80 bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl lg:relative lg:w-full lg:shadow-none">
+      <div className="absolute left-0 top-0 h-full w-80 bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl lg:relative lg:w-full lg:shadow-none flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/20">
+        <div className="flex items-center justify-between p-4 border-b border-white/20 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <Archive className="w-5 h-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
@@ -300,9 +544,14 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           
           <div className="flex items-center space-x-2">
             <button
-              onClick={onCreateNew}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="New conversation"
+              onClick={isStreaming ? undefined : onCreateNew}
+              className={`p-2 rounded-lg transition-colors ${
+                isStreaming
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-blue-600 hover:bg-blue-50'
+              }`}
+              title={isStreaming ? 'Cannot create new conversation while AI is responding' : 'New conversation'}
+              disabled={isStreaming}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -317,7 +566,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         </div>
         
         {/* Search box */}
-        <div className="p-4 border-b border-white/20">
+        <div className="p-4 border-b border-white/20 flex-shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -336,7 +585,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         
         {/* Error message */}
         {error && (
-          <div className="p-4 bg-red-50 border-l-4 border-red-400 mx-4 mt-4 rounded">
+          <div className="p-4 bg-red-50 border-l-4 border-red-400 mx-4 mt-4 rounded flex-shrink-0">
             <p className="text-red-700 text-sm">{error}</p>
             <button
               onClick={() => setError(null)}
@@ -347,8 +596,24 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           </div>
         )}
         
+        {/* 🌊 Streaming notice */}
+        {isStreaming && (
+          <div className="mx-4 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex-shrink-0">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+              <p className="text-sm text-amber-800 font-medium">AI is responding...</p>
+            </div>
+            <p className="text-xs text-amber-700 mt-1">
+              Conversation switching is disabled while streaming
+            </p>
+          </div>
+        )}
+        
         {/* Conversation list */}
-        <div className="flex-1 overflow-y-auto">
+        <div 
+          className="flex-1 overflow-y-auto min-h-0 scroll-smooth conversation-scrollbar"
+          onScroll={handleScroll}
+        >
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
@@ -376,121 +641,34 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                 </div>
               )}
             </div>
+          ) : groupedConversations ? (
+            <div className="py-2">
+              {/* Render time-grouped conversations */}
+              {renderTimeGroup('Today', groupedConversations.today)}
+              {renderTimeGroup('Yesterday', groupedConversations.yesterday)}
+              {renderTimeGroup('This Week', groupedConversations.thisWeek)}
+              {renderTimeGroup('This Month', groupedConversations.thisMonth)}
+              {renderTimeGroup('Older', groupedConversations.older)}
+              
+              {/* Infinite scroll loading indicator */}
+              {isLoadingMore && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="ml-2 text-sm text-gray-600">Loading more...</span>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="py-2">
-              {displayConversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className={`group relative mx-2 mb-1 rounded-lg transition-all duration-200 ${
-                    currentConversationId === conversation.id
-                      ? 'bg-blue-50 border border-blue-200'
-                      : 'hover:bg-gray-50 border border-transparent'
-                  }`}
-                >
-                  {/* Conversation item */}
-                  <div
-                    onClick={() => handleSelectConversation(conversation.id)}
-                    className="flex items-start p-3 cursor-pointer"
-                  >
-                    <div className="flex-1 min-w-0">
-                      {/* Title */}
-                      {editingTitle === conversation.id ? (
-                        <input
-                          type="text"
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          onBlur={() => handleEditTitle(conversation.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleEditTitle(conversation.id);
-                            } else if (e.key === 'Escape') {
-                              setEditingTitle(null);
-                              setNewTitle('');
-                            }
-                          }}
-                          className="w-full px-2 py-1 text-sm font-medium border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <h3 className="text-sm font-medium text-gray-800 truncate">
-                          {conversation.title}
-                        </h3>
-                      )}
-                      
-                      {/* Metadata */}
-                      <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
-                        <div className="flex items-center">
-                          <MessageSquare className="w-3 h-3 mr-1" />
-                          {conversation.message_count} messages
-                        </div>
-                        
-                        <div className="flex items-center">
-                          <Clock className="w-3 h-3 mr-1" />
-                          {/* 🔧 FIXED: Using created_at for creation date display */}
-                          {formatDate(conversation.created_at)}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Action buttons */}
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingTitle(conversation.id);
-                          setNewTitle(conversation.title);
-                        }}
-                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                        title="Rename conversation"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
-                      
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedForDelete(conversation.id);
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                        title="Delete conversation"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Delete confirmation */}
-                  {selectedForDelete === conversation.id && (
-                    <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-lg border border-red-200 flex items-center justify-center">
-                      <div className="text-center p-4">
-                        <p className="text-sm text-gray-700 mb-3">Delete this conversation?</p>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleDeleteConversation(conversation.id)}
-                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                          >
-                            Delete
-                          </button>
-                          <button
-                            onClick={() => setSelectedForDelete(null)}
-                            className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+              {/* Fallback: render search results without grouping */}
+              {displayConversations.map(renderConversationItem)}
             </div>
           )}
         </div>
         
         {/* Footer */}
         {!isLoading && conversations.length > 0 && (
-          <div className="p-4 border-t border-white/20 bg-gray-50/50">
+          <div className="p-4 border-t border-white/20 bg-gray-50/50 flex-shrink-0">
             <p className="text-xs text-gray-500 text-center">
               {searchQuery.trim() ? (
                 `${searchResults.length} search results`
@@ -499,9 +677,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
               )}
             </p>
             
-            {hasMore && !searchQuery.trim() && (
+            {hasMore && !searchQuery.trim() && !isLoadingMore && (
               <button
-                onClick={loadConversations}
+                onClick={() => loadConversations(true)}
                 className="w-full mt-2 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               >
                 Load more conversations

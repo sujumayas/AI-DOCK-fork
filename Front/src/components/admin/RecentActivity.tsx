@@ -1,6 +1,14 @@
 // 📋 Recent Activity Component
 // Real-time monitoring of LLM usage logs with filtering and search
 // Provides live visibility into individual AI requests and responses
+//
+// 🔧 TIMESTAMP FIXES IMPLEMENTED:
+// - Robust timestamp parsing with error handling
+// - Timezone awareness and future timestamp detection  
+// - Better relative time formatting (2m ago, 15m ago, 2h ago, 3d ago, etc.)
+// - Fallback sample data with realistic timestamps for testing
+// - Debug logging to identify data source and timestamp issues
+// - Improved empty states with helpful guidance
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { RecentLogsResponse, UsageLogEntry, LogFilters } from '../../types/usage';
@@ -82,6 +90,47 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
     return Array.from(providers).sort();
   }, [recentLogs?.logs]);
 
+  // =============================================================================
+  // DEBUG LOGGING FOR TIMESTAMP ISSUES
+  // =============================================================================
+
+  /**
+   * Debug logging to understand timestamp data
+   * 
+   * Learning: When timestamps aren't working correctly, we need to see
+   * what data we're actually receiving to debug the issue.
+   */
+  useEffect(() => {
+    if (recentLogs?.logs && recentLogs.logs.length > 0) {
+      // Check if this looks like fallback data vs real data
+      const hasRealisticIds = recentLogs.logs.some(log => log.id > 100); // Real data usually has higher IDs
+      const hasDemoEmails = recentLogs.logs.some(log => log.user.email.includes('@example.com'));
+      const isFallbackData = !hasRealisticIds && hasDemoEmails;
+
+      console.log('🐛 DEBUG: Recent logs received:', {
+        totalLogs: recentLogs.logs.length,
+        generatedAt: recentLogs.generated_at,
+        dataType: isFallbackData ? 'FALLBACK_SAMPLE_DATA' : 'REAL_USAGE_DATA',
+        sampleTimestamps: recentLogs.logs.slice(0, 3).map(log => ({
+          id: log.id,
+          timestamp: log.timestamp,
+          parsedDate: log.timestamp ? new Date(log.timestamp).toISOString() : 'invalid',
+          timeDiffMinutes: log.timestamp ? Math.round((new Date().getTime() - new Date(log.timestamp).getTime()) / (1000 * 60)) : 'N/A',
+          userEmail: log.user.email
+        }))
+      });
+
+      if (isFallbackData) {
+        console.log('💡 INFO: You are seeing sample/fallback data. To see real timestamps:');
+        console.log('   1. Make LLM requests through the chat interface');
+        console.log('   2. Ensure the backend usage logging is working');
+        console.log('   3. Check the admin user authentication');
+      }
+    } else if (recentLogs?.logs?.length === 0) {
+      console.log('🐛 DEBUG: No recent logs available - this could be why you see no timestamps');
+    }
+  }, [recentLogs]);
+
   /**
    * Get unique users from logs for filter dropdown
    * 
@@ -148,20 +197,61 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
    * 
    * Learning: Timestamps need to be human-readable and show recency.
    * We use relative time for recent events and absolute for older ones.
+   * Added robust error handling and better timezone support.
    */
   const formatTimestamp = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffMinutes < 1) {
-      return 'Just now';
-    } else if (diffMinutes < 60) {
-      return `${diffMinutes}m ago`;
-    } else if (diffMinutes < 1440) { // 24 hours
-      return `${Math.floor(diffMinutes / 60)}h ago`;
-    } else {
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    // Handle missing or invalid timestamps
+    if (!timestamp) {
+      return 'Unknown time';
+    }
+
+    try {
+      // Parse the timestamp - handle both UTC and local formats
+      const date = new Date(timestamp);
+      
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid timestamp format:', timestamp);
+        return 'Invalid time';
+      }
+
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      // Handle future timestamps (might indicate timezone issues)
+      if (diffMs < 0) {
+        const futureDiffMinutes = Math.floor(Math.abs(diffMs) / (1000 * 60));
+        if (futureDiffMinutes < 60) {
+          return `In ${futureDiffMinutes}m (check timezone)`;
+        } else {
+          return date.toLocaleString();
+        }
+      }
+
+      // Current formatting with more granular control
+      if (diffMinutes < 1) {
+        return 'Just now';
+      } else if (diffMinutes < 60) {
+        return `${diffMinutes}m ago`;
+      } else if (diffHours < 24) {
+        return `${diffHours}h ago`;
+      } else if (diffDays < 7) {
+        return `${diffDays}d ago`;
+      } else {
+        // For older dates, show the actual date and time
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+    } catch (error) {
+      console.error('Error formatting timestamp:', error, 'Original timestamp:', timestamp);
+      return 'Time error';
     }
   };
 
@@ -390,12 +480,28 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-2">
               {searchTerm || selectedProvider || selectedUser || successFilter !== 'all' 
                 ? 'No activity matches your filters.' 
-                : 'No recent activity to display.'
+                : recentLogs?.logs?.length === 0 
+                  ? 'No recent LLM activity to display.'
+                  : 'No recent activity to display.'
               }
             </p>
+            {(!searchTerm && !selectedProvider && !selectedUser && successFilter === 'all' && 
+              recentLogs?.logs?.length === 0) && (
+              <div className="text-sm text-gray-500 mt-2">
+                <p>This could mean:</p>
+                <ul className="mt-1 space-y-1">
+                  <li>• No LLM requests have been made recently</li>
+                  <li>• The usage logging system is not active</li>
+                  <li>• Database connectivity issues</li>
+                </ul>
+                <p className="mt-2">
+                  Try making an LLM request through the chat interface to generate activity.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -435,7 +541,10 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
 
                   {/* Timestamp and expand button */}
                   <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-500">
+                    <span 
+                      className="text-sm text-gray-500"
+                      title={`Full timestamp: ${log.timestamp} | Parsed: ${log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Invalid'}`}
+                    >
                       {formatTimestamp(log.timestamp)}
                     </span>
                     <button

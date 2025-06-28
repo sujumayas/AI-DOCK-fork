@@ -44,4 +44,32 @@
   .message-input-textarea [style*="color"] {
     color: #1f2937 !important;
   }
+  
+  /* Custom scrollbar styles for conversation sidebar */
+  .conversation-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #9ca3af;
+  }
+  
+  .conversation-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }

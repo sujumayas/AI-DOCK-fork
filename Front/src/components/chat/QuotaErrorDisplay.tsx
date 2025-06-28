@@ -114,6 +114,7 @@ export const QuotaErrorDisplay: React.FC<QuotaErrorDisplayProps> = ({
               <summary className={`cursor-pointer text-xs ${styling.textColor} opacity-70 hover:opacity-100`}>
                 Technical details
               </summary>
+              
               <div className="mt-2 text-xs font-mono bg-black/20 rounded p-2 break-all text-red-100 italic" >
                 {quotaInfo.fullMessage}
               </div>

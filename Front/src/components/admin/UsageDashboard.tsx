@@ -418,7 +418,7 @@ const UsageDashboard: React.FC = () => {
           {/* Overview Cards */}
           <UsageDashboardOverview
             summary={dashboardState.data?.summary || null}
-            systemHealth={dashboardState.data?.systemHealth.status || 'error'}
+            systemHealth={dashboardState.data?.systemHealth?.status || 'error'}
             isLoading={dashboardState.isRefreshing}
             error={dashboardState.error}
             onRefresh={handleRefresh}
