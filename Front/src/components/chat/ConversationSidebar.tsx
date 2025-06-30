@@ -21,6 +21,7 @@ import {
   ConversationListResponse,
   ConversationServiceError 
 } from '../../types/conversation';
+import { formatConversationTimestamp } from '../../utils/chatHelpers';
 
 interface ConversationSidebarProps {
   isOpen: boolean;
@@ -298,31 +299,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     }
   };
   
-  // Format date for display with enhanced recency information
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffMinutes < 1) {
-      return 'Just now';
-    } else if (diffMinutes < 60) {
-      return `${diffMinutes}m ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours}h ago`;
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else if (diffDays < 7) {
-      return `${diffDays}d ago`;
-    } else if (diffDays < 30) {
-      return `${Math.floor(diffDays / 7)}w ago`;
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
-  };
+
   
   // Handle scroll for infinite loading
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -438,7 +415,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             
             <div className="flex items-center">
               <Clock className="w-3 h-3 mr-1" />
-              {formatDate(conversation.updated_at || conversation.created_at)}
+              {formatConversationTimestamp(conversation.updated_at || conversation.created_at)}
             </div>
           </div>
         </div>

@@ -1,9 +1,10 @@
-// 💾 Conversation Save/Load Management Hook
-// Manages conversation persistence, auto-save, and history operations
-// Extracted from ChatInterface.tsx for better modularity
+// 💾 FIXED Conversation Save/Load Management Hook
+// Properly handles message persistence for both new and existing conversations
+// ENHANCED: Now with atomic operations and race condition prevention
 
 import { useState, useEffect, useCallback } from 'react';
 import { conversationService } from '../../services/conversationService';
+import { conversationUpdateService } from '../../services/conversationUpdateService';
 import { ConversationServiceError, DEFAULT_AUTO_SAVE_CONFIG, shouldAutoSave } from '../../types/conversation';
 import { ChatMessage } from '../../types/chat';
 
@@ -42,7 +43,7 @@ export interface ConversationManagerActions {
   setConversationError: (error: string | null) => void;
 }
 
-export interface ConversationManagerReturn extends ConversationManagerState, ConversationManagerActions {}
+export type ConversationManagerReturn = ConversationManagerState & ConversationManagerActions;
 
 export const useConversationManager = (
   onError?: (error: string) => void,
@@ -62,47 +63,95 @@ export const useConversationManager = (
   const [sidebarUpdateFunction, setSidebarUpdateFunction] = useState<((id: number, count: number) => void) | null>(null);
   const [sidebarAddConversationFunction, setSidebarAddConversationFunction] = useState<((conv: any) => void) | null>(null);
   
-  // 💾 Auto-save conversation
+  // 💾 Auto-save conversation with enhanced race condition prevention
   const handleAutoSaveConversation = useCallback(async (
     messages: ChatMessage[], 
     config?: { selectedConfigId?: number; selectedModelId?: string }
   ) => {
+    // Early validation
     if (messages.length < DEFAULT_AUTO_SAVE_CONFIG.triggerAfterMessages) {
+      return;
+    }
+
+    // 🚫 Prevent concurrent auto-saves
+    if (isSavingConversation) {
+      console.log('🚫 Auto-save already in progress, skipping');
+      return;
+    }
+
+    // 🚫 Check if conversation is busy with other operations
+    if (currentConversationId && conversationUpdateService.isConversationBusy(currentConversationId)) {
+      console.log('🚫 Conversation is busy with other operations, skipping auto-save');
+      return;
+    }
+
+    // 🚫 Prevent duplicate saves at the same message count
+    if (autoSaveFailedAt === messages.length) {
+      console.log('🚫 Auto-save previously failed at this message count, skipping');
+      return;
+    }
+
+    // 🚫 Don't save if no new messages since last save
+    const actualLastSavedCount = currentConversationId 
+      ? conversationUpdateService.getLastSavedCount(currentConversationId)
+      : lastAutoSaveMessageCount;
+    
+    if (messages.length <= actualLastSavedCount) {
+      console.log('🔄 No new messages since last save, skipping auto-save');
       return;
     }
     
     try {
       setIsSavingConversation(true);
-      console.log('💾 Auto-saving conversation with', messages.length, 'messages');
+      console.log('💾 Auto-saving conversation with', messages.length, 'messages (last saved:', actualLastSavedCount, ')');
       
-      const savedConversation = await conversationService.saveCurrentChat(
+      // Use enhanced smart save with state tracking
+      const result = await conversationUpdateService.smartSaveConversation(
         messages,
-        undefined, // Auto-generate title
-        config?.selectedConfigId || undefined,
-        config?.selectedModelId || undefined
+        currentConversationId,
+        actualLastSavedCount,
+        config
       );
       
-      setCurrentConversationId(savedConversation.id);
-      setConversationTitle(savedConversation.title);
+      // Update state based on the save result
+      if (result.isNewConversation) {
+        // New conversation was created
+        setCurrentConversationId(result.conversationId);
+        
+        // Get conversation details to set title
+        try {
+          const conversation = await conversationService.getConversation(result.conversationId);
+          setConversationTitle(conversation.title);
+          
+          // Add conversation to sidebar immediately
+          if (sidebarAddConversationFunction) {
+            const conversationSummary = {
+              id: conversation.id,
+              title: conversation.title,
+              message_count: messages.length,
+              created_at: conversation.created_at || new Date().toISOString(),
+              updated_at: conversation.updated_at || new Date().toISOString()
+            };
+            sidebarAddConversationFunction(conversationSummary);
+          } else {
+            // Fallback to refresh trigger
+            setConversationRefreshTrigger(prev => prev + 1);
+          }
+        } catch (error) {
+          console.error('❌ Failed to get conversation details after save:', error);
+        }
+      } else if (currentConversationId) {
+        // Existing conversation was updated
+        // Update message count in sidebar
+        if (sidebarUpdateFunction) {
+          sidebarUpdateFunction(currentConversationId, messages.length);
+        }
+      }
+      
       setLastAutoSaveMessageCount(messages.length);
       setAutoSaveFailedAt(null); // Clear failure tracking on success
       
-      // Add conversation to sidebar immediately
-      if (sidebarAddConversationFunction) {
-        const conversationSummary = {
-          id: savedConversation.id,
-          title: savedConversation.title,
-          message_count: messages.length,
-          created_at: savedConversation.created_at || new Date().toISOString(),
-          updated_at: savedConversation.updated_at || new Date().toISOString()
-        };
-        sidebarAddConversationFunction(conversationSummary);
-      } else {
-        // Fallback to refresh trigger
-        setConversationRefreshTrigger(prev => prev + 1);
-      }
-      
-      console.log('✅ Conversation auto-saved:', savedConversation.id);
+      console.log('✅ Conversation auto-saved:', result.conversationId, result.isNewConversation ? '(new)' : '(updated)');
       
     } catch (error) {
       console.error('❌ Failed to auto-save conversation:', error);
@@ -111,9 +160,9 @@ export const useConversationManager = (
     } finally {
       setIsSavingConversation(false);
     }
-  }, [sidebarAddConversationFunction]);
+  }, [currentConversationId, lastAutoSaveMessageCount, isSavingConversation, autoSaveFailedAt, sidebarAddConversationFunction, sidebarUpdateFunction]);
   
-  // 💾 Manually save conversation
+  // 💾 Manually save conversation with enhanced error handling
   const handleSaveConversation = useCallback(async (
     messages: ChatMessage[],
     config?: { selectedConfigId?: number; selectedModelId?: string }
@@ -122,49 +171,67 @@ export const useConversationManager = (
       if (onError) onError('No messages to save');
       return;
     }
+
+    // 🚫 Prevent concurrent manual saves
+    if (isSavingConversation) {
+      console.log('🚫 Save already in progress, skipping manual save');
+      return;
+    }
     
     try {
       setIsSavingConversation(true);
       console.log('💾 Manually saving conversation');
       
-      if (currentConversationId) {
-        // Conversation already saved
-        console.log('✅ Conversation already saved:', currentConversationId);
-      } else {
-        // Save as new conversation
-        const savedConversation = await conversationService.saveCurrentChat(
-          messages,
-          undefined, // Auto-generate title
-          config?.selectedConfigId || undefined,
-          config?.selectedModelId || undefined
-        );
+      const actualLastSavedCount = currentConversationId 
+        ? conversationUpdateService.getLastSavedCount(currentConversationId)
+        : lastAutoSaveMessageCount;
+      
+      // Use enhanced smart save with state tracking
+      const result = await conversationUpdateService.smartSaveConversation(
+        messages,
+        currentConversationId,
+        actualLastSavedCount,
+        config
+      );
+      
+      // Update state based on the save result
+      if (result.isNewConversation) {
+        // New conversation was created
+        setCurrentConversationId(result.conversationId);
         
-        setCurrentConversationId(savedConversation.id);
-        setConversationTitle(savedConversation.title);
-        setLastAutoSaveMessageCount(messages.length);
-        setAutoSaveFailedAt(null); // Clear failure tracking
-        
-        // Add conversation to sidebar immediately
-        if (sidebarAddConversationFunction) {
-          const conversationSummary = {
-            id: savedConversation.id,
-            title: savedConversation.title,
-            message_count: messages.length,
-            created_at: savedConversation.created_at || new Date().toISOString(),
-            updated_at: savedConversation.updated_at || new Date().toISOString()
-          };
-          sidebarAddConversationFunction(conversationSummary);
-        } else {
-          setConversationRefreshTrigger(prev => prev + 1);
+        // Get conversation details to set title
+        try {
+          const conversation = await conversationService.getConversation(result.conversationId);
+          setConversationTitle(conversation.title);
+          
+          // Add conversation to sidebar immediately
+          if (sidebarAddConversationFunction) {
+            const conversationSummary = {
+              id: conversation.id,
+              title: conversation.title,
+              message_count: messages.length,
+              created_at: conversation.created_at || new Date().toISOString(),
+              updated_at: conversation.updated_at || new Date().toISOString()
+            };
+            sidebarAddConversationFunction(conversationSummary);
+          } else {
+            setConversationRefreshTrigger(prev => prev + 1);
+          }
+        } catch (error) {
+          console.error('❌ Failed to get conversation details after save:', error);
         }
-        
+      } else if (currentConversationId) {
+        // Existing conversation was updated
         // Update message count in sidebar
         if (sidebarUpdateFunction) {
-          sidebarUpdateFunction(savedConversation.id, messages.length);
+          sidebarUpdateFunction(currentConversationId, messages.length);
         }
-        
-        console.log('✅ Conversation saved:', savedConversation.id);
       }
+      
+      setLastAutoSaveMessageCount(messages.length);
+      setAutoSaveFailedAt(null); // Clear failure tracking
+      
+      console.log('✅ Conversation saved:', result.conversationId, result.isNewConversation ? '(new)' : '(updated)');
       
     } catch (error) {
       console.error('❌ Failed to save conversation:', error);
@@ -178,25 +245,38 @@ export const useConversationManager = (
     } finally {
       setIsSavingConversation(false);
     }
-  }, [currentConversationId, sidebarAddConversationFunction, sidebarUpdateFunction, onError]);
+  }, [currentConversationId, lastAutoSaveMessageCount, isSavingConversation, sidebarAddConversationFunction, sidebarUpdateFunction, onError]);
   
-  // 📖 Load conversation
+  // 📖 Load conversation with enhanced state initialization
   const handleLoadConversation = useCallback(async (conversationId: number): Promise<ChatMessage[]> => {
     try {
       console.log('📖 Loading conversation:', conversationId);
       
       const chatMessages = await conversationService.loadConversationAsChat(conversationId);
       
+      // 🔧 ENHANCED: Initialize state tracking for the loaded conversation
       setCurrentConversationId(conversationId);
       setLastAutoSaveMessageCount(chatMessages.length);
-      setAutoSaveFailedAt(null); // Reset auto-save tracking
+      setAutoSaveFailedAt(null);
+      
+      // Initialize state in the update service
+      conversationUpdateService.initializeConversationState(conversationId, chatMessages.length);
+      
+      // Get conversation details for title
+      try {
+        const conversation = await conversationService.getConversation(conversationId);
+        setConversationTitle(conversation.title);
+      } catch (error) {
+        console.error('❌ Failed to get conversation title:', error);
+        setConversationTitle(null);
+      }
       
       // Close sidebar on mobile
       if (window.innerWidth < 1024) {
         setShowConversationSidebar(false);
       }
       
-      console.log('✅ Conversation loaded:', chatMessages.length, 'messages');
+      console.log('✅ Conversation loaded:', chatMessages.length, 'messages (state initialized)');
       
       if (onConversationLoad) {
         onConversationLoad(chatMessages);
@@ -217,19 +297,24 @@ export const useConversationManager = (
     }
   }, [onConversationLoad, onError]);
   
-  // 🆕 Start new conversation
+  // 🆕 Start new conversation with state cleanup
   const handleNewConversation = useCallback(() => {
+    // Clear state in update service for previous conversation
+    if (currentConversationId) {
+      conversationUpdateService.clearConversationState(currentConversationId);
+    }
+    
     setCurrentConversationId(null);
     setConversationTitle(null);
     setLastAutoSaveMessageCount(0);
-    setAutoSaveFailedAt(null); // Reset auto-save failure tracking
+    setAutoSaveFailedAt(null);
     
     if (onConversationClear) {
       onConversationClear();
     }
     
-    console.log('🆕 Started new conversation');
-  }, [onConversationClear]);
+    console.log('🆕 Started new conversation (state cleared)');
+  }, [currentConversationId, onConversationClear]);
   
   // 🔄 Set sidebar functions
   const setSidebarFunctions = useCallback((
@@ -255,14 +340,6 @@ export const useConversationManager = (
       onError(error);
     }
   }, [onError]);
-  
-  // 🔄 Update message count in sidebar when conversation ID exists
-  const updateSidebarMessageCount = useCallback((messageCount: number) => {
-    if (currentConversationId && sidebarUpdateFunction && messageCount > 0) {
-      sidebarUpdateFunction(currentConversationId, messageCount);
-      console.log('🔄 Updated message count for conversation', currentConversationId, 'to', messageCount);
-    }
-  }, [currentConversationId, sidebarUpdateFunction]);
   
   return {
     // State

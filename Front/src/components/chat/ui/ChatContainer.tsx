@@ -134,7 +134,13 @@ export const ChatContainer: React.FC = () => {
     }
   }, [accumulatedContent, isStreaming, messages.length, updateLastMessage]);
   
-  // 💾 Auto-save logic
+  // 🔄 Track previous message count to detect new messages vs loaded messages
+  const [previousMessageCount, setPreviousMessageCount] = useState(0);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [previousConversationId, setPreviousConversationId] = useState<number | null>(null);
+  const [conversationJustLoaded, setConversationJustLoaded] = useState(false);
+
+  // 💾 Auto-save logic - ENHANCED with race condition prevention
   useEffect(() => {
     const shouldTriggerAutoSave = shouldAutoSave(
       messages,
@@ -147,21 +153,37 @@ export const ChatContainer: React.FC = () => {
       messagesLength: messages.length,
       lastAutoSaveMessageCount,
       isSavingConversation,
-      autoSaveFailedAt
+      autoSaveFailedAt,
+      isStreaming,
+      isLoadingConversation,
+      conversationJustLoaded
     });
     
+    // 🔧 ENHANCED: More comprehensive checks to prevent unnecessary saves
     if (
       shouldTriggerAutoSave && 
-      !currentConversationId && 
       messages.length > lastAutoSaveMessageCount &&
       !isSavingConversation &&
+      !isStreaming && // Don't auto-save while streaming
+      !isLoadingConversation && // 🔧 FIX: Don't auto-save while loading conversation
+      !conversationJustLoaded && // 🔧 FIX: Don't auto-save immediately after loading
       autoSaveFailedAt !== messages.length
     ) {
-      console.log('🚀 Triggering auto-save for conversation');
+      console.log('🚀 Triggering auto-save for conversation', currentConversationId ? `(existing: ${currentConversationId})` : '(new)');
       handleAutoSaveConversation(messages, { 
         selectedConfigId: selectedConfigId || undefined, 
         selectedModelId: selectedModelId || undefined 
       });
+    } else if (shouldTriggerAutoSave && isSavingConversation) {
+      console.log('🔄 Auto-save already in progress, skipping trigger');
+    } else if (shouldTriggerAutoSave && isStreaming) {
+      console.log('🌊 Streaming in progress, deferring auto-save');
+    } else if (shouldTriggerAutoSave && isLoadingConversation) {
+      console.log('📖 Conversation loading in progress, skipping auto-save to prevent duplicate saves');
+    } else if (shouldTriggerAutoSave && conversationJustLoaded) {
+      console.log('📖 Conversation just loaded, skipping auto-save to allow state to settle');
+    } else if (messages.length <= lastAutoSaveMessageCount) {
+      console.log('🔄 No new messages since last auto-save, skipping');
     }
   }, [
     messages, 
@@ -169,16 +191,14 @@ export const ChatContainer: React.FC = () => {
     lastAutoSaveMessageCount, 
     isSavingConversation, 
     autoSaveFailedAt,
+    isStreaming,
+    isLoadingConversation,
+    conversationJustLoaded,
     handleAutoSaveConversation,
     selectedConfigId,
     selectedModelId
   ]);
   
-  // 🔄 Track previous message count to detect new messages vs loaded messages
-  const [previousMessageCount, setPreviousMessageCount] = useState(0);
-  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
-  const [previousConversationId, setPreviousConversationId] = useState<number | null>(null);
-
   // 🔄 Update sidebar message count only when messages are sent (not loaded)
   useEffect(() => {
     console.log('🔄 Sidebar update check:', {
@@ -246,6 +266,7 @@ export const ChatContainer: React.FC = () => {
       // Reset message count tracking for the loaded conversation
       setPreviousMessageCount(loadedMessages.length);
       setPreviousConversationId(conversationId);
+      setConversationJustLoaded(true);
     } finally {
       setIsLoadingConversation(false);
     }
@@ -277,7 +298,20 @@ export const ChatContainer: React.FC = () => {
     // Reset tracking state for new conversation
     setPreviousMessageCount(0);
     setPreviousConversationId(null);
+    setConversationJustLoaded(false);
   }, [handleNewConversation, isStreaming]);
+  
+  // 🔧 FIX: Reset the "just loaded" flag after a short delay to allow normal auto-save
+  useEffect(() => {
+    if (conversationJustLoaded) {
+      const timeout = setTimeout(() => {
+        console.log('🔄 Resetting conversation just loaded flag - auto-save can resume');
+        setConversationJustLoaded(false);
+      }, 1000); // Wait 1 second after loading before allowing auto-save
+
+      return () => clearTimeout(timeout);
+    }
+  }, [conversationJustLoaded]);
   
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600 overflow-hidden">

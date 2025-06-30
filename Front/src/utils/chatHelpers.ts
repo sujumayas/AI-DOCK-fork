@@ -267,3 +267,55 @@ export function createConversationSummary(
     updated_at: savedConversation.updated_at || new Date().toISOString()
   };
 }
+
+/**
+ * Format timestamp for conversation display with enhanced precision
+ * 
+ * Requirements:
+ * - Specific minutes up to 1h (1m, 2m, ..., 59m)
+ * - Increments of 1h until yesterday (1h, 2h, ..., 23h)  
+ * - Yesterday with exact time (Yesterday 3:45 PM)
+ * - After that: date and time (Dec 15, 3:45 PM or Dec 15, 2023, 3:45 PM)
+ */
+export function formatConversationTimestamp(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  
+  // Check if it's yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+  
+  // Check if it's today
+  const isToday = date.toDateString() === now.toDateString();
+  
+  if (diffMinutes < 1) {
+    return 'Just now';
+  } else if (diffMinutes < 60) {
+    // Specific minutes up to 1 hour
+    return `${diffMinutes}m ago`;
+  } else if (isToday) {
+    // Increments of 1 hour for today
+    return `${diffHours}h ago`;
+  } else if (isYesterday) {
+    // Yesterday with exact time
+    return `Yesterday ${date.toLocaleTimeString([], { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    })}`;
+  } else {
+    // Date and time for older conversations
+    return date.toLocaleDateString([], { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  }
+}

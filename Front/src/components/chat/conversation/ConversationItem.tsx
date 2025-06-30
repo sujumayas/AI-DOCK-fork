@@ -12,6 +12,7 @@ import {
   ChevronRight 
 } from 'lucide-react';
 import { ConversationSummary } from '../../../types/conversation';
+import { formatConversationTimestamp } from '../../../utils/chatHelpers';
 
 interface ConversationItemProps {
   conversation: ConversationSummary;
@@ -38,29 +39,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    
-    if (diffMinutes < 1) {
-      return 'Just now';
-    } else if (diffMinutes < 60) {
-      return `${diffMinutes}m ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours}h ago`;
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else if (diffDays < 7) {
-      return `${diffDays}d ago`;
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
+
   
   // Handle title editing
   const handleStartEdit = (e: React.MouseEvent) => {
@@ -228,7 +207,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             
             <div className="flex items-center">
               <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
-              <span>{formatDate(conversation.updated_at)}</span>
+              <span>{formatConversationTimestamp(conversation.updated_at)}</span>
             </div>
             
             {conversation.model_used && (
@@ -239,7 +218,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             
             {conversation.last_message_at && conversation.last_message_at !== conversation.updated_at && (
               <div className="text-xs text-gray-400">
-                Last: {formatDate(conversation.last_message_at)}
+                Last: {formatConversationTimestamp(conversation.last_message_at)}
               </div>
             )}
           </div>

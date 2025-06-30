@@ -1,6 +1,44 @@
 # Product Backlog - AI Dock App 🚀
 # DO NOT READ TOO LONG 
 
+**🔧 AID-CONVERSATION-PERSISTENCE-BUG: Fixed Chat History Message Persistence Issue ✅ COMPLETED JUNE 30, 2025** 💾
+- **Description:** Fixed critical bug where new messages added to existing conversations were not persisting to database, causing messages to disappear on page refresh
+- **Learning Goals:** Conversation state management, database persistence patterns, React state vs database synchronization, modular service architecture ✅
+- **User Issue:** "Old chats that are saved in history are not updating correctly. If I open an old chat and type a message, the message count increases and conversation works perfectly. However, when I refresh the page, the new messages are deleted and the conversation returns to its original state as if no additional chats were sent."
+- **Root Cause Analysis:** ✅
+  - **Frontend Logic Bug:** `useConversationManager` hook had flawed save logic that only created new conversations
+  - **Missing Update Path:** When `currentConversationId` existed, save function assumed conversation was "already saved" and did nothing
+  - **No Message Persistence:** New messages added to existing conversations were never sent to the database
+  - **State vs Database Mismatch:** Local React state updated but database remained unchanged
+- **Technical Solution:** ✅
+  - **Created ConversationUpdateService:** New service class for proper message persistence to existing conversations
+  - **Smart Save Logic:** Implemented `smartSaveConversation()` that handles both new conversations and updates to existing ones
+  - **Message Tracking:** Enhanced conversation manager to track `lastAutoSaveMessageCount` and detect new messages
+  - **API Integration:** Used existing `/conversations/{id}/messages` endpoint to add individual messages to conversations
+  - **Modular Architecture:** Atomic, reusable service following project patterns
+- **Files Created:** ✅
+  - `/Front/src/services/conversationUpdateService.ts` - Enhanced conversation service for message persistence
+- **Files Modified:** ✅
+  - `/Front/src/hooks/chat/useConversationManager.ts` - Fixed save logic to use smart save for both new and existing conversations
+  - `/Users/blas/Desktop/INRE/INRE-DOCK-2/Helpers/folder_structure.txt` - Updated to include new service
+  - `/Users/blas/Desktop/INRE/INRE-DOCK-2/Helpers/project_integration_guide.md` - Documented conversation persistence fix
+- **Key Features Implemented:** ✅
+  - **Smart Conversation Detection:** Automatically detects whether to create new conversation or update existing one
+  - **Message Difference Calculation:** Only saves new messages that haven't been persisted yet
+  - **Sequential Message Processing:** Maintains message order when adding multiple messages
+  - **Backward Compatibility:** All existing conversation functionality preserved
+  - **Error Handling:** Robust error handling with fallback strategies
+  - **State Synchronization:** Proper tracking of saved vs unsaved messages
+- **Architecture Benefits:** ✅
+  - **Modular Design:** ConversationUpdateService is atomic and reusable
+  - **Single Responsibility:** Each method has one clear purpose (add message, update conversation, smart save)
+  - **Service Layer Pattern:** Follows established project patterns for consistency
+  - **Testable Components:** Small, focused methods are easier to test
+  - **Future Extensions:** Easy to add features like bulk message operations or conversation merging
+- **Expected Outcome:** Users can now load old conversations, add messages, and those messages persist after page refresh ✅
+- **Testing:** Load saved conversation, send new message, refresh page, verify message is still there ✅
+- **Key Learnings:** Conversation lifecycle management, database persistence patterns, React state synchronization, modular service architecture, debugging persistence issues ✅
+
 **🔧 AID-LLM-SERVICE-REFACTORING: Modular LLM Service Architecture ✅ COMPLETED JUNE 26, 2025** 🚀
 - **Description:** Completed comprehensive refactoring of massive 2,600-line llm_service.py into 11 atomic, modular components for better maintainability, testability, and extensibility
 - **Learning Goals:** Service layer modularization, provider pattern implementation, separation of concerns, atomic component design, backward compatibility preservation ✅

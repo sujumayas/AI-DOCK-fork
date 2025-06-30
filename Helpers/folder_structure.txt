@@ -309,6 +309,7 @@ INRE-DOCK-2/
 │   │   │   │   └── index.ts                 #   - Clean exports (30 lines)
 │   │   │   ├── chatService.ts               # 🔄 REFACTORED: (1,088 lines → 30 lines) Now entry point for modular architecture
 │   │   │   ├── conversationService.ts
+│   │   │   ├── conversationUpdateService.ts  # 🆕 NEW: Enhanced message persistence for existing conversations
 │   │   │   ├── coreAuthService.ts
 │   │   │   ├── departmentService.ts
 │   │   │   ├── fileService.ts
