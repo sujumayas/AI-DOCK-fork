@@ -18,14 +18,19 @@ import { useAssistantManager } from '../../../hooks/chat/useAssistantManager';
 import { useConversationManager } from '../../../hooks/chat/useConversationManager';
 import { useResponsiveLayout } from '../../../hooks/chat/useResponsiveLayout';
 import { useAuth } from '../../../hooks/useAuth';
+import { useProjectManager } from '../../../hooks/chat/useProjectManager';
+import { ProjectSelectorCard } from './ProjectSelectorCard';
+import { ProjectManager } from '../ProjectManager';
 import { DEFAULT_AUTO_SAVE_CONFIG, shouldAutoSave } from '../../../types/conversation';
 import type { FileAttachment } from '../../../types/file';
+import { projectService } from '../../../services/projectService';
 
 export const ChatContainer: React.FC = () => {
   const { user } = useAuth();
   
   // 📱 Responsive layout state
   const { isMobile } = useResponsiveLayout();
+  
   
   // 🎯 Model selection management
   const {
@@ -43,6 +48,25 @@ export const ChatContainer: React.FC = () => {
     setError: setModelError
   } = useModelSelection();
   
+  // 📂 Project management
+  const {
+    availableProjects,
+    selectedProjectId,
+    selectedProject,
+    projectsLoading,
+    projectsError,
+    showProjectManager,
+    handleProjectSelect,
+    handleProjectChange,
+    handleProjectIntroduction,
+    setShowProjectManager,
+    clearProjectFromUrl,
+    loadAvailableProjects
+  } = useProjectManager((message) => {
+    // Handle project messages
+    addMessage(message);
+  });
+
   // 🤖 Assistant management
   const {
     availableAssistants,
@@ -116,6 +140,8 @@ export const ChatContainer: React.FC = () => {
     selectedModelId,
     selectedAssistantId,
     selectedAssistant,
+    selectedProjectId,
+    selectedProject,
     currentConversationId
   });
   
@@ -195,7 +221,8 @@ export const ChatContainer: React.FC = () => {
       console.log('🚀 Triggering auto-save for conversation', currentConversationId ? `(existing: ${currentConversationId})` : '(new)');
       handleAutoSaveConversation(messages, { 
         selectedConfigId: selectedConfigId || undefined, 
-        selectedModelId: selectedModelId || undefined 
+        selectedModelId: selectedModelId || undefined,
+        projectId: selectedProjectId || undefined
       });
     } else if (shouldTriggerAutoSave && isSavingConversation) {
       console.log('🔄 Auto-save already in progress, skipping trigger');
@@ -265,6 +292,29 @@ export const ChatContainer: React.FC = () => {
     }
   }, [messages.length, currentConversationId, sidebarUpdateFunction, isLoadingConversation, previousMessageCount, previousConversationId]);
   
+  // 📂 Handle project selection with streaming check
+  const handleProjectSelectWithStreamingCheck = useCallback((projectId: number | null) => {
+    // 🚫 Prevent project switching while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot switch projects while streaming is active');
+      return;
+    }
+
+    handleProjectSelect(projectId);
+  }, [handleProjectSelect, isStreaming]);
+
+  // 📂 Handle opening project manager
+  const handleChangeProjectClickWithStreamingCheck = useCallback(() => {
+    // 🚫 Prevent opening project manager while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot open project manager while streaming is active');
+      return;
+    }
+
+    setShowProjectManager(true);
+    console.log('🎯 Opening project manager from selector card');
+  }, [setShowProjectManager, isStreaming]);
+
   // 📤 Handle sending messages
   const handleSendMessage = useCallback(async (content: string, attachments?: FileAttachment[]) => {
     await sendMessage(content, attachments);
@@ -274,7 +324,8 @@ export const ChatContainer: React.FC = () => {
   const handleSaveCurrentConversation = useCallback(async () => {
     await handleSaveConversation(messages, { 
       selectedConfigId: selectedConfigId || undefined, 
-      selectedModelId: selectedModelId || undefined 
+      selectedModelId: selectedModelId || undefined,
+      projectId: selectedProjectId || undefined
     });
   }, [handleSaveConversation, messages, selectedConfigId, selectedModelId]);
   
@@ -307,6 +358,28 @@ export const ChatContainer: React.FC = () => {
     loadAvailableAssistants();
   }, [loadAvailableAssistants]);
   
+  // 📂 Handle project update with re-introduction
+  const handleProjectUpdated = useCallback(async (projectId: number) => {
+    console.log('📂 Project updated, generating new introduction:', projectId);
+    
+    try {
+      // Get fresh project data from the service
+      const updatedProject = await projectService.getProject(projectId);
+      
+      // Generate a new introduction message for the updated project
+      const introMessage = handleProjectIntroduction(updatedProject, selectedProject);
+      addMessage(introMessage);
+      
+      console.log('✅ Added re-introduction message for updated project');
+      
+      // Refresh the available projects to get the updated data
+      await loadAvailableProjects(true);
+      
+    } catch (error) {
+      console.error('❌ Failed to generate introduction for updated project:', error);
+    }
+  }, [loadAvailableProjects, handleProjectIntroduction, selectedProject, addMessage]);
+
   // 🤖 Handle assistant update with re-introduction
   const handleAssistantUpdated = useCallback(async (assistantId: number) => {
     console.log('🤖 Assistant updated, generating new introduction:', assistantId);
@@ -370,18 +443,50 @@ export const ChatContainer: React.FC = () => {
       return () => clearTimeout(timeout);
     }
   }, [conversationJustLoaded]);
+
+  // ⌨️ Projects manager keyboard shortcut (Ctrl/Cmd + P)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when not typing in input fields
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement ||
+        (event.target as Element).closest('[contenteditable="true"]')
+      ) {
+        return;
+      }
+
+      // Prevent shortcuts during streaming
+      if (isStreaming) {
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        event.preventDefault();
+        setShowProjectManager(prev => !prev);
+        console.log('⌨️ Toggled project manager via keyboard shortcut');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isStreaming]);
   
   return (
-    <div className="flex h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600 overflow-hidden">
-      {/* 🎯 Sidebar Toggle Button */}
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 overflow-hidden">
+      
+      {/* 🎯 Conversation Sidebar Toggle */}
       <button
         onClick={() => setShowConversationSidebar(!showConversationSidebar)}
-        className={`fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${
-          showConversationSidebar 
-            ? 'left-2 lg:left-[324px]'
+        disabled={isStreaming}
+        className={`fixed top-1/2 translate-y-12 z-50 transition-all duration-300 ${
+          showConversationSidebar && !isMobile
+            ? 'left-[324px]'
             : 'left-2'
-        } bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full p-3 shadow-lg hover:shadow-xl group hover:scale-105 transform`}
-        title={showConversationSidebar ? 'Hide conversation history' : 'Show conversation history'}
+        } bg-white/5 hover:bg-white/10 backdrop-blur-lg border border-white/10 rounded-full p-3 shadow-2xl hover:shadow-3xl group hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
+        title={`${showConversationSidebar ? 'Hide' : 'Show'} conversation history`}
+        aria-label={`${showConversationSidebar ? 'Hide' : 'Show'} conversation history`}
       >
         {showConversationSidebar ? (
           <ChevronLeft className="w-4 h-4 text-white group-hover:text-blue-100 transition-colors" />
@@ -389,6 +494,7 @@ export const ChatContainer: React.FC = () => {
           <ChevronRight className="w-4 h-4 text-white group-hover:text-blue-100 transition-colors" />
         )}
       </button>
+      
       
       {/* 💾 Conversation Sidebar */}
       <ConversationSidebar
@@ -405,6 +511,39 @@ export const ChatContainer: React.FC = () => {
         isStreaming={isStreaming}
       />
       
+      {/* 📂 Project Manager */}
+      {showProjectManager && (
+        <div className={`fixed z-50 bg-gradient-to-br from-teal-600 via-teal-700 to-emerald-600 shadow-xl transform transition-all duration-300 ease-in-out ${
+          isMobile 
+            ? `inset-x-0 bottom-0 h-96 rounded-t-xl ${
+                showProjectManager ? 'translate-y-0' : 'translate-y-full'
+              }`
+            : `inset-y-0 right-0 w-96 ${
+                showProjectManager ? 'translate-x-0' : 'translate-x-full'
+              }`
+        }`}>
+          <div className="h-full overflow-y-auto">
+            {isMobile && (
+              <div className="flex justify-center py-3 bg-white/10">
+                <div className="w-12 h-1 bg-white/30 rounded-full"></div>
+              </div>
+            )}
+            
+            <ProjectManager
+              selectedProjectId={selectedProject?.id || null}
+              onProjectSelect={handleProjectSelectWithStreamingCheck}
+              onProjectChange={handleProjectChange}
+              onProjectUpdated={handleProjectUpdated}
+              isStreaming={isStreaming}
+              className="h-full border-0 rounded-none bg-transparent"
+              currentConversationId={currentConversationId || undefined}
+              onSelectConversation={handleLoadSelectedConversation}
+              onNewConversation={handleNewConversationClick}
+            />
+          </div>
+        </div>
+      )}
+
       {/* 🤖 Assistant Manager */}
       {showAssistantManager && (
         <div className={`fixed z-40 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-600 shadow-xl transform transition-all duration-300 ease-in-out ${
@@ -436,17 +575,22 @@ export const ChatContainer: React.FC = () => {
       )}
       
       {/* 🎭 Backdrop */}
-      {showAssistantManager && (
+      {(showAssistantManager || showProjectManager) && (
         <div 
           className={`fixed inset-0 z-30 transition-opacity duration-300 ${
             isMobile ? 'bg-black/60' : 'bg-black/50'
           }`}
-          onClick={() => setShowAssistantManager(false)}
+          onClick={() => {
+            setShowAssistantManager(false);
+            setShowProjectManager(false);
+          }}
         />
       )}
       
-      {/* Main chat interface */}
-      <div className="flex flex-col flex-1 min-w-0">
+      {/* Main chat interface with sidebar-aware spacing */}
+      <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${
+        showConversationSidebar && !isMobile ? 'lg:ml-80' : 'ml-0'
+      }`}>
         {/* 🎛️ Header */}
         <ChatHeader
           unifiedModelsData={unifiedModelsData}
@@ -459,6 +603,8 @@ export const ChatContainer: React.FC = () => {
           groupedModels={groupedModels}
           onModelChange={handleModelChange}
           selectedAssistant={selectedAssistant}
+          selectedProject={selectedProject}
+          onOpenProjectManager={() => setShowProjectManager(true)}
           messages={messages}
           currentConversationId={currentConversationId}
           conversationTitle={conversationTitle}
@@ -514,6 +660,13 @@ export const ChatContainer: React.FC = () => {
               isLoading={isLoading}
               isStreaming={isStreaming}
               className="flex-1"
+            />
+            
+            {/* 📂 Project selector */}
+            <ProjectSelectorCard
+              selectedProject={selectedProject}
+              onChangeClick={handleChangeProjectClickWithStreamingCheck}
+              isStreaming={isStreaming}
             />
             
             {/* 🤖 Assistant selector */}

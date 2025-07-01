@@ -217,6 +217,9 @@ class User(Base):
     # Assistant relationship - user's custom AI assistants
     assistants = relationship("Assistant", back_populates="user", cascade="all, delete-orphan", order_by="Assistant.created_at.desc()")
     
+    # Project relationship - user's projects
+    projects = relationship("Project", back_populates="user", cascade="all, delete-orphan", order_by="Project.updated_at.desc()")
+    
     # Future relationships to add:
     # quota_overrides = relationship("UserQuotaOverride", back_populates="user")
     

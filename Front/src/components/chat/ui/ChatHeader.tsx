@@ -1,6 +1,5 @@
 // 🎛️ Chat Interface Header Component
-// Header with model selection, controls, and status indicators
-// Extracted from ChatInterface.tsx for better modularity
+// Shows model selection, project info, assistant info, and conversation controls
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -13,10 +12,12 @@ import {
   Home, 
   Bot,
   Archive,
-  Save
+  Save,
+  Folder
 } from 'lucide-react';
 import { UnifiedModelsResponse, UnifiedModelInfo } from '../../../services/chatService';
 import { AssistantSummary } from '../../../types/assistant';
+import { ProjectSummary } from '../../../types/project';
 import { getShortProviderName } from '../../../utils/llmUtils';
 import { ModelSelector } from './ModelSelector';
 import { StatusIndicators } from './StatusIndicators';
@@ -33,8 +34,10 @@ export interface ChatHeaderProps {
   groupedModels: { [provider: string]: UnifiedModelInfo[] } | null;
   onModelChange: (modelId: string) => void;
   
-  // Assistant state
+  // Assistant and project state
   selectedAssistant: AssistantSummary | null;
+  selectedProject: ProjectSummary | null;
+  onOpenProjectManager?: () => void;
   
   // Conversation state
   messages: any[];
@@ -65,6 +68,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   groupedModels,
   onModelChange,
   selectedAssistant,
+  selectedProject,
+  onOpenProjectManager,
   messages,
   currentConversationId,
   conversationTitle,
@@ -94,11 +99,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   } : null;
   
   return (
-    <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 px-3 md:px-4 py-3">
+    <div className="bg-white/5 backdrop-blur-lg border-b border-white/10 px-4 md:px-6 py-4 sticky top-0 z-50">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
         <div className="flex items-center space-x-2 md:space-x-4">
-          <h1 className="text-lg md:text-xl font-semibold text-white">
-            AI Chat
+          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+            {selectedProject 
+              ? selectedProject.name 
+              : selectedAssistant 
+              ? `Chat with ${selectedAssistant.name}` 
+              : 'AI Chat'
+            }
           </h1>
           
           {/* 📊 Connection status indicator */}
@@ -121,12 +131,25 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             isMobile={isMobile}
           />
           
+          {/* 📂 Projects button */}
+          {onOpenProjectManager && (
+            <button
+              onClick={onOpenProjectManager}
+              disabled={isStreaming}
+              className="px-3 md:px-4 py-2 text-sm bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 rounded-lg transition-all duration-300 flex items-center backdrop-blur-lg touch-manipulation disabled:opacity-50 hover:scale-105"
+              title="Manage Projects"
+            >
+              <Folder className="w-3 h-3 md:w-4 md:h-4 md:mr-1" />
+              <span className="hidden md:inline ml-1">Projects</span>
+            </button>
+          )}
+
           {/* 💾 Save Conversation button */}
           {messages.length > 0 && !currentConversationId && (
             <button
               onClick={onSaveConversation}
               disabled={isSavingConversation}
-              className="px-2 md:px-3 py-1.5 md:py-1 text-xs md:text-sm bg-green-500/20 hover:bg-green-500/30 text-green-100 rounded-md transition-all duration-200 flex items-center backdrop-blur-sm touch-manipulation disabled:opacity-50"
+              className="px-3 md:px-4 py-2 text-sm bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded-lg transition-all duration-300 flex items-center backdrop-blur-lg touch-manipulation disabled:opacity-50 hover:scale-105"
               title="Save Conversation"
             >
               {isSavingConversation ? (
@@ -143,12 +166,24 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           {/* 🏠 Back to Dashboard button */}
           <button
             onClick={handleBackToDashboard}
-            className="px-2 md:px-3 py-1.5 md:py-1 text-xs md:text-sm bg-white/20 hover:bg-white/30 text-white rounded-md transition-all duration-200 flex items-center backdrop-blur-sm touch-manipulation"
+            className="px-3 md:px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-300 flex items-center backdrop-blur-lg touch-manipulation hover:scale-105"
             title="Back to Dashboard"
           >
             <Home className="w-3 h-3 md:w-4 md:h-4 md:mr-1" />
             <span className="hidden md:inline ml-1">Dashboard</span>
           </button>
+          
+          {/* 📂 Project indicator */}
+          {selectedProject && (
+            <div className="flex items-center px-2 md:px-3 py-1.5 md:py-1 bg-teal-500/20 backdrop-blur-sm border border-teal-300/30 rounded-md text-xs md:text-sm text-teal-100 min-w-0">
+              <div className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0">
+                {selectedProject.icon || '📂'}
+              </div>
+              <span className="whitespace-nowrap">
+                {selectedProject.name}
+              </span>
+            </div>
+          )}
           
           {/* 🤖 Assistant indicator */}
           {selectedAssistant && (
@@ -176,6 +211,19 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       {selectedConfig && currentModelInfo && (
         <div className="mt-2 text-xs md:text-sm text-blue-100">
           <div className="flex flex-wrap items-center gap-1 md:gap-2">
+            {/* 📂 Project info */}
+            {selectedProject && (
+              <div className="flex items-center">
+                <div className="w-3 h-3 md:w-4 md:h-4 mr-1 text-teal-300 flex-shrink-0">
+                  {selectedProject.icon || '📂'}
+                </div>
+                <span className="whitespace-nowrap">
+                  Project: <strong className="text-teal-200">{selectedProject.name}</strong>
+                </span>
+                <span className="mx-1 text-blue-300">•</span>
+              </div>
+            )}
+            
             {/* 🤖 Assistant info */}
             {selectedAssistant && (
               <div className="flex items-center">

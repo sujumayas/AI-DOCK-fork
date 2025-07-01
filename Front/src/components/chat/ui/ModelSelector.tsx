@@ -33,7 +33,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   // Don't render if models are loading
   if (modelsLoading) {
     return (
-      <div className="flex items-center px-2 md:px-3 py-1.5 md:py-1 bg-white/90 backdrop-blur-sm border border-white/30 rounded-md text-xs md:text-sm text-gray-500 min-w-0">
+      <div className="flex items-center px-3 md:px-4 py-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg text-sm text-gray-300 min-w-0 hover:bg-white/10 transition-all duration-300">
         <Loader2 className="w-3 h-3 animate-spin mr-1" />
         <span>Loading models...</span>
       </div>
@@ -43,7 +43,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   // Show error state
   if (modelsError) {
     return (
-      <div className="flex items-center px-2 md:px-3 py-1.5 md:py-1 bg-red-100 border border-red-300 rounded-md text-xs md:text-sm text-red-700 min-w-0">
+      <div className="flex items-center px-3 md:px-4 py-2 bg-red-500/10 backdrop-blur-lg border border-red-300/30 rounded-lg text-sm text-red-300 min-w-0">
         <AlertCircle className="w-3 h-3 mr-1" />
         <span>Failed to load</span>
       </div>
@@ -66,7 +66,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         <select
           value={selectedModelId || ''}
           onChange={(e) => onModelChange(e.target.value)}
-          className="px-2 md:px-3 py-1.5 md:py-1 bg-white/90 backdrop-blur-sm border border-white/30 rounded-md text-xs md:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white min-w-0 max-w-[280px] md:max-w-none pr-8"
+          className="px-3 md:px-4 py-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/10 min-w-0 max-w-[280px] md:max-w-none pr-8 appearance-none hover:bg-white/10 transition-all duration-300"
           title={currentModelInfo ? 
             `${currentModelInfo.provider} • ${currentModelInfo.cost_tier} cost • Score: ${currentModelInfo.relevance_score || 'N/A'}/100` 
             : ''

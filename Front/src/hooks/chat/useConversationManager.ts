@@ -27,8 +27,8 @@ export interface ConversationManagerState {
 
 export interface ConversationManagerActions {
   // Save operations
-  handleAutoSaveConversation: (messages: ChatMessage[], config?: { selectedConfigId?: number; selectedModelId?: string }) => Promise<void>;
-  handleSaveConversation: (messages: ChatMessage[], config?: { selectedConfigId?: number; selectedModelId?: string }) => Promise<void>;
+  handleAutoSaveConversation: (messages: ChatMessage[], config?: { selectedConfigId?: number; selectedModelId?: string; projectId?: number }) => Promise<void>;
+  handleSaveConversation: (messages: ChatMessage[], config?: { selectedConfigId?: number; selectedModelId?: string; projectId?: number }) => Promise<void>;
   handleLoadConversation: (conversationId: number) => Promise<ChatMessage[]>;
   
   // Conversation lifecycle
@@ -66,7 +66,7 @@ export const useConversationManager = (
   // 💾 Auto-save conversation with enhanced race condition prevention
   const handleAutoSaveConversation = useCallback(async (
     messages: ChatMessage[], 
-    config?: { selectedConfigId?: number; selectedModelId?: string }
+    config?: { selectedConfigId?: number; selectedModelId?: string; projectId?: number }
   ) => {
     // Early validation
     if (messages.length < DEFAULT_AUTO_SAVE_CONFIG.triggerAfterMessages) {
@@ -182,7 +182,7 @@ export const useConversationManager = (
   // 💾 Manually save conversation with enhanced error handling
   const handleSaveConversation = useCallback(async (
     messages: ChatMessage[],
-    config?: { selectedConfigId?: number; selectedModelId?: string }
+    config?: { selectedConfigId?: number; selectedModelId?: string; projectId?: number }
   ) => {
     if (messages.length === 0) {
       if (onError) onError('No messages to save');

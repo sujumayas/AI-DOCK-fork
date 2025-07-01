@@ -244,10 +244,10 @@ const UsageDashboard: React.FC = () => {
             key={period.days}
             onClick={() => handlePeriodChange(period.days)}
             disabled={dashboardState.isLoading || dashboardState.isRefreshing}
-            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              dashboardState.selectedPeriod !== period.days
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
+            className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300 hover:scale-105 transform ${
+              dashboardState.selectedPeriod === period.days
+                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg ring-2 ring-blue-400/50'
+                : 'bg-white/10 text-blue-200 hover:bg-white/20 disabled:opacity-50 backdrop-blur-lg border border-white/10'
             }`}
           >
             {period.label}
@@ -289,7 +289,7 @@ const UsageDashboard: React.FC = () => {
           <button
             onClick={handleRefresh}
             disabled={dashboardState.isLoading || dashboardState.isRefreshing}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center space-x-2"
+            className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:opacity-50 text-white px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center space-x-2 hover:scale-105 transform"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -309,17 +309,17 @@ const UsageDashboard: React.FC = () => {
    */
   const renderError = () => (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="max-w-md w-full bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 text-center border border-white/20">
+      <div className="max-w-md w-full bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-6 text-center border border-white/10">
         <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
         </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Failed to Load Dashboard</h2>
-        <p className="text-gray-600 mb-4">{dashboardState.error}</p>
+        <h2 className="text-xl font-semibold text-white mb-2">Failed to Load Dashboard</h2>
+        <p className="text-blue-200 mb-4">{dashboardState.error}</p>
         <button
           onClick={handleRetry}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+          className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform hover:ring-2 hover:ring-blue-400/50"
         >
           Try Again
         </button>
@@ -334,7 +334,7 @@ const UsageDashboard: React.FC = () => {
    * This manages user expectations during data fetching.
    */
   const renderLoading = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderHeader()}
         
@@ -344,7 +344,7 @@ const UsageDashboard: React.FC = () => {
           {/* Overview cards skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 animate-pulse border border-white/20">
+              <div key={i} className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-6 animate-pulse border border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <div className="h-4 bg-gray-200 rounded w-24"></div>
                   <div className="h-6 w-6 bg-gray-200 rounded"></div>
@@ -358,7 +358,7 @@ const UsageDashboard: React.FC = () => {
           {/* Charts skeleton */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 animate-pulse border border-white/20">
+              <div key={i} className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-6 animate-pulse border border-white/10">
                 <div className="h-4 bg-gray-200 rounded w-48 mb-4"></div>
                 <div className="h-64 bg-gray-200 rounded"></div>
               </div>
@@ -368,7 +368,7 @@ const UsageDashboard: React.FC = () => {
           {/* Tables skeleton */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[...Array(2)].map((_, i) => (
-              <div key={i} className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 animate-pulse border border-white/20">
+              <div key={i} className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-6 animate-pulse border border-white/10">
                 <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
                 <div className="space-y-4">
                   {[...Array(5)].map((_, j) => (
@@ -407,7 +407,7 @@ const UsageDashboard: React.FC = () => {
 
   // Main dashboard render
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {renderHeader()}
@@ -460,7 +460,7 @@ const UsageDashboard: React.FC = () => {
 
           {/* System Health Footer */}
           {dashboardState.data?.systemHealth && (
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 border border-white/20">
+            <div className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-6 border border-white/10 hover:shadow-3xl transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className={`w-3 h-3 rounded-full ${
@@ -468,11 +468,11 @@ const UsageDashboard: React.FC = () => {
                     dashboardState.data.systemHealth.status === 'degraded' ? 'bg-yellow-500' :
                     'bg-red-500'
                   }`}></div>
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-white">
                     Usage Tracking System: {dashboardState.data.systemHealth.status}
                   </span>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-blue-200">
                   {dashboardState.data.systemHealth.usage_tracking.logs_last_24h || 0} logs in last 24h
                 </div>
               </div>

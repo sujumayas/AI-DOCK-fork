@@ -16,12 +16,18 @@ export interface ChatMessage {
   hasFiles?: boolean;                    // Quick flag for messages with files
   fileCount?: number;                    // Number of attached files
   
-  // 🤖 NEW: Assistant context support
+  // 🤖 Assistant and project context support
   assistantId?: number;                  // Which assistant generated this message (for AI responses)
   assistantName?: string;                // Assistant name for display
   assistantIntroduction?: boolean;       // True if this is an assistant introduction message
   assistantChanged?: boolean;            // True if assistant changed before this message
   previousAssistantName?: string;        // Name of previous assistant (for change dividers)
+  
+  // 🗂️ NEW: Project context support
+  projectId?: number;                    // Project context for this message
+  projectName?: string;                  // Project name for display
+  projectChanged?: boolean;              // True if project changed before this message
+  previousProjectName?: string;          // Name of previous project (for change dividers)
 }
 
 export interface ChatRequest {
@@ -34,10 +40,11 @@ export interface ChatRequest {
   // 📁 NEW: File attachment support (matches backend schema)
   file_attachment_ids?: number[];        // List of uploaded file IDs to include as context
   
-  // 🤖 NEW: Assistant integration support
+  // 🤖 Assistant and project integration
   assistant_id?: number;                 // Custom assistant ID for system prompt injection
+  project_id?: number;                   // Project context ID for system prompt injection
   
-  // 🔄 NEW: Conversation tracking support
+  // 🔄 Conversation tracking support
   conversation_id?: number;              // Existing conversation ID to save messages to
 }
 

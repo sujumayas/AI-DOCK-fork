@@ -246,6 +246,27 @@ app.include_router(
     tags=["Assistants"]
 )
 
+# Include project endpoints
+# This adds all /api/projects/* endpoints to our application
+from .api.projects import crud_router as projects_crud_router
+from .api.projects import conversations_router as projects_conversations_router
+from .api.projects import statistics_router as projects_statistics_router
+app.include_router(
+    projects_crud_router,
+    prefix="/api",
+    tags=["Projects"]
+)
+app.include_router(
+    projects_conversations_router,
+    prefix="/api",
+    tags=["Projects"]
+)
+app.include_router(
+    projects_statistics_router,
+    prefix="/api",
+    tags=["Projects"]
+)
+
 # Root endpoint - what users see when they visit the API directly
 @app.get("/")
 def read_root():

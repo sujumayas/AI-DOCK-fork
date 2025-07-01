@@ -322,8 +322,8 @@ export const UserManagement: React.FC = () => {
   const renderLoading = useCallback(() => (
     <div className="flex items-center justify-center py-12">
       <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-        <p className="text-gray-600">Loading users...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-4" />
+        <p className="text-blue-200">Loading users...</p>
       </div>
     </div>
   ), []);
@@ -332,13 +332,13 @@ export const UserManagement: React.FC = () => {
    * Render error state
    */
   const renderError = useCallback(() => (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-      <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
-      <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Users</h3>
-      <p className="text-red-600 mb-4">{error}</p>
+    <div className="bg-red-500/10 backdrop-blur-lg border border-red-400/20 rounded-3xl p-6 text-center">
+      <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-4" />
+      <h3 className="text-lg font-semibold text-red-300 mb-2">Error Loading Users</h3>
+      <p className="text-red-400 mb-4">{error}</p>
       <button
         onClick={() => loadUsers(filters)}
-        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors"
+        className="bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-6 py-3 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
       >
         Try Again
       </button>
@@ -350,14 +350,14 @@ export const UserManagement: React.FC = () => {
    */
   const renderEmptyState = useCallback(() => (
     <div className="text-center py-12">
-      <UsersIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Users Found</h3>
-      <p className="text-gray-600 mb-4">
+      <UsersIcon className="h-12 w-12 text-blue-300 mx-auto mb-4" />
+      <h3 className="text-lg font-semibold text-white mb-2">No Users Found</h3>
+      <p className="text-blue-200 mb-4">
         {filters.search_query ? 'Try adjusting your search or filters.' : 'Get started by creating your first user.'}
       </p>
       <button
         onClick={handleCreateUser}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+        className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white px-6 py-3 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
       >
         Create User
       </button>
@@ -368,7 +368,7 @@ export const UserManagement: React.FC = () => {
    * Render search and filter controls
    */
   const renderSearchAndFilters = useCallback(() => (
-    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6 mb-6">
+    <div className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/10 p-6 mb-6 hover:shadow-3xl transition-all duration-300">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         
         {/* Search Input - Now using extracted UserSearch component */}
@@ -384,10 +384,10 @@ export const UserManagement: React.FC = () => {
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300 hover:scale-105 transform ${
               showFilters
-                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30 backdrop-blur-lg'
+                : 'bg-white/10 text-blue-200 border border-white/20 hover:bg-white/20 backdrop-blur-lg'
             }`}
           >
             <Filter className="h-4 w-4" />
@@ -396,7 +396,7 @@ export const UserManagement: React.FC = () => {
           
           <button
             onClick={handleCreateUser}
-            className="flex items-center space-x-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 text-sm font-medium bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
           >
             <Plus className="h-4 w-4" />
             <span>Add User</span>

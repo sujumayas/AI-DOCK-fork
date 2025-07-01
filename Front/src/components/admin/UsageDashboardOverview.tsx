@@ -117,7 +117,7 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {[...Array(4)].map((_, index) => (
-          <div key={index} className="bg-white rounded-lg shadow p-6 animate-pulse">
+          <div key={index} className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-6 animate-pulse border border-white/10">
             <div className="flex items-center justify-between mb-4">
               <div className="h-4 bg-gray-200 rounded w-24"></div>
               <div className="h-6 w-6 bg-gray-200 rounded"></div>
@@ -132,7 +132,7 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+      <div className="bg-red-500/10 backdrop-blur-lg border border-red-400/20 rounded-3xl p-6 mb-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
@@ -141,13 +141,13 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-red-800">Failed to load usage data</h3>
-              <p className="text-sm text-red-600 mt-1">{error}</p>
+              <h3 className="text-sm font-medium text-red-300">Failed to load usage data</h3>
+              <p className="text-sm text-red-400 mt-1">{error}</p>
             </div>
           </div>
           <button
             onClick={onRefresh}
-            className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm font-medium transition-colors"
+            className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 backdrop-blur-lg"
           >
             Retry
           </button>
@@ -158,8 +158,8 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
 
   if (!summary) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8 text-center">
-        <p className="text-gray-600">No usage data available for the selected period.</p>
+      <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl p-6 mb-8 text-center">
+        <p className="text-blue-200">No usage data available for the selected period.</p>
       </div>
     );
   }
@@ -172,23 +172,23 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       
       {/* Total Requests Card */}
-      <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
+      <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur-lg rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-300 p-6 border border-blue-400/20 hover:scale-[1.02] transform group">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+          <h3 className="text-sm font-medium text-blue-200 uppercase tracking-wide">
             Total Requests
           </h3>
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 bg-blue-500/30 rounded-2xl flex items-center justify-center ring-2 ring-blue-400/30 group-hover:ring-blue-400/50 transition-all duration-300">
+            <svg className="w-5 h-5 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </div>
         </div>
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-white group-hover:scale-105 transition-all duration-300">
               {formatNumber(summary.overview.total_requests)}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-blue-200">
               Last {summary.period.days} days
             </p>
           </div>
@@ -199,23 +199,23 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
       </div>
 
       {/* Total Cost Card */}
-      <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
+      <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 backdrop-blur-lg rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-300 p-6 border border-emerald-400/20 hover:scale-[1.02] transform group">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+          <h3 className="text-sm font-medium text-emerald-200 uppercase tracking-wide">
             Total Cost
           </h3>
-          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 bg-emerald-500/30 rounded-2xl flex items-center justify-center ring-2 ring-emerald-400/30 group-hover:ring-emerald-400/50 transition-all duration-300">
+            <svg className="w-5 h-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
             </svg>
           </div>
         </div>
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-white group-hover:scale-105 transition-all duration-300">
               {formatCurrency(summary.overview.total_cost_usd)}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-emerald-200">
               {formatCurrency(summary.overview.average_cost_per_request)} avg/request
             </p>
           </div>
@@ -226,23 +226,23 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
       </div>
 
       {/* Token Usage Card */}
-      <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
+      <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 backdrop-blur-lg rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-300 p-6 border border-purple-400/20 hover:scale-[1.02] transform group">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+          <h3 className="text-sm font-medium text-purple-200 uppercase tracking-wide">
             Tokens Used
           </h3>
-          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 bg-purple-500/30 rounded-2xl flex items-center justify-center ring-2 ring-purple-400/30 group-hover:ring-purple-400/50 transition-all duration-300">
+            <svg className="w-5 h-5 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
             </svg>
           </div>
         </div>
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-white group-hover:scale-105 transition-all duration-300">
               {formatNumber(summary.overview.total_tokens)}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-purple-200">
               {Math.round(summary.overview.average_tokens_per_request)} avg/request
             </p>
           </div>
@@ -253,9 +253,9 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
       </div>
 
       {/* Performance Card */}
-      <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
+      <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/20 backdrop-blur-lg rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-300 p-6 border border-orange-400/20 hover:scale-[1.02] transform group">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+          <h3 className="text-sm font-medium text-orange-200 uppercase tracking-wide">
             Avg Response Time
           </h3>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getStatusColor(systemHealth)}`}>
@@ -266,20 +266,20 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
         </div>
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-white group-hover:scale-105 transition-all duration-300">
               {formatResponseTime(summary.overview.average_response_time_ms)}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-orange-200">
               System: {systemHealth === 'error' ? 'Not Set Up' : systemHealth}
             </p>
             {systemHealth === 'error' && (
               <div className="mt-1">
-                <p className="text-xs text-orange-600">
+                <p className="text-xs text-orange-300">
                   API connectivity issue
                 </p>
                 <button
                   onClick={onRefresh}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline mt-1"
+                  className="text-xs text-blue-300 hover:text-blue-200 underline mt-1"
                 >
                   Retry connection
                 </button>

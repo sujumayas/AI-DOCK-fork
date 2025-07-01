@@ -29,9 +29,10 @@ class ChatRequest(BaseModel):
     config_id: int = Field(description="ID of LLM configuration to use")
     messages: List[ChatMessage] = Field(description="List of chat messages")
     
-    # 🤖 Assistant integration support
+    # 🤖 Assistant and project integration support
     assistant_id: Optional[int] = Field(None, description="ID of custom assistant to use (optional)")
     conversation_id: Optional[int] = Field(None, description="ID of existing conversation to continue (optional)")
+    project_id: Optional[int] = Field(None, description="ID of project context to use (optional)")
     
     # 📁 File attachment support
     file_attachment_ids: Optional[List[int]] = Field(None, description="List of uploaded file IDs to include as context")
@@ -50,6 +51,7 @@ class ChatRequest(BaseModel):
                 ],
                 "assistant_id": 123,
                 "conversation_id": 456,
+                "project_id": 789,
                 "temperature": 0.7,
                 "max_tokens": 1000
             }

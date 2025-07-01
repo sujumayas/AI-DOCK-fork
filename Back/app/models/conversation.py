@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from ..core.database import Base
+from .project import project_conversations
 
 class Conversation(Base):
     """
@@ -56,6 +57,14 @@ class Conversation(Base):
     assistant = relationship("Assistant", back_populates="conversations")  # NEW: Link to custom assistant
     messages = relationship("ConversationMessage", back_populates="conversation", cascade="all, delete-orphan", order_by="ConversationMessage.created_at")
     llm_config = relationship("LLMConfiguration")
+    
+    # Many-to-many relationship to Projects
+    projects = relationship(
+        "Project",
+        secondary=project_conversations,
+        back_populates="conversations",
+        lazy="select"
+    )
     
     def __repr__(self) -> str:
         return f"<Conversation(id={self.id}, title='{self.title}', messages={self.message_count})>"

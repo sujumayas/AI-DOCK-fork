@@ -172,21 +172,21 @@ export const UserSettings: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950">
       {/* Header */}
-      <header className="bg-white/10 backdrop-blur-sm border-b border-white/20">
+      <header className="bg-white/5 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleBackToDashboard}
-                className="flex items-center space-x-2 px-4 py-2 text-white bg-white/20 rounded-lg hover:bg-white/30 transition-all duration-200"
+                className="flex items-center space-x-2 px-4 py-2 text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300 backdrop-blur-lg hover:scale-105 transform"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back to Dashboard</span>
               </button>
               <div className="h-6 w-px bg-white/30"></div>
-              <h1 className="text-2xl font-bold text-white">My Settings</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">My Settings</h1>
             </div>
             
             <div className="text-right">
@@ -207,10 +207,10 @@ export const UserSettings: React.FC = () => {
           
           {/* Profile Settings */}
           <div className="lg:col-span-2">
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
+            <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/10 hover:shadow-3xl transition-duration-300">
               <div className="flex items-center space-x-3 mb-6">
                 <User className="h-6 w-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Profile Settings</h2>
+                <h2 className="text-2xl font-bold text-white">Profile Settings</h2>
               </div>
 
               {/* Success/Error Messages */}
@@ -227,41 +227,41 @@ export const UserSettings: React.FC = () => {
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
                     Full Name
                   </label>
                   <input
                     type="text"
                     value={profileForm.full_name}
                     onChange={(e) => handleInputChange('full_name', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400/50 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-lg"
                     placeholder="Enter your full name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
                     Email Address
                   </label>
                   <input
                     type="email"
                     value={profileForm.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400/50 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-lg"
                     placeholder="Enter your email"
                   />
                 </div>
 
                 {/* Password Change Section */}
                 <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
                     <Lock className="h-5 w-5" />
                     <span>Change Password</span>
                   </h3>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
                         Current Password
                       </label>
                       <div className="relative">
@@ -269,7 +269,7 @@ export const UserSettings: React.FC = () => {
                           type={showPassword ? "text" : "password"}
                           value={profileForm.current_password}
                           onChange={(e) => handleInputChange('current_password', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400/50 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-lg pr-10"
                           placeholder="Enter current password"
                         />
                         <button
@@ -278,29 +278,29 @@ export const UserSettings: React.FC = () => {
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
                         >
                           {showPassword ? (
-                            <EyeOff className="h-4 w-4 text-gray-400" />
+                            <EyeOff className="h-4 w-4 text-gray-300" />
                           ) : (
-                            <Eye className="h-4 w-4 text-gray-400" />
+                            <Eye className="h-4 w-4 text-gray-300" />
                           )}
                         </button>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
                         New Password
                       </label>
                       <input
                         type="password"
                         value={profileForm.new_password}
                         onChange={(e) => handleInputChange('new_password', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400/50 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-lg"
                         placeholder="Enter new password"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
                         Confirm New Password
                       </label>
                       <div className="relative">
@@ -308,7 +308,7 @@ export const UserSettings: React.FC = () => {
                           type={showConfirmPassword ? "text" : "password"}
                           value={profileForm.confirm_password}
                           onChange={(e) => handleInputChange('confirm_password', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400/50 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-lg pr-10"
                           placeholder="Confirm new password"
                         />
                         <button
@@ -317,9 +317,9 @@ export const UserSettings: React.FC = () => {
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
                         >
                           {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4 text-gray-400" />
+                            <EyeOff className="h-4 w-4 text-gray-300" />
                           ) : (
-                            <Eye className="h-4 w-4 text-gray-400" />
+                            <Eye className="h-4 w-4 text-gray-300" />
                           )}
                         </button>
                       </div>
@@ -332,7 +332,7 @@ export const UserSettings: React.FC = () => {
                   <button
                     onClick={handleSaveProfile}
                     disabled={isSaving}
-                    className="w-full bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] transform hover:ring-2 hover:ring-blue-400/50"
                   >
                     <div className="flex items-center justify-center space-x-2">
                       {isSaving ? (
@@ -351,27 +351,27 @@ export const UserSettings: React.FC = () => {
           {/* Usage Stats Sidebar */}
           <div className="space-y-6">
             {/* Account Info */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl">
+            <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 shadow-2xl border border-white/10 hover:shadow-3xl transition-duration-300">
               <div className="flex items-center space-x-3 mb-4">
                 <Shield className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Account Info</h3>
+                <h3 className="text-lg font-semibold text-white">Account Info</h3>
               </div>
-              <div className="space-y-3 text-sm">
+              <div className="space-y-4 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Username:</span>
-                  <span className="font-medium">{currentUser?.username}</span>
+                  <span className="text-gray-300">Username:</span>
+                  <span className="font-medium text-white">{currentUser?.username}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Role:</span>
-                  <span className="font-medium">{currentUser?.role?.name || 'User'}</span>
+                  <span className="text-gray-300">Role:</span>
+                  <span className="font-medium text-white">{currentUser?.role?.name || 'User'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Department:</span>
-                  <span className="font-medium">{currentUser?.department?.name || 'Not assigned'}</span>
+                  <span className="text-gray-300">Department:</span>
+                  <span className="font-medium text-white">{currentUser?.department?.name || 'Not assigned'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Status:</span>
-                  <span className={`font-medium ${currentUser?.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className="text-gray-300">Status:</span>
+                  <span className={`font-medium ${currentUser?.is_active ? 'text-green-400' : 'text-red-400'}`}>
                     {currentUser?.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -379,37 +379,37 @@ export const UserSettings: React.FC = () => {
             </div>
 
             {/* Usage Statistics */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl">
+            <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 shadow-2xl border border-white/10 hover:shadow-3xl transition-duration-300">
               <div className="flex items-center space-x-3 mb-4">
                 <BarChart3 className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Usage This Month</h3>
+                <h3 className="text-lg font-semibold text-white">Usage This Month</h3>
               </div>
               <div className="space-y-4">
                 {isUsageLoading ? (
-                  <div className="text-center text-gray-500">Loading usage stats...</div>
+                  <div className="text-center text-gray-300">Loading usage stats...</div>
                 ) : usageError ? (
-                  <div className="text-center text-red-600">{usageError}</div>
+                  <div className="text-center text-red-400">{usageError}</div>
                 ) : usageStats ? (
                   <>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{usageStats.requests.total}</div>
-                      <div className="text-sm text-gray-600">AI Requests</div>
+                      <div className="text-2xl font-bold text-blue-300">{usageStats.requests.total}</div>
+                      <div className="text-sm text-gray-300">AI Requests</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-teal-600">{usageStats.tokens.total.toLocaleString()}</div>
-                      <div className="text-sm text-gray-600">Tokens Used</div>
+                      <div className="text-2xl font-bold text-teal-300">{usageStats.tokens.total.toLocaleString()}</div>
+                      <div className="text-sm text-gray-300">Tokens Used</div>
                     </div>
                     <div className="border-t pt-4">
-                      <div className="text-sm text-gray-600 mb-1">Favorite Provider:</div>
+                      <div className="text-sm text-gray-300 mb-1">Favorite Provider:</div>
                       <div className="font-medium">{usageStats.favorite_provider || 'N/A'}</div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-600 mb-1">Last Activity:</div>
-                      <div className="font-medium text-green-600">{usageStats.last_activity || 'N/A'}</div>
+                      <div className="text-sm text-gray-300 mb-1">Last Activity:</div>
+                      <div className="font-medium text-green-400">{usageStats.last_activity || 'N/A'}</div>
                     </div>
                   </>
                 ) : (
-                  <div className="text-center text-gray-500">No usage data available.</div>
+                  <div className="text-center text-gray-300">No usage data available.</div>
                 )}
               </div>
             </div>
@@ -418,10 +418,16 @@ export const UserSettings: React.FC = () => {
 
         {/* Intercorp Branding Footer */}
         <div className="text-center mt-12">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 max-w-md mx-auto border border-white/20">
-            <p className="text-white/80 text-sm">
-              Powered by <span className="font-semibold">Intercorp Retail</span> & <span className="font-semibold">InDigital XP</span>
+          <div className="relative bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-3xl mx-auto border border-white/10 shadow-2xl overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10 rounded-3xl pointer-events-none" />
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative">
+            <p className="text-lg text-white/90 font-medium">
+              Powered by <span className="font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Intercorp Retail</span> & <span className="font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">InDigital XP</span>
             </p>
+            </div>
           </div>
         </div>
       </main>

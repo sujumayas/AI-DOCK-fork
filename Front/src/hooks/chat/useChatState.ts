@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChatMessage, ChatServiceError, StreamingChatRequest, ChatResponse } from '../../types/chat';
 import { AssistantSummary } from '../../types/assistant';
+import { ProjectDetails } from '../../types/project';
 import { chatService } from '../../services/chatService';
 import { useStreamingChat } from '../../utils/streamingStateManager';
 import type { FileAttachment } from '../../types/file';
@@ -15,6 +16,8 @@ export interface ChatStateConfig {
   selectedModelId: string | null;
   selectedAssistantId: number | null;
   selectedAssistant: AssistantSummary | null;
+  selectedProjectId: number | null;
+  selectedProject: ProjectDetails | null;
   currentConversationId: number | null;
 }
 
@@ -112,17 +115,33 @@ export const useChatState = (config: ChatStateConfig): ChatStateReturn => {
         })
       };
       
-      // 🤖 Prepare messages with system prompt if assistant selected
+      // 🤖 Prepare messages with system prompts
       let messagesWithSystemPrompt = [userMessage];
-      if (selectedAssistant) {
-        const systemMessage: ChatMessage = {
+      
+      // Add project system prompt if available
+      if (config.selectedProject?.system_prompt) {
+        const projectSystemMessage: ChatMessage = {
           role: 'system',
-          content: selectedAssistant.system_prompt_preview
+          content: config.selectedProject.system_prompt,
+          projectId: config.selectedProjectId || undefined,
+          projectName: config.selectedProject.name
         };
-        messagesWithSystemPrompt = [systemMessage, ...messages, userMessage];
-      } else {
-        messagesWithSystemPrompt = [...messages, userMessage];
+        messagesWithSystemPrompt = [projectSystemMessage];
       }
+      
+      // Add assistant system prompt if available
+      if (selectedAssistant) {
+        const assistantSystemMessage: ChatMessage = {
+          role: 'system',
+          content: selectedAssistant.system_prompt_preview,
+          assistantId: selectedAssistantId || undefined,
+          assistantName: selectedAssistant.name
+        };
+        messagesWithSystemPrompt = [...messagesWithSystemPrompt, assistantSystemMessage];
+      }
+      
+      // Add conversation history and new message
+      messagesWithSystemPrompt = [...messagesWithSystemPrompt, ...messages, userMessage];
       
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
@@ -143,6 +162,7 @@ export const useChatState = (config: ChatStateConfig): ChatStateReturn => {
         model: selectedModelId || undefined,
         file_attachment_ids: fileAttachmentIds,
         assistant_id: selectedAssistantId || undefined,
+        project_id: config.selectedProjectId || undefined,
         conversation_id: currentConversationId || undefined
       };
       
@@ -198,6 +218,7 @@ export const useChatState = (config: ChatStateConfig): ChatStateReturn => {
         model: selectedModelId || undefined,
         file_attachment_ids: fileAttachmentIds,
         assistant_id: selectedAssistantId || undefined,
+        project_id: config.selectedProjectId || undefined,
         conversation_id: currentConversationId || undefined
       });
       
@@ -205,7 +226,9 @@ export const useChatState = (config: ChatStateConfig): ChatStateReturn => {
         role: 'assistant',
         content: response.content,
         assistantId: selectedAssistantId || undefined,
-        assistantName: selectedAssistant?.name || undefined
+        assistantName: selectedAssistant?.name || undefined,
+        projectId: config.selectedProjectId || undefined,
+        projectName: config.selectedProject?.name || undefined
       };
       
       setMessages([...updatedMessages, aiMessage]);

@@ -214,11 +214,11 @@ const AdminSettings: React.FC = () => {
    * Render loading state
    */
   const renderLoading = useCallback(() => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading admin dashboard...</p>
-        <p className="text-sm text-gray-400 mt-2">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 flex items-center justify-center">
+      <div className="text-center bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 shadow-2xl">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-6"></div>
+        <p className="text-xl text-white font-medium">Loading admin dashboard...</p>
+        <p className="text-sm text-blue-200 mt-3">
           Verifying admin privileges and loading data
         </p>
       </div>
@@ -229,18 +229,18 @@ const AdminSettings: React.FC = () => {
    * Render error state
    */
   const renderError = useCallback(() => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6 text-center">
-        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 flex items-center justify-center">
+      <div className="max-w-md w-full bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 shadow-2xl text-center">
+        <div className="w-20 h-20 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-4 ring-red-500/20">
+          <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
         </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-        <p className="text-gray-600 mb-4">{error}</p>
+        <h2 className="text-2xl font-bold text-white mb-3">Access Denied</h2>
+        <p className="text-blue-200 mb-6">{error}</p>
         <button
           onClick={handleLogout}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+          className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform hover:ring-2 hover:ring-blue-400/50"
         >
           Back to Login
         </button>
@@ -252,12 +252,12 @@ const AdminSettings: React.FC = () => {
    * Render admin header with user info and navigation
    */
   const renderHeader = useCallback(() => (
-    <div className="bg-white/10 backdrop-blur-sm shadow-sm border-b border-white/20">
+    <div className="bg-white/5 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           {/* Left side - Title and admin info */}
           <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">Admin Dashboard</h1>
             {currentAdmin && (
               <span className="text-sm text-blue-200">
                 Welcome, {currentAdmin.full_name || currentAdmin.username}
@@ -270,8 +270,8 @@ const AdminSettings: React.FC = () => {
             {/* Dashboard navigation button */}
             <button
               onClick={handleBackToDashboard}
-              className="flex items-center space-x-2 px-3 py-1.5 text-sm font-medium text-white bg-white/20 hover:bg-white/30 rounded-md transition-all duration-200 backdrop-blur-sm"
               title="Back to Dashboard"
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300 backdrop-blur-lg hover:scale-105 transform"
             >
               <Home className="w-4 h-4" />
               <span>Dashboard</span>
@@ -293,7 +293,7 @@ const AdminSettings: React.FC = () => {
    * Render tab navigation
    */
   const renderTabs = useCallback(() => (
-    <div className="bg-white/5 backdrop-blur-sm border-b border-white/20">
+    <div className="bg-white/5 backdrop-blur-lg border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex space-x-8">
           {tabs.map((tab) => (
@@ -359,30 +359,30 @@ const AdminSettings: React.FC = () => {
               <span>⚙️</span>
               <span>System Settings</span>
             </h2>
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-6">
+            <div className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/10 p-8 hover:shadow-3xl transition-duration-300">
               <div className="space-y-6">
                 
                 {/* Server Configuration Section */}
                 <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                  <h3 className="text-base font-semibold text-white mb-3 flex items-center space-x-2">
                     <span>🖥️</span>
                     <span>Server Configuration</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-1">API Base URL</label>
-                      <div className="text-sm text-gray-400">http://localhost:8000</div>
+                    <div className="bg-white/5 backdrop-blur-lg p-4 rounded-xl border border-white/10">
+                      <label className="block text-sm font-medium text-gray-300 mb-1">API Base URL</label>
+                      <div className="text-sm text-blue-200">http://localhost:8000</div>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Environment</label>
-                      <div className="text-sm text-gray-400">Development</div>
+                    <div className="bg-white/5 backdrop-blur-lg p-4 rounded-xl border border-white/10">
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Environment</label>
+                      <div className="text-sm text-blue-200">Development</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Security Settings Section */}
                 <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                  <h3 className="text-base font-semibold text-white mb-3 flex items-center space-x-2">
                     <span>🔒</span>
                     <span>Security Settings</span>
                   </h3>
@@ -392,21 +392,21 @@ const AdminSettings: React.FC = () => {
                         <div className="text-sm font-medium text-gray-500">Session Timeout</div>
                         <div className="text-xs text-gray-400">Auto-logout after inactivity</div>
                       </div>
-                      <div className="text-sm text-gray-400">24 hours</div>
+                      <div className="text-sm text-blue-200">24 hours</div>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
                         <div className="text-sm font-medium text-gray-500">Two-Factor Authentication</div>
                         <div className="text-xs text-gray-400">Require 2FA for admin accounts</div>
                       </div>
-                      <div className="text-sm text-gray-400">Disabled</div>
+                      <div className="text-sm text-blue-200">Disabled</div>
                     </div>
                   </div>
                 </div>
 
                 {/* System Monitoring Section */}
                 <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                  <h3 className="text-base font-semibold text-white mb-3 flex items-center space-x-2">
                     <span>📊</span>
                     <span>System Monitoring</span>
                   </h3>
@@ -427,12 +427,12 @@ const AdminSettings: React.FC = () => {
                 </div>
 
                 {/* Coming Soon Notice */}
-                <div className="text-center py-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-lg">⚙️</span>
+                <div className="text-center py-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 ring-4 ring-white/10">
+                    <span className="text-2xl">⚙️</span>
                   </div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Configuration Panel Coming Soon</h4>
-                  <p className="text-xs text-gray-500">
+                  <h4 className="text-lg font-semibold text-white mb-2">Configuration Panel Coming Soon</h4>
+                  <p className="text-sm text-blue-200">
                     These settings will be configurable in a future update
                   </p>
                 </div>
@@ -463,7 +463,7 @@ const AdminSettings: React.FC = () => {
 
   // Main admin interface
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950">
       {renderHeader()}
       {renderTabs()}
       {renderTabContent()}

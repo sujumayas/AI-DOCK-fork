@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 from ..models.conversation import Conversation, ConversationMessage
 from ..models.user import User
 from ..models.llm_config import LLMConfiguration
+from ..models.project import Project
 from ..core.database import get_async_db
 
 class ConversationService:
@@ -26,7 +27,8 @@ class ConversationService:
         user_id: int,
         title: str,
         llm_config_id: Optional[int] = None,
-        model_used: Optional[str] = None  # Keep parameter for backward compatibility but ignore it
+        model_used: Optional[str] = None,  # Keep parameter for backward compatibility but ignore it
+        project_id: Optional[int] = None
     ) -> Conversation:
         """Create a new conversation"""
         try:
@@ -38,6 +40,12 @@ class ConversationService:
                 is_active=True
                 # 🔧 FIXED: No longer setting model_used per user request
             )
+            
+            # Link to project if specified
+            if project_id:
+                project = await self.get_project(db, project_id, user_id)
+                if project:
+                    project.add_conversation(conversation)
             
             db.add(conversation)
             await db.commit()
@@ -75,14 +83,19 @@ class ConversationService:
         db: AsyncSession,
         user_id: int,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
+        project_id: Optional[int] = None
     ) -> List[Conversation]:
         """Get user's conversations with pagination"""
-        stmt = select(Conversation).where(
-            Conversation.user_id == user_id
-        ).order_by(
-            desc(Conversation.updated_at)
-        ).offset(offset).limit(limit)
+        base_query = select(Conversation).where(Conversation.user_id == user_id)
+        
+        if project_id:
+            # Filter by project if specified
+            project = await self.get_project(db, project_id, user_id)
+            if project:
+                base_query = base_query.join(Conversation.projects).where(Project.id == project_id)
+        
+        stmt = base_query.order_by(desc(Conversation.updated_at)).offset(offset).limit(limit)
         
         result = await db.execute(stmt)
         return result.scalars().all()
@@ -379,6 +392,100 @@ class ConversationService:
         except Exception as e:
             logger.error(f"Failed to get conversation stats for user {user_id}: {e}")
             raise
+
+    async def get_project(
+        self,
+        db: AsyncSession,
+        project_id: int,
+        user_id: int
+    ) -> Optional[Project]:
+        """Get project by ID and validate user access"""
+        try:
+            stmt = select(Project).where(
+                and_(
+                    Project.id == project_id,
+                    Project.user_id == user_id,
+                    Project.is_active == True
+                )
+            )
+            result = await db.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"Failed to get project {project_id} for user {user_id}: {e}")
+            return None
+    
+    async def get_conversation_system_prompt(
+        self,
+        db: AsyncSession,
+        conversation_id: int,
+        user_id: int
+    ) -> Optional[str]:
+        """Get system prompt for conversation from project or assistant"""
+        try:
+            conversation = await self.get_conversation(db, conversation_id, user_id)
+            if not conversation:
+                return None
+            
+            # Check project first
+            if conversation.projects:
+                project = conversation.projects[0]  # Use first project's prompt
+                if project.system_prompt:
+                    return project.system_prompt
+            
+            # Fallback to assistant prompt if available
+            return conversation.get_system_prompt()
+            
+        except Exception as e:
+            logger.error(f"Failed to get system prompt for conversation {conversation_id}: {e}")
+            return None
+
+    async def link_conversation_to_project(
+        self,
+        db: AsyncSession,
+        conversation_id: int,
+        project_id: int,
+        user_id: int
+    ) -> bool:
+        """Link a conversation to a project"""
+        try:
+            conversation = await self.get_conversation(db, conversation_id, user_id)
+            project = await self.get_project(db, project_id, user_id)
+            
+            if not conversation or not project:
+                return False
+            
+            project.add_conversation(conversation)
+            await db.commit()
+            return True
+            
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to link conversation {conversation_id} to project {project_id}: {e}")
+            return False
+
+    async def unlink_conversation_from_project(
+        self,
+        db: AsyncSession,
+        conversation_id: int,
+        project_id: int,
+        user_id: int
+    ) -> bool:
+        """Unlink a conversation from a project"""
+        try:
+            conversation = await self.get_conversation(db, conversation_id, user_id)
+            project = await self.get_project(db, project_id, user_id)
+            
+            if not conversation or not project:
+                return False
+            
+            project.remove_conversation(conversation)
+            await db.commit()
+            return True
+            
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to unlink conversation {conversation_id} from project {project_id}: {e}")
+            return False
 
 # Create service instance
 conversation_service = ConversationService()
