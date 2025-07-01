@@ -264,58 +264,149 @@ export function createConversationSummary(
     title: savedConversation.title,
     message_count: messageCount,
     created_at: savedConversation.created_at || new Date().toISOString(),
-    updated_at: savedConversation.updated_at || new Date().toISOString()
+    updated_at: savedConversation.updated_at || new Date().toISOString(),
+    last_message_at: savedConversation.last_message_at || new Date().toISOString()
   };
 }
 
 /**
- * Format timestamp for conversation display with enhanced precision
+ * Format timestamp for conversation display with enhanced precision and debugging
  * 
  * Requirements:
+ * - "Just now" for < 30 seconds
+ * - "< 1m ago" for 30 seconds to 1 minute  
  * - Specific minutes up to 1h (1m, 2m, ..., 59m)
  * - Increments of 1h until yesterday (1h, 2h, ..., 23h)  
  * - Yesterday with exact time (Yesterday 3:45 PM)
  * - After that: date and time (Dec 15, 3:45 PM or Dec 15, 2023, 3:45 PM)
+ * 
+ * ENHANCED: Better error handling, debugging, and timestamp format support
  */
-export function formatConversationTimestamp(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  
-  // Check if it's yesterday
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-  
-  // Check if it's today
-  const isToday = date.toDateString() === now.toDateString();
-  
-  if (diffMinutes < 1) {
-    return 'Just now';
-  } else if (diffMinutes < 60) {
-    // Specific minutes up to 1 hour
-    return `${diffMinutes}m ago`;
-  } else if (isToday) {
-    // Increments of 1 hour for today
-    return `${diffHours}h ago`;
-  } else if (isYesterday) {
-    // Yesterday with exact time
-    return `Yesterday ${date.toLocaleTimeString([], { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    })}`;
-  } else {
-    // Date and time for older conversations
-    return date.toLocaleDateString([], { 
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
+export function formatConversationTimestamp(dateString: string | null | undefined): string {
+  // Handle missing or invalid timestamps
+  if (!dateString) {
+    console.warn('⚠️ formatConversationTimestamp: No dateString provided');
+    return 'Unknown time';
+  }
+
+  try {
+    // Handle different timestamp formats and ensure proper parsing
+    let date: Date;
+    
+    // Ensure proper ISO string format for parsing
+    const cleanDateString = typeof dateString === 'string' ? dateString.trim() : String(dateString);
+    
+    // Handle potential timezone issues by ensuring Z suffix for UTC timestamps
+    const isoDateString = cleanDateString.includes('T') && !cleanDateString.includes('Z') && !cleanDateString.includes('+')
+      ? `${cleanDateString}Z`
+      : cleanDateString;
+    
+    date = new Date(isoDateString);
+    
+    const now = new Date();
+    
+    // 🔧 FIX: Validate the date and provide comprehensive debugging info
+    if (isNaN(date.getTime())) {
+      console.error('❌ Invalid date for timestamp formatting:', {
+        originalInput: dateString,
+        type: typeof dateString,
+        length: dateString ? String(dateString).length : 0,
+        parseAttempt: date.toString()
+      });
+      return 'Invalid time';
+    }
+    
+    // Calculate time differences for formatting
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    // Debug logging for troubleshooting (only when in development)
+    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) { // Random sampling to avoid spam
+      console.log('🕒 Timestamp formatting debug:', {
+        input: dateString,
+        parsed: date.toISOString(),
+        now: now.toISOString(),
+        diffMs,
+        diffMinutes,
+        diffHours,
+        diffDays,
+        isToday: date.toDateString() === now.toDateString(),
+        isYesterday: (() => {
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return date.toDateString() === yesterday.toDateString();
+        })()
+      });
+    }
+    
+    // Handle future timestamps (clock skew protection)
+    if (diffMs < 0) {
+      const futureMs = Math.abs(diffMs);
+      if (futureMs < 60000) { // Less than 1 minute in the future
+        return 'Just now'; // Treat minor clock skew as "just now"
+      }
+      console.warn('⚠️ Future timestamp detected:', {
+        dateString,
+        parsed: date.toISOString(),
+        now: now.toISOString(),
+        futureBy: `${Math.floor(futureMs / 1000)}s`
+      });
+      return 'Just now'; // Fallback for future timestamps
+    }
+    
+    // Check if it's yesterday
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+    
+    // Check if it's today
+    const isToday = date.toDateString() === now.toDateString();
+    
+    // 🔧 ENHANCED: More precise timing for better user experience
+    if (diffMs < 30000) {
+      // Less than 30 seconds
+      return 'Just now';
+    } else if (diffMinutes < 1) {
+      // Between 30 seconds and 1 minute
+      return '< 1m ago';
+    } else if (diffMinutes < 60) {
+      // 1-59 minutes ago
+      return `${diffMinutes}m ago`;
+    } else if (isToday && diffHours < 24) {
+      // Today, show hours
+      return `${diffHours}h ago`;
+    } else if (isYesterday) {
+      // Yesterday with exact time
+      return `Yesterday ${date.toLocaleTimeString([], { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      })}`;
+    } else {
+      // Date and time for older conversations
+      const options: Intl.DateTimeFormatOptions = { 
+        month: 'short', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      };
+      
+      // Add year if it's not current year
+      if (date.getFullYear() !== now.getFullYear()) {
+        options.year = 'numeric';
+      }
+      
+      return date.toLocaleDateString([], options);
+    }
+  } catch (error) {
+    console.error('💥 Error formatting conversation timestamp:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      input: dateString,
+      type: typeof dateString
     });
+    return 'Time error';
   }
 }

@@ -29,11 +29,14 @@ import {
   AssistantServiceError,
   ASSISTANT_API_DEFAULTS 
 } from '../../types/assistant';
+import { Assistant } from '../../types/assistant';
 
 interface EmbeddedAssistantManagerProps {
   selectedAssistantId: number | null;
   onAssistantSelect: (assistantId: number | null) => void;
   onAssistantChange: () => void; // Callback when assistants are modified
+  onAssistantUpdated?: (assistantId: number) => void; // Callback when a specific assistant is updated
+  isStreaming?: boolean; // Whether chat is currently streaming
   className?: string;
 }
 
@@ -65,6 +68,8 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
   selectedAssistantId,
   onAssistantSelect,
   onAssistantChange,
+  onAssistantUpdated,
+  isStreaming = false,
   className = ''
 }) => {
   // Component state
@@ -80,7 +85,7 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
   // Modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [assistantToEdit, setAssistantToEdit] = useState<AssistantSummary | null>(null);
+  const [assistantToEdit, setAssistantToEdit] = useState<Assistant | null>(null);
 
   /**
    * Load assistants from API
@@ -151,15 +156,44 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
   /**
    * Handle editing an assistant
    */
-  const handleEditAssistant = useCallback((assistant: AssistantSummary) => {
-    setAssistantToEdit(assistant);
-    setIsEditModalOpen(true);
-  }, []);
+  const handleEditAssistant = useCallback(async (assistant: AssistantSummary) => {
+    // 🚫 Prevent editing while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot edit assistant while streaming is active');
+      return;
+    }
+    
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      // Fetch full assistant data for editing
+      const fullAssistant = await assistantService.getAssistant(assistant.id);
+      setAssistantToEdit(fullAssistant);
+      setIsEditModalOpen(true);
+      
+    } catch (error) {
+      console.error('❌ Failed to load assistant for editing:', error);
+      setState(prev => ({
+        ...prev,
+        error: error instanceof AssistantServiceError 
+          ? error.message 
+          : 'Failed to load assistant for editing'
+      }));
+    } finally {
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  }, [isStreaming]);
 
   /**
    * Handle deleting an assistant
    */
   const handleDeleteAssistant = useCallback(async (assistant: AssistantSummary) => {
+    // 🚫 Prevent deleting while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot delete assistant while streaming is active');
+      return;
+    }
+    
     const confirmDelete = window.confirm(
       `Are you sure you want to delete "${assistant.name}"? This action cannot be undone.`
     );
@@ -198,7 +232,7 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
         isLoading: false
       }));
     }
-  }, [selectedAssistantId, handleSelectAssistant, onAssistantChange]);
+  }, [selectedAssistantId, handleSelectAssistant, onAssistantChange, isStreaming]);
 
   /**
    * Handle successful assistant creation
@@ -213,11 +247,22 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
    * Handle successful assistant update
    */
   const handleAssistantUpdated = useCallback(() => {
+    const updatedAssistantId = assistantToEdit?.id;
+    
     setIsEditModalOpen(false);
     setAssistantToEdit(null);
     loadAssistants();
-    onAssistantChange();
-  }, [loadAssistants, onAssistantChange]);
+    
+    // If the updated assistant is currently selected, trigger re-introduction
+    if (updatedAssistantId && selectedAssistantId === updatedAssistantId && onAssistantUpdated) {
+      console.log('🤖 Triggering re-introduction for updated assistant:', updatedAssistantId);
+      onAssistantUpdated(updatedAssistantId);
+    } else {
+      // Only call onAssistantChange if the updated assistant is NOT currently selected
+      // This prevents duplicate introduction messages for the selected assistant
+      onAssistantChange();
+    }
+  }, [loadAssistants, onAssistantChange, onAssistantUpdated, assistantToEdit, selectedAssistantId]);
 
   /**
    * Toggle expanded state
@@ -259,6 +304,9 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
               <h3 className="font-medium text-white">Custom Assistants</h3>
               <p className="text-xs text-blue-100">
                 {stats.total} assistants • {stats.active} active
+                {isStreaming && (
+                  <span className="ml-2 text-yellow-200">• Editing disabled while streaming</span>
+                )}
               </p>
             </div>
           </div>
@@ -267,8 +315,13 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
             {/* Create button */}
             <button
               onClick={handleCreateAssistant}
-              className="px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium rounded-md transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-              title="Create new assistant"
+              disabled={isStreaming}
+              className={`px-3 py-2 font-medium rounded-md transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg ${
+                isStreaming
+                  ? 'bg-gray-500/50 text-gray-300 cursor-not-allowed opacity-50'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
+              }`}
+              title={isStreaming ? "Cannot create assistants while streaming" : "Create new assistant"}
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline text-sm">Create</span>
@@ -410,9 +463,13 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
                     >
                       <div className="flex items-start space-x-3">
                         <div className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                          assistant.is_active 
-                            ? 'bg-blue-500/20 text-blue-600' 
-                            : 'bg-gray-500/20 text-gray-500'
+                          selectedAssistantId === assistant.id
+                            ? assistant.is_active 
+                              ? 'bg-white/20 text-white border border-white/30' 
+                              : 'bg-gray-200/20 text-gray-200 border border-gray-300/30'
+                            : assistant.is_active 
+                              ? 'bg-blue-500/20 text-blue-600' 
+                              : 'bg-gray-500/20 text-gray-500'
                         }`}>
                           <Bot className="w-4 h-4" />
                         </div>
@@ -420,26 +477,21 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
                           <div className="flex items-center space-x-2">
                             <h4 className="font-medium text-sm truncate">{assistant.name}</h4>
                             {!assistant.is_active && (
-                              <span className="text-xs bg-gray-500/20 text-gray-500 px-2 py-0.5 rounded">
+                              <span className={`text-xs px-2 py-0.5 rounded ${
+                                selectedAssistantId === assistant.id
+                                  ? 'bg-gray-200/20 text-gray-200'
+                                  : 'bg-gray-500/20 text-gray-500'
+                              }`}>
                                 Inactive
                               </span>
                             )}
                             {selectedAssistantId === assistant.id && (
-                              <CheckCircle className="w-4 h-4 text-blue-300 flex-shrink-0" />
+                              <CheckCircle className="w-4 h-4 text-green-300 flex-shrink-0" />
                             )}
                           </div>
                           <p className="text-xs opacity-70 truncate mt-1">
                             {assistant.description || 'No description'}
                           </p>
-                          <div className="flex items-center space-x-3 mt-2 text-xs opacity-60">
-                            <span className="flex items-center space-x-1">
-                              <MessageSquare className="w-3 h-3" />
-                              <span>{assistant.conversation_count}</span>
-                            </span>
-                            <span>
-                              Updated {new Date(assistant.updated_at).toLocaleDateString()}
-                            </span>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -448,15 +500,29 @@ export const EmbeddedAssistantManager: React.FC<EmbeddedAssistantManagerProps> =
                     <div className="flex items-center justify-end space-x-1 mt-3 pt-2 border-t border-gray-200/30">
                       <button
                         onClick={() => handleEditAssistant(assistant)}
-                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50/50 rounded transition-colors"
-                        title="Edit assistant"
+                        disabled={isStreaming}
+                        className={`p-1.5 rounded transition-colors ${
+                          isStreaming
+                            ? 'text-gray-400 cursor-not-allowed opacity-50'
+                            : selectedAssistantId === assistant.id
+                              ? 'text-blue-200 hover:text-white hover:bg-blue-400/30 border border-blue-300/50'
+                              : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50/50'
+                        }`}
+                        title={isStreaming ? "Cannot edit while streaming" : "Edit assistant"}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteAssistant(assistant)}
-                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50/50 rounded transition-colors"
-                        title="Delete assistant"
+                        disabled={isStreaming}
+                        className={`p-1.5 rounded transition-colors ${
+                          isStreaming
+                            ? 'text-gray-400 cursor-not-allowed opacity-50'
+                            : selectedAssistantId === assistant.id
+                              ? 'text-red-200 hover:text-white hover:bg-red-400/30 border border-red-300/50'
+                              : 'text-red-500 hover:text-red-600 hover:bg-red-50/50'
+                        }`}
+                        title={isStreaming ? "Cannot delete while streaming" : "Delete assistant"}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

@@ -44,6 +44,55 @@
   .message-input-textarea [style*="color"] {
     color: #1f2937 !important;
   }
+
+  /* 🛡️ MESSAGE BUBBLE PASTE PROTECTION: Force consistent text colors in chat messages */
+  /* User messages (white text) */
+  [data-message-role="user"] *,
+  [data-message-role="user"] p,
+  [data-message-role="user"] span,
+  [data-message-role="user"] div,
+  [data-message-role="user"] strong,
+  [data-message-role="user"] em,
+  [data-message-role="user"] li,
+  [data-message-role="user"] [style*="color"] {
+    color: #ffffff !important;
+  }
+  
+  /* AI Assistant messages (dark gray text) */
+  [data-message-role="assistant"] *,
+  [data-message-role="assistant"] p,
+  [data-message-role="assistant"] span,
+  [data-message-role="assistant"] div,
+  [data-message-role="assistant"] strong,
+  [data-message-role="assistant"] em,
+  [data-message-role="assistant"] li,
+  [data-message-role="assistant"] [style*="color"] {
+    color: #1f2937 !important;
+  }
+  
+  /* System messages (light blue text) */
+  [data-message-role="system"] *,
+  [data-message-role="system"] p,
+  [data-message-role="system"] span,
+  [data-message-role="system"] div,
+  [data-message-role="system"] strong,
+  [data-message-role="system"] em,
+  [data-message-role="system"] li,
+  [data-message-role="system"] [style*="color"] {
+    color: #dbeafe !important;
+  }
+  
+  /* Extra protection for any unknown message types - default to dark gray */
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) *,
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) p,
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) span,
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) div,
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) strong,
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) em,
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) li,
+  [data-message-role]:not([data-message-role="user"]):not([data-message-role="system"]) [style*="color"] {
+    color: #1f2937 !important;
+  }
   
   /* Custom scrollbar styles for conversation sidebar */
   .conversation-scrollbar {

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 # Import our dependencies
 from ...core.database import get_async_db
@@ -120,8 +121,18 @@ async def get_user_usage(
         Detailed user usage statistics
     """
     try:
-        # Verify user exists
-        user = await session.get(User, user_id)
+        # 🔧 FIX: Eagerly load relationships to prevent SQLAlchemy async errors
+        from sqlalchemy import select
+        
+        # Verify user exists and load with relationships
+        stmt = select(User).options(
+            selectinload(User.role),
+            selectinload(User.department)
+        ).where(User.id == user_id)
+        
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -132,15 +143,16 @@ async def get_user_usage(
         # Get user usage summary
         user_summary = await usage_service.get_user_usage_summary(user_id, start_date, end_date)
         
-        # Add user information to the response
+        # 🔧 FIX: Access relationship attributes directly instead of calling methods
+        # that could trigger lazy loading outside async context
         user_summary.update({
             "user_info": {
                 "id": user.id,
                 "email": user.email,
                 "username": user.username,
                 "full_name": user.full_name,
-                "department": user.get_department_name(),
-                "role": user.get_role_name()
+                "department": user.department.name if user.department else "No Department",
+                "role": user.role.name if user.role else "No Role"
             }
         })
         

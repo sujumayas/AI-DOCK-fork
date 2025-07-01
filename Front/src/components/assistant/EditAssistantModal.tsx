@@ -67,7 +67,6 @@ export const EditAssistantModal: React.FC<EditAssistantModalProps> = ({
     
     // UI state
     showAdvancedSettings,
-    showSystemPromptPreview,
     
     // Actions
     handleInputChange,
@@ -76,7 +75,6 @@ export const EditAssistantModal: React.FC<EditAssistantModalProps> = ({
     resetForm,
     validateField,
     toggleAdvancedSettings,
-    toggleSystemPromptPreview,
     
     // Utilities
     hasFormChanged,
@@ -160,10 +158,8 @@ export const EditAssistantModal: React.FC<EditAssistantModalProps> = ({
               originalData={originalData}
               validationErrors={validationErrors}
               systemPromptLength={systemPromptLength}
-              showSystemPromptPreview={showSystemPromptPreview}
               onInputChange={handleInputChange}
               onFieldBlur={validateField}
-              onTogglePreview={toggleSystemPromptPreview}
             />
 
             {/* Advanced Settings Section - Extracted Component */}

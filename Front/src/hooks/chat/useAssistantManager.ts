@@ -21,7 +21,7 @@ export interface AssistantManagerState {
 }
 
 export interface AssistantManagerActions {
-  loadAvailableAssistants: () => Promise<void>;
+  loadAvailableAssistants: (isUpdate?: boolean) => Promise<void>;
   handleAssistantSelect: (assistantId: number | null) => void;
   handleAssistantChange: (assistantId: string) => void;
   handleAssistantIntroduction: (assistant: AssistantSummary, previousAssistant: AssistantSummary | null) => ChatMessage;
@@ -44,13 +44,21 @@ export const useAssistantManager = (
   const [assistantsError, setAssistantsError] = useState<string | null>(null);
   const [showAssistantManager, setShowAssistantManager] = useState(false);
   
+  // 🔧 Flag to prevent automatic introduction during manual updates
+  const [isManualUpdate, setIsManualUpdate] = useState(false);
+  
   // 🤖 Load available assistants
-  const loadAvailableAssistants = useCallback(async () => {
+  const loadAvailableAssistants = useCallback(async (isUpdate = false) => {
     try {
       setAssistantsLoading(true);
       setAssistantsError(null);
       
-      console.log('🤖 Loading available assistants...');
+      // 🔧 Set manual update flag to prevent automatic intro messages
+      if (isUpdate) {
+        setIsManualUpdate(true);
+      }
+      
+      console.log('🤖 Loading available assistants...', isUpdate ? '(update)' : '(initial)');
       
       const assistantsResponse = await assistantService.getActiveAssistants(50);
       
@@ -70,6 +78,11 @@ export const useAssistantManager = (
       );
     } finally {
       setAssistantsLoading(false);
+      
+      // 🔧 Clear manual update flag after a short delay
+      if (isUpdate) {
+        setTimeout(() => setIsManualUpdate(false), 100);
+      }
     }
   }, []);
   
@@ -95,31 +108,39 @@ export const useAssistantManager = (
         console.log('🤖 Selected assistant updated:', {
           id: assistant.id,
           name: assistant.name,
-          systemPromptPreview: assistant.system_prompt_preview
+          systemPromptPreview: assistant.system_prompt_preview,
+          isManualUpdate
         });
         
-        // Generate introduction message
-        const introMessage = handleAssistantIntroduction(assistant, previousAssistant);
-        if (onAssistantMessage) {
-          onAssistantMessage(introMessage);
+        // 🔧 Only generate introduction message if this is not a manual update
+        if (!isManualUpdate) {
+          // Generate introduction message
+          const introMessage = handleAssistantIntroduction(assistant, previousAssistant);
+          if (onAssistantMessage) {
+            onAssistantMessage(introMessage);
+          }
+        } else {
+          console.log('🔧 Skipping automatic introduction during manual update');
         }
       }
     } else if (!selectedAssistantId && selectedAssistant) {
-      // Generate deselection message
-      const dividerMessage: ChatMessage = {
-        role: 'system',
-        content: `Switched back to default AI chat`,
-        assistantChanged: true,
-        previousAssistantName: selectedAssistant.name
-      };
-      
-      if (onAssistantMessage) {
-        onAssistantMessage(dividerMessage);
+      // Generate deselection message (only if not a manual update)
+      if (!isManualUpdate) {
+        const dividerMessage: ChatMessage = {
+          role: 'system',
+          content: `Switched back to default AI chat`,
+          assistantChanged: true,
+          previousAssistantName: selectedAssistant.name
+        };
+        
+        if (onAssistantMessage) {
+          onAssistantMessage(dividerMessage);
+        }
       }
       
       setSelectedAssistant(null);
     }
-  }, [selectedAssistantId, availableAssistants, selectedAssistant, onAssistantMessage]);
+  }, [selectedAssistantId, availableAssistants, selectedAssistant, onAssistantMessage, isManualUpdate]);
   
   // Load assistants when component mounts
   useEffect(() => {

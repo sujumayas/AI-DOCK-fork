@@ -15,6 +15,7 @@ interface AssistantSelectorCardProps {
   className?: string;
   showTooltip?: boolean;        // NEW: Enable/disable tooltip functionality
   tooltipDelay?: number;        // NEW: Delay before showing tooltip (ms)
+  isStreaming?: boolean;        // NEW: Whether chat is currently streaming (disables changes)
 }
 
 export const AssistantSelectorCard: React.FC<AssistantSelectorCardProps> = ({
@@ -22,7 +23,8 @@ export const AssistantSelectorCard: React.FC<AssistantSelectorCardProps> = ({
   onChangeClick,
   className = '',
   showTooltip = true,           // Default: tooltip enabled
-  tooltipDelay = 500           // Default: 500ms delay
+  tooltipDelay = 500,           // Default: 500ms delay
+  isStreaming
 }) => {
   // 🎨 LEARNING: Conditional styling and content based on state
   const isDefaultChat = !selectedAssistant;
@@ -186,21 +188,29 @@ export const AssistantSelectorCard: React.FC<AssistantSelectorCardProps> = ({
           {/* 🎮 Right side: Change button */}
           <div className="flex-shrink-0 ml-3">
             <button
-              onClick={onChangeClick}
-              className="
+              onClick={isStreaming ? undefined : onChangeClick}
+              disabled={isStreaming}
+              className={`
                 px-3 md:px-4 py-2 
-                bg-white/10 hover:bg-white/20 
-                border border-white/30 hover:border-white/50
-                rounded-xl 
+                ${isStreaming 
+                  ? 'bg-gray-500/20 border-gray-400/30 cursor-not-allowed opacity-50' 
+                  : 'bg-white/10 hover:bg-white/20 border-white/30 hover:border-white/50 hover:shadow-lg hover:scale-105'
+                }
+                border rounded-xl 
                 text-white text-xs md:text-sm font-medium
                 backdrop-blur-sm
                 transition-all duration-200 
-                hover:shadow-lg hover:scale-105
                 focus:outline-none focus:ring-2 focus:ring-blue-400/50
                 touch-manipulation
                 flex items-center space-x-1 md:space-x-2
-              "
-              title={isDefaultChat ? 'Select a custom assistant' : 'Change assistant or return to default chat'}
+              `}
+              title={
+                isStreaming 
+                  ? 'Cannot change assistants while AI is responding' 
+                  : isDefaultChat 
+                    ? 'Select a custom assistant' 
+                    : 'Change assistant or return to default chat'
+              }
             >
               <Settings className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden sm:inline">Change Assistant</span>

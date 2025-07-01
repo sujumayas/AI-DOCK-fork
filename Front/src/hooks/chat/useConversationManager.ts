@@ -21,7 +21,7 @@ export interface ConversationManagerState {
   // Sidebar state
   showConversationSidebar: boolean;
   conversationRefreshTrigger: number;
-  sidebarUpdateFunction: ((id: number, count: number) => void) | null;
+  sidebarUpdateFunction: ((id: number, count: number, backendData?: Partial<any>) => void) | null;
   sidebarAddConversationFunction: ((conv: any) => void) | null;
 }
 
@@ -36,7 +36,7 @@ export interface ConversationManagerActions {
   
   // Sidebar management
   setShowConversationSidebar: (show: boolean) => void;
-  setSidebarFunctions: (updateFn: (id: number, count: number) => void, addFn: (conv: any) => void) => void;
+  setSidebarFunctions: (updateFn: (id: number, count: number, backendData?: Partial<any>) => void, addFn: (conv: any) => void) => void;
   handleAddConversationToSidebar: (conversation: any) => void;
   
   // Error handling
@@ -60,7 +60,7 @@ export const useConversationManager = (
   // 💾 Sidebar state
   const [showConversationSidebar, setShowConversationSidebar] = useState(false);
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
-  const [sidebarUpdateFunction, setSidebarUpdateFunction] = useState<((id: number, count: number) => void) | null>(null);
+  const [sidebarUpdateFunction, setSidebarUpdateFunction] = useState<((id: number, count: number, backendData?: Partial<any>) => void) | null>(null);
   const [sidebarAddConversationFunction, setSidebarAddConversationFunction] = useState<((conv: any) => void) | null>(null);
   
   // 💾 Auto-save conversation with enhanced race condition prevention
@@ -130,7 +130,8 @@ export const useConversationManager = (
               title: conversation.title,
               message_count: messages.length,
               created_at: conversation.created_at || new Date().toISOString(),
-              updated_at: conversation.updated_at || new Date().toISOString()
+              updated_at: conversation.updated_at || new Date().toISOString(),
+              last_message_at: conversation.last_message_at || new Date().toISOString()
             };
             sidebarAddConversationFunction(conversationSummary);
           } else {
@@ -142,9 +143,25 @@ export const useConversationManager = (
         }
       } else if (currentConversationId) {
         // Existing conversation was updated
-        // Update message count in sidebar
-        if (sidebarUpdateFunction) {
-          sidebarUpdateFunction(currentConversationId, messages.length);
+        // Fetch updated conversation data to get accurate timestamps
+        try {
+          const conversation = await conversationService.getConversation(currentConversationId);
+          
+          // Update sidebar with backend data including accurate timestamps
+          if (sidebarUpdateFunction) {
+            const backendData = {
+              last_message_at: conversation.last_message_at,
+              updated_at: conversation.updated_at
+            };
+            console.log('🔄 Updating sidebar with backend timestamp data:', backendData);
+            sidebarUpdateFunction(currentConversationId, messages.length, backendData);
+          }
+        } catch (error) {
+          console.error('❌ Failed to get updated conversation data:', error);
+          // Enhanced fallback: Try to provide at least some timestamp info even on error
+          // Don't call sidebar update without any timestamp data as this can cause "Just now" issues
+          console.warn('🔄 Skipping sidebar update due to failed timestamp fetch - preserving existing timestamps');
+          // The sidebar will show the correct timestamps from its existing state
         }
       }
       
@@ -211,7 +228,8 @@ export const useConversationManager = (
               title: conversation.title,
               message_count: messages.length,
               created_at: conversation.created_at || new Date().toISOString(),
-              updated_at: conversation.updated_at || new Date().toISOString()
+              updated_at: conversation.updated_at || new Date().toISOString(),
+              last_message_at: conversation.last_message_at || new Date().toISOString()
             };
             sidebarAddConversationFunction(conversationSummary);
           } else {
@@ -222,9 +240,25 @@ export const useConversationManager = (
         }
       } else if (currentConversationId) {
         // Existing conversation was updated
-        // Update message count in sidebar
-        if (sidebarUpdateFunction) {
-          sidebarUpdateFunction(currentConversationId, messages.length);
+        // Fetch updated conversation data to get accurate timestamps
+        try {
+          const conversation = await conversationService.getConversation(currentConversationId);
+          
+          // Update sidebar with backend data including accurate timestamps
+          if (sidebarUpdateFunction) {
+            const backendData = {
+              last_message_at: conversation.last_message_at,
+              updated_at: conversation.updated_at
+            };
+            console.log('🔄 Updating sidebar with backend timestamp data (manual save):', backendData);
+            sidebarUpdateFunction(currentConversationId, messages.length, backendData);
+          }
+        } catch (error) {
+          console.error('❌ Failed to get updated conversation data (manual save):', error);
+          // Enhanced fallback: Try to provide at least some timestamp info even on error
+          // Don't call sidebar update without any timestamp data as this can cause "Just now" issues
+          console.warn('🔄 Skipping sidebar update due to failed timestamp fetch - preserving existing timestamps');
+          // The sidebar will show the correct timestamps from its existing state
         }
       }
       
@@ -318,7 +352,7 @@ export const useConversationManager = (
   
   // 🔄 Set sidebar functions
   const setSidebarFunctions = useCallback((
-    updateFn: (id: number, count: number) => void, 
+    updateFn: (id: number, count: number, backendData?: Partial<any>) => void, 
     addFn: (conv: any) => void
   ) => {
     setSidebarUpdateFunction(() => updateFn);

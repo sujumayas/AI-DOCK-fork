@@ -337,8 +337,8 @@ class AssistantService:
             )
             
             # Delete the assistant (cascade will handle related records)
-            # 🔧 KEY FIX: Don't await db.delete() - it's synchronous!
-            db.delete(assistant)
+            # 🔧 CRITICAL FIX: In async SQLAlchemy, db.delete() IS async and must be awaited!
+            await db.delete(assistant)
             await db.commit()
             
             logger.info(f"Successfully deleted assistant {assistant_id}")

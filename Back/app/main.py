@@ -190,7 +190,15 @@ from .api.admin.usage_analytics import router as admin_usage_router
 app.include_router(
     admin_usage_router,
     prefix="/admin",
-    tags=["Usage Analytics"]
+    tags=["Admin Usage Analytics"]
+)
+
+# Include user usage analytics endpoints
+# This adds all /usage/* endpoints to our application
+from .api.usage_analytics import router as user_usage_router
+app.include_router(
+    user_usage_router,
+    tags=["User Usage Analytics"]
 )
 
 # Include chat endpoints

@@ -10,6 +10,13 @@ import { ChatMessage } from '../../types/chat';
 import { CodeBlock } from '../ui/CodeBlock';
 import { useAutoScroll } from '../../hooks/useAutoScroll';
 import { AssistantDivider, AssistantBadge } from '../assistant';
+// 📁 NEW: Import file-related utilities for attachment display
+import { 
+  getFileIcon, 
+  formatFileSize, 
+  messageHasFiles, 
+  getMessageFileCount 
+} from '../../types';
 
 // Props interface - what data this component needs
 interface MessageListProps {
@@ -180,9 +187,10 @@ const MarkdownContent: React.FC<{ content: string; isSystem: boolean; isThinking
                 const child = React.Children.only(children);
                 if (React.isValidElement(child) && child.type === 'code') {
                   // 🚀 Use our enhanced CodeBlock component for syntax highlighting
+                  const childProps = child.props as { className?: string; children?: string };
                   return (
-                    <CodeBlock className={child.props.className}>
-                      {child.props.children}
+                    <CodeBlock className={childProps.className}>
+                      {childProps.children || ''}
                     </CodeBlock>
                   );
                 }
@@ -227,6 +235,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message, isLas
   // Check if this is a thinking state (empty AI message)
   const isThinking = !isUser && !isSystem && (!message.content || message.content.trim() === '');
   
+  // 📁 NEW: Check if message has file attachments
+  const hasAttachments = messageHasFiles(message);
+  const fileCount = getMessageFileCount(message);
+  
   return (
     <div 
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isLast ? 'mb-3 md:mb-4' : 'mb-4 md:mb-6'}`}
@@ -248,6 +260,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message, isLas
             fontFamily: 'inherit !important',
             lineHeight: 'inherit !important'
           }}
+        data-message-role={message.role}
         >
         {/* 🤖 Assistant context indicator (only for AI messages) */}
         {!isUser && !isSystem && (
@@ -263,6 +276,39 @@ const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({ message, isLas
                 <span className="sm:hidden">AI</span>
               </div>
             )}
+          </div>
+        )}
+        
+        {/* 📁 NEW: File attachments display (for user messages with files) */}
+        {isUser && hasAttachments && message.attachments && (
+          <div className="mb-3">
+            <div className="flex items-center gap-2 text-xs text-white/80 mb-2">
+              <span>📎</span>
+              <span>{fileCount} file{fileCount !== 1 ? 's' : ''} attached:</span>
+            </div>
+            <div className="space-y-2">
+              {message.attachments.map((attachment, index) => (
+                <div
+                  key={attachment.id || index}
+                  className="flex items-center gap-2 p-2 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20"
+                >
+                  {/* File icon */}
+                  <div className="flex-shrink-0 text-lg">
+                    {getFileIcon(attachment.fileUpload.file)}
+                  </div>
+                  
+                  {/* File info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-xs font-medium truncate">
+                      {attachment.displayName || attachment.fileUpload.file.name}
+                    </p>
+                    <p className="text-white/70 text-xs">
+                      {formatFileSize(attachment.fileUpload.file.size)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         

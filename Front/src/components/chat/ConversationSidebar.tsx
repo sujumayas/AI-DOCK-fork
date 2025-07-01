@@ -33,7 +33,7 @@ interface ConversationSidebarProps {
   onConversationUpdate?: (conversationId: number, messageCount: number) => void;
   refreshTrigger?: number; // Increment this to trigger refresh
   // 🔄 NEW: Expose sidebar functions to parent for reactive updates
-  onSidebarReady?: (updateFn: (id: number, count: number) => void, addFn: (conv: any) => void) => void;
+  onSidebarReady?: (updateFn: (id: number, count: number, backendData?: Partial<ConversationSummary>) => void, addFn: (conv: any) => void) => void;
   // 🌊 NEW: Streaming state to prevent conversation switching during streaming
   isStreaming?: boolean;
 }
@@ -108,26 +108,54 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     setSearchResults(prev => prev.map(updateConversation));
   }, []);
 
-  // 🔄 NEW: Move conversation to top when a new message is sent
-  const moveConversationToTop = useCallback((conversationId: number, newMessageCount: number) => {
-    console.log('🔄 Moving conversation to top due to new message:', conversationId);
+  // 🔄 Move conversation to top when a new message is sent
+  // Updated to work with backend-provided timestamps instead of local management
+  const moveConversationToTop = useCallback((conversationId: number, newMessageCount: number, backendData?: Partial<ConversationSummary>) => {
+    console.log('🔄 Moving conversation to top due to new message:', conversationId, { 
+      newMessageCount, 
+      backendData,
+      hasBackendTimestamps: !!(backendData?.last_message_at || backendData?.updated_at)
+    });
     
-    const updateConversation = (conv: ConversationSummary) => 
-      conv.id === conversationId 
-        ? { 
-            ...conv, 
-            message_count: newMessageCount,
-            updated_at: new Date().toISOString() // Update timestamp only when message is sent
-          }
-        : conv;
+    const updateConversation = (conv: ConversationSummary) => {
+      if (conv.id !== conversationId) return conv;
+      
+      // 🔧 CRITICAL FIX: Only update timestamps if we have fresh backend data
+      // NEVER set current timestamps unless we have explicit backend data
+      const updatedConv = { 
+        ...conv, 
+        message_count: newMessageCount,
+        // 🚨 IMPORTANT: Only update timestamps if we have fresh backend data
+        // This prevents "Just now" timestamps when we don't have actual backend updates
+        ...(backendData?.last_message_at && {
+          last_message_at: backendData.last_message_at
+        }),
+        ...(backendData?.updated_at && {
+          updated_at: backendData.updated_at
+        })
+      };
+      
+      console.log('🔄 Updated conversation data:', {
+        id: conversationId,
+        oldLastMessage: conv.last_message_at,
+        newLastMessage: updatedConv.last_message_at,
+        oldUpdated: conv.updated_at,
+        newUpdated: updatedConv.updated_at,
+        messageCount: newMessageCount,
+        timestampsChanged: conv.last_message_at !== updatedConv.last_message_at || conv.updated_at !== updatedConv.updated_at,
+        backendDataReceived: !!backendData
+      });
+      
+      return updatedConv;
+    };
     
     // Update main conversations list and resort by recency
     setConversations(prev => {
       const updated = prev.map(updateConversation);
-      // Sort by updated_at to maintain recency order
+      // Sort by last_message_at first, then updated_at, then created_at to maintain recency order
       return updated.sort((a, b) => {
-        const dateA = new Date(a.updated_at || a.created_at);
-        const dateB = new Date(b.updated_at || b.created_at);
+        const dateA = new Date(a.last_message_at || a.updated_at || a.created_at);
+        const dateB = new Date(b.last_message_at || b.updated_at || b.created_at);
         return dateB.getTime() - dateA.getTime();
       });
     });
@@ -328,15 +356,16 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       older: [] as ConversationSummary[]
     };
 
-    // Sort conversations by updated_at (most recent first)
+    // 🔧 FIX: Sort conversations by last_message_at (most recent first) for accurate timestamp ordering
     const sortedConversations = [...conversations].sort((a, b) => {
-      const dateA = new Date(a.updated_at || a.created_at);
-      const dateB = new Date(b.updated_at || b.created_at);
+      const dateA = new Date(a.last_message_at || a.updated_at || a.created_at);
+      const dateB = new Date(b.last_message_at || b.updated_at || b.created_at);
       return dateB.getTime() - dateA.getTime();
     });
 
     sortedConversations.forEach(conversation => {
-      const conversationDate = new Date(conversation.updated_at || conversation.created_at);
+      // 🔧 FIX: Use last_message_at for grouping to show conversations in the right time buckets
+      const conversationDate = new Date(conversation.last_message_at || conversation.updated_at || conversation.created_at);
       
       if (conversationDate >= today) {
         groups.today.push(conversation);
@@ -415,7 +444,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             
             <div className="flex items-center">
               <Clock className="w-3 h-3 mr-1" />
-              {formatConversationTimestamp(conversation.updated_at || conversation.created_at)}
+              {formatConversationTimestamp(conversation.last_message_at || conversation.updated_at || conversation.created_at)}
             </div>
           </div>
         </div>

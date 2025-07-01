@@ -60,12 +60,11 @@ export const CreateAssistantModal: React.FC<CreateAssistantModalProps> = ({
 
   // UI state
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  const [showSystemPromptPreview, setShowSystemPromptPreview] = useState(false);
 
   // Character counters for better UX
-  const [nameLength, setNameLength] = useState(0);
-  const [descriptionLength, setDescriptionLength] = useState(0);
-  const [systemPromptLength, setSystemPromptLength] = useState(0);
+  const nameLength = formData.name.length;
+  const descriptionLength = formData.description.length;
+  const systemPromptLength = formData.system_prompt.length;
 
   // =============================================================================
   // FORM VALIDATION
@@ -116,11 +115,6 @@ export const CreateAssistantModal: React.FC<CreateAssistantModalProps> = ({
   const handleInputChange = (field: keyof AssistantFormData, value: any) => {
     const newFormData = { ...formData, [field]: value };
     setFormData(newFormData);
-
-    // Update character counters
-    if (field === 'name') setNameLength(value.length);
-    if (field === 'description') setDescriptionLength(value.length);
-    if (field === 'system_prompt') setSystemPromptLength(value.length);
 
     // Clear validation errors for this field when user starts typing
     if (validationErrors[field]?.length > 0) {
@@ -229,18 +223,12 @@ export const CreateAssistantModal: React.FC<CreateAssistantModalProps> = ({
     // Reset form state
     setFormData(createDefaultAssistantFormData());
     setValidationErrors({});
-    setHasAttemptedSubmit(false); // Reset submit attempt state
-    setIsSubmitting(false);
-    setSubmitSuccess(false);
-    setSubmitError(null);
+    setHasAttemptedSubmit(false);
     setShowAdvancedSettings(false);
-    setShowSystemPromptPreview(false);
+    setSubmitError(null);
+    setSubmitSuccess(false);
     
-    // Reset character counters
-    setNameLength(0);
-    setDescriptionLength(0);
-    setSystemPromptLength(0);
-    
+    // Actually close the modal
     onClose();
   };
 
@@ -274,16 +262,7 @@ export const CreateAssistantModal: React.FC<CreateAssistantModalProps> = ({
     };
   }, [isOpen]);
 
-  /**
-   * Initialize character counters when modal opens
-   */
-  useEffect(() => {
-    if (isOpen) {
-      setNameLength(formData.name.length);
-      setDescriptionLength(formData.description.length);
-      setSystemPromptLength(formData.system_prompt.length);
-    }
-  }, [isOpen, formData.name, formData.description, formData.system_prompt]);
+
 
   // =============================================================================
   // RENDER HELPERS
@@ -498,30 +477,11 @@ export const CreateAssistantModal: React.FC<CreateAssistantModalProps> = ({
             </div>
 
             {/* System Prompt */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-md font-medium text-gray-900 flex items-center">
-                  <Settings className="h-4 w-4 mr-2 text-blue-600" />
-                  System Prompt
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setShowSystemPromptPreview(!showSystemPromptPreview)}
-                  className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700"
-                >
-                  {showSystemPromptPreview ? (
-                    <>
-                      <EyeOff className="h-4 w-4" />
-                      <span>Hide Preview</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-4 w-4" />
-                      <span>Show Preview</span>
-                    </>
-                  )}
-                </button>
-              </div>
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
+                <Settings className="h-5 w-5 mr-2 text-green-600" />
+                System Prompt
+              </h4>
               
               {renderInputField(
                 'system_prompt', 
@@ -531,16 +491,6 @@ export const CreateAssistantModal: React.FC<CreateAssistantModalProps> = ({
                 true,
                 ASSISTANT_VALIDATION.SYSTEM_PROMPT.MAX_LENGTH,
                 systemPromptLength
-              )}
-              
-              {/* System Prompt Preview */}
-              {showSystemPromptPreview && formData.system_prompt && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h5 className="text-sm font-medium text-blue-900 mb-2">Preview:</h5>
-                  <p className="text-sm text-blue-800 whitespace-pre-wrap">
-                    {formData.system_prompt}
-                  </p>
-                </div>
               )}
               
               {/* System Prompt Tips */}

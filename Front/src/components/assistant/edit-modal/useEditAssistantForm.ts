@@ -40,7 +40,6 @@ interface UseEditAssistantFormReturn {
   
   // UI state
   showAdvancedSettings: boolean;
-  showSystemPromptPreview: boolean;
   
   // Actions
   handleInputChange: (field: keyof AssistantFormData, value: any) => void;
@@ -49,7 +48,6 @@ interface UseEditAssistantFormReturn {
   resetForm: () => void;
   validateField: (fieldName: keyof AssistantFormData) => void;
   toggleAdvancedSettings: () => void;
-  toggleSystemPromptPreview: () => void;
   
   // Utilities
   hasFormChanged: () => boolean;
@@ -101,7 +99,6 @@ export const useEditAssistantForm = ({
 
   // UI state
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  const [showSystemPromptPreview, setShowSystemPromptPreview] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Character counters for better UX
@@ -169,7 +166,13 @@ export const useEditAssistantForm = ({
 
     // Simple string comparisons (handle null/undefined as empty strings)
     const nameChanged = (formData.name || '') !== (originalData.name || '');
-    const descriptionChanged = (formData.description || '') !== (originalData.description || '');
+    
+    // 🔧 DESCRIPTION FIX: Properly handle null vs empty string
+    // Convert empty strings to null for comparison to match backend behavior
+    const currentDescription = formData.description?.trim() || null;
+    const originalDescription = originalData.description?.trim() || null;
+    const descriptionChanged = currentDescription !== originalDescription;
+    
     const systemPromptChanged = (formData.system_prompt || '') !== (originalData.system_prompt || '');
     
     // Object comparison for model preferences
@@ -194,8 +197,12 @@ export const useEditAssistantForm = ({
       updates.name = formData.name.trim();
     }
 
-    if ((formData.description || '') !== (originalData.description || '')) {
-      updates.description = formData.description.trim() || undefined;
+    // 🔧 DESCRIPTION FIX: Use same comparison logic as hasFormChanged
+    const currentDescription = formData.description?.trim() || null;
+    const originalDescription = originalData.description?.trim() || null;
+    if (currentDescription !== originalDescription) {
+      // Send empty string to backend (it will convert to null)
+      updates.description = formData.description.trim();
     }
 
     if ((formData.system_prompt || '') !== (originalData.system_prompt || '')) {
@@ -338,17 +345,10 @@ export const useEditAssistantForm = ({
   };
 
   /**
-   * Toggle advanced settings visibility
+   * Toggle advanced settings section
    */
   const toggleAdvancedSettings = () => {
     setShowAdvancedSettings(!showAdvancedSettings);
-  };
-
-  /**
-   * Toggle system prompt preview
-   */
-  const toggleSystemPromptPreview = () => {
-    setShowSystemPromptPreview(!showSystemPromptPreview);
   };
 
   // =============================================================================
@@ -383,7 +383,6 @@ export const useEditAssistantForm = ({
       setSubmitSuccess(false);
       setSubmitError(null);
       setShowAdvancedSettings(false);
-      setShowSystemPromptPreview(false);
       setIsLoading(false);
       setNameLength(0);
       setDescriptionLength(0);
@@ -416,7 +415,6 @@ export const useEditAssistantForm = ({
     
     // UI state
     showAdvancedSettings,
-    showSystemPromptPreview,
     
     // Actions
     handleInputChange,
@@ -425,7 +423,6 @@ export const useEditAssistantForm = ({
     resetForm,
     validateField,
     toggleAdvancedSettings,
-    toggleSystemPromptPreview,
     
     // Utilities
     hasFormChanged,

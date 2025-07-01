@@ -91,7 +91,6 @@ export type {
 // All error classes for centralized error handling
 export {
   ChatServiceError,
-  ConversationServiceError,
   // 📁 NEW: File-related chat utility functions
   messageHasFiles,
   getMessageFileCount,
@@ -99,6 +98,10 @@ export {
   getTotalFileCount,
   createChatMessageWithFiles
 } from './chat';
+
+export {
+  ConversationServiceError
+} from './conversation';
 
 export {
   FileUploadError,

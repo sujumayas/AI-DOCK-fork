@@ -35,6 +35,9 @@ interface AssistantQuickSwitcherProps {
   
   /** Callback when user wants to manage assistants (open full CRUD interface) */
   onManageClick: () => void;
+  
+  /** Whether chat is currently streaming (prevents assistant switching) */
+  isStreaming?: boolean;
 }
 
 /**
@@ -56,7 +59,8 @@ export const AssistantQuickSwitcher: React.FC<AssistantQuickSwitcherProps> = ({
   assistants,
   selectedId,
   onSelect,
-  onManageClick
+  onManageClick,
+  isStreaming = false
 }) => {
 
   // =============================================================================
@@ -146,6 +150,12 @@ export const AssistantQuickSwitcher: React.FC<AssistantQuickSwitcherProps> = ({
    * - Are named clearly for their purpose
    */
   const handleAssistantSelect = (assistantId: number | null) => {
+    // 🚫 Prevent assistant switching while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot switch assistants while streaming is active');
+      return;
+    }
+    
     onSelect(assistantId);
     handleClose();
   };

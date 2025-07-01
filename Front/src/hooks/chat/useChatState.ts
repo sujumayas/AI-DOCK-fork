@@ -101,10 +101,15 @@ export const useChatState = (config: ChatStateConfig): ChatStateReturn => {
         return parsedId;
       }).filter(id => id !== undefined && !isNaN(id)) as number[] | undefined;
       
-      // 👤 Add user message immediately
+      // 👤 Add user message immediately (with attachments if present)
       const userMessage: ChatMessage = {
         role: 'user',
-        content: content
+        content: content,
+        ...(attachments && attachments.length > 0 && {
+          attachments: attachments,
+          hasFiles: true,
+          fileCount: attachments.length
+        })
       };
       
       // 🤖 Prepare messages with system prompt if assistant selected

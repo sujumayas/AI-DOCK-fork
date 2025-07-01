@@ -366,14 +366,73 @@ class UsageService:
                 )
             ).params(cache_buster=cache_buster + 2)
             
+            # Get favorite provider (most used provider)
+            favorite_provider_query = select(
+                UsageLog.provider,
+                func.count(UsageLog.id).label('usage_count')
+            ).where(
+                and_(
+                    UsageLog.user_id == user_id,
+                    UsageLog.created_at >= start_date,
+                    UsageLog.created_at <= end_date,
+                    UsageLog.success == True,
+                    UsageLog.provider.isnot(None),
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
+                )
+            ).group_by(UsageLog.provider).order_by(func.count(UsageLog.id).desc()).limit(1).params(cache_buster=cache_buster + 3)
+            
+            # Get last activity
+            last_activity_query = select(UsageLog.created_at).where(
+                and_(
+                    UsageLog.user_id == user_id,
+                    UsageLog.success == True,
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
+                )
+            ).order_by(UsageLog.created_at.desc()).limit(1).params(cache_buster=cache_buster + 4)
+            
             # Execute queries
             total_requests = await session.execute(total_requests_query)
             successful_requests = await session.execute(successful_requests_query)
             totals = await session.execute(totals_query)
+            favorite_provider_result = await session.execute(favorite_provider_query)
+            last_activity_result = await session.execute(last_activity_query)
             
             total_count = total_requests.scalar() or 0
             success_count = successful_requests.scalar() or 0
             totals_row = totals.first()
+            favorite_provider_row = favorite_provider_result.first()
+            last_activity = last_activity_result.scalar()
+            
+            # Format favorite provider
+            favorite_provider = None
+            if favorite_provider_row:
+                provider_name = favorite_provider_row.provider
+                # Beautify provider names
+                if provider_name == "openai":
+                    favorite_provider = "OpenAI GPT-4"
+                elif provider_name == "anthropic":
+                    favorite_provider = "Anthropic Claude"
+                elif provider_name == "azure":
+                    favorite_provider = "Azure OpenAI"
+                else:
+                    favorite_provider = provider_name.title()
+            
+            # Format last activity
+            last_activity_formatted = None
+            if last_activity:
+                time_diff = datetime.utcnow() - last_activity
+                if time_diff.days > 0:
+                    last_activity_formatted = f"{time_diff.days} day{'s' if time_diff.days > 1 else ''} ago"
+                elif time_diff.seconds > 3600:
+                    hours = time_diff.seconds // 3600
+                    last_activity_formatted = f"{hours} hour{'s' if hours > 1 else ''} ago"
+                elif time_diff.seconds > 60:
+                    minutes = time_diff.seconds // 60
+                    last_activity_formatted = f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+                else:
+                    last_activity_formatted = "Just now"
             
             return {
                 "user_id": user_id,
@@ -399,7 +458,9 @@ class UsageService:
                 "performance": {
                     "average_response_time_ms": int(totals_row.avg_response_time or 0),
                     "max_response_time_ms": int(totals_row.max_response_time or 0)
-                }
+                },
+                "favorite_provider": favorite_provider,
+                "last_activity": last_activity_formatted
             }
     
     async def get_department_usage_summary(

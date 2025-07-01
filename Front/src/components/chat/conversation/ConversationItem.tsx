@@ -207,7 +207,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             
             <div className="flex items-center">
               <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
-              <span>{formatConversationTimestamp(conversation.updated_at)}</span>
+              <span 
+                title={`Last message: ${conversation.last_message_at || 'Unknown'} | Updated: ${conversation.updated_at || 'Unknown'}`}
+              >
+                {formatConversationTimestamp(conversation.last_message_at || conversation.updated_at)}
+              </span>
             </div>
             
             {conversation.model_used && (
@@ -216,9 +220,13 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               </div>
             )}
             
-            {conversation.last_message_at && conversation.last_message_at !== conversation.updated_at && (
-              <div className="text-xs text-gray-400">
-                Last: {formatConversationTimestamp(conversation.last_message_at)}
+            {/* Debug info - only show in development and when timestamps differ significantly */}
+            {process.env.NODE_ENV === 'development' && 
+             conversation.last_message_at && 
+             conversation.updated_at && 
+             conversation.last_message_at !== conversation.updated_at && (
+              <div className="text-xs text-orange-500 bg-orange-50 px-1 py-0.5 rounded" title="Debug: Timestamps differ">
+                Using: {conversation.last_message_at ? 'last_message_at' : 'updated_at'}
               </div>
             )}
           </div>

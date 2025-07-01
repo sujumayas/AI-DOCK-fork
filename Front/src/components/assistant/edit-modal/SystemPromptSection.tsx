@@ -1,9 +1,9 @@
 // 🎯 System Prompt Form Section
-// Component for system prompt configuration with preview functionality
-// Demonstrates expandable content and preview patterns
+// Component for system prompt configuration
+// Demonstrates expandable content patterns
 
 import React from 'react';
-import { Settings, Eye, EyeOff } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { FormField } from './FormField';
 import { AssistantFormData, ASSISTANT_VALIDATION } from '../../../types/assistant';
 
@@ -12,20 +12,17 @@ interface SystemPromptSectionProps {
   originalData: AssistantFormData;
   validationErrors: Record<string, string[]>;
   systemPromptLength: number;
-  showSystemPromptPreview: boolean;
   onInputChange: (field: keyof AssistantFormData, value: any) => void;
   onFieldBlur: (fieldName: keyof AssistantFormData) => void;
-  onTogglePreview: () => void;
 }
 
 /**
  * SystemPromptSection Component
  * 
- * 🎓 LEARNING: Section Component with Preview
- * ==========================================
- * - Handles system prompt input and preview
- * - Toggle functionality for preview mode
- * - Section header with controls
+ * 🎓 LEARNING: Section Component
+ * =============================
+ * - Handles system prompt input
+ * - Section header
  * - Proper textarea handling
  */
 export const SystemPromptSection: React.FC<SystemPromptSectionProps> = ({
@@ -33,10 +30,8 @@ export const SystemPromptSection: React.FC<SystemPromptSectionProps> = ({
   originalData,
   validationErrors,
   systemPromptLength,
-  showSystemPromptPreview,
   onInputChange,
-  onFieldBlur,
-  onTogglePreview
+  onFieldBlur
 }) => {
 
   /**
@@ -62,29 +57,12 @@ export const SystemPromptSection: React.FC<SystemPromptSectionProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Section Header with Preview Toggle */}
+      {/* Section Header */}
       <div className="flex items-center justify-between">
         <h4 className="text-md font-medium text-gray-900 flex items-center">
           <Settings className="h-4 w-4 mr-2 text-green-600" />
           System Prompt
         </h4>
-        <button
-          type="button"
-          onClick={onTogglePreview}
-          className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 transition-colors"
-        >
-          {showSystemPromptPreview ? (
-            <>
-              <EyeOff className="h-4 w-4" />
-              <span>Hide Preview</span>
-            </>
-          ) : (
-            <>
-              <Eye className="h-4 w-4" />
-              <span>Show Preview</span>
-            </>
-          )}
-        </button>
       </div>
       
       {/* System Prompt Textarea */}
@@ -104,16 +82,6 @@ export const SystemPromptSection: React.FC<SystemPromptSectionProps> = ({
         onChange={(value) => onInputChange('system_prompt', value)}
         onBlur={() => onFieldBlur('system_prompt')}
       />
-      
-      {/* System Prompt Preview */}
-      {showSystemPromptPreview && formData.system_prompt && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h5 className="text-sm font-medium text-blue-900 mb-2">Preview:</h5>
-          <p className="text-sm text-blue-800 whitespace-pre-wrap">
-            {formData.system_prompt}
-          </p>
-        </div>
-      )}
     </div>
   );
 };

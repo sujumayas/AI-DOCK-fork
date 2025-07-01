@@ -165,7 +165,7 @@ class UsageAnalyticsService {
   // =============================================================================
 
   /**
-   * Get detailed usage statistics for a specific user
+   * Get detailed usage statistics for a specific user (admin endpoint)
    * 
    * Shows individual user's:
    * - AI usage patterns and costs
@@ -173,6 +173,7 @@ class UsageAnalyticsService {
    * - Usage trends over time
    * 
    * Perfect for user-specific billing and analysis.
+   * Note: This requires admin privileges.
    */
   async getUserUsage(userId: number, days: number = 30): Promise<UserUsageStats> {
     console.log(`👤 Fetching usage stats for user ${userId} (${days} days)...`);
@@ -187,6 +188,33 @@ class UsageAnalyticsService {
     
     const result = await this.handleResponse<UserUsageStats>(response);
     console.log('✅ User usage stats loaded:', result);
+    return result;
+  }
+
+  /**
+   * Get usage statistics for the current user (user endpoint)
+   * 
+   * Shows the current user's:
+   * - AI usage patterns and costs
+   * - Performance metrics for their requests
+   * - Usage trends over time
+   * 
+   * Perfect for users to view their own usage in profile settings.
+   * Note: This only requires user authentication (not admin).
+   */
+  async getMyUsageStats(days: number = 30): Promise<UserUsageStats> {
+    console.log(`👤 Fetching my usage stats (${days} days)...`);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/usage/my-stats?days=${days}`,
+      {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      }
+    );
+    
+    const result = await this.handleResponse<UserUsageStats>(response);
+    console.log('✅ My usage stats loaded:', result);
     return result;
   }
 
@@ -798,6 +826,8 @@ export interface UserUsageStats {
     average_response_time_ms: number;
     max_response_time_ms: number;
   };
+  favorite_provider?: string | null;
+  last_activity?: string | null;
 }
 
 export interface DepartmentUsageStats {

@@ -53,6 +53,7 @@ export const ChatContainer: React.FC = () => {
     showAssistantManager,
     handleAssistantSelect,
     handleAssistantChange,
+    handleAssistantIntroduction,
     setShowAssistantManager,
     clearAssistantFromUrl,
     loadAvailableAssistants
@@ -60,7 +61,7 @@ export const ChatContainer: React.FC = () => {
     // Handle assistant messages
     addMessage(message);
   });
-  
+
   // 💾 Conversation management
   const {
     currentConversationId,
@@ -123,6 +124,28 @@ export const ChatContainer: React.FC = () => {
     clearChat();
     newMessages.forEach(message => addMessage(message));
   }, [clearChat, addMessage]);
+  
+  // 🚫 Streaming-aware assistant selection wrappers
+  const handleAssistantSelectWithStreamingCheck = useCallback((assistantId: number | null) => {
+    // 🚫 Prevent assistant switching while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot switch assistants while streaming is active');
+      return;
+    }
+    
+    handleAssistantSelect(assistantId);
+  }, [handleAssistantSelect, isStreaming]);
+
+  const handleChangeAssistantClickWithStreamingCheck = useCallback(() => {
+    // 🚫 Prevent opening assistant manager while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot open assistant manager while streaming is active');
+      return;
+    }
+    
+    setShowAssistantManager(true);
+    console.log('🎯 Opening assistant manager from selector card');
+  }, [setShowAssistantManager, isStreaming]);
   
   // ⚡ Update messages as content streams in
   useEffect(() => {
@@ -230,7 +253,11 @@ export const ChatContainer: React.FC = () => {
       if (isNewMessage || isNewlySaved) {
         console.log('🔄 Updating conversation position:', 
           isNewMessage ? 'new message' : 'newly saved');
-        sidebarUpdateFunction(currentConversationId, messages.length);
+        // 🔧 CRITICAL FIX: Don't update sidebar without backend timestamp data
+        // This prevents "Just now" timestamps from appearing incorrectly
+        // The auto-save process will handle updating the sidebar with proper backend timestamps
+        console.log('🔄 Skipping direct sidebar update - letting auto-save handle timestamp updates properly');
+        // Note: The conversation manager's auto-save will call sidebar update with proper backend data
       }
       
       setPreviousMessageCount(messages.length);
@@ -280,11 +307,42 @@ export const ChatContainer: React.FC = () => {
     loadAvailableAssistants();
   }, [loadAvailableAssistants]);
   
-  // 🎯 Handle change assistant button click
-  const handleChangeAssistantClick = useCallback(() => {
-    setShowAssistantManager(true);
-    console.log('🎯 Opening assistant manager from selector card');
-  }, [setShowAssistantManager]);
+  // 🤖 Handle assistant update with re-introduction
+  const handleAssistantUpdated = useCallback(async (assistantId: number) => {
+    console.log('🤖 Assistant updated, generating new introduction:', assistantId);
+    
+    try {
+      // Get fresh assistant data from the service
+      const { assistantService } = await import('../../../services/assistantService');
+      const updatedAssistant = await assistantService.getAssistant(assistantId);
+      
+      // Convert to summary format for introduction message
+      const assistantSummary = {
+        id: updatedAssistant.id,
+        name: updatedAssistant.name,
+        description: updatedAssistant.description,
+        system_prompt_preview: updatedAssistant.system_prompt_preview,
+        is_active: updatedAssistant.is_active,
+        conversation_count: updatedAssistant.conversation_count,
+        created_at: updatedAssistant.created_at,
+        is_new: updatedAssistant.is_new
+      };
+      
+      // Generate a new introduction message for the updated assistant
+      const introMessage = handleAssistantIntroduction(assistantSummary, selectedAssistant);
+      addMessage(introMessage);
+      
+      console.log('✅ Added re-introduction message for updated assistant');
+      
+      // Refresh the available assistants to get the updated data
+      // 🔧 Do this AFTER generating the intro message to avoid duplicate messages
+      // Pass true to indicate this is an update, preventing automatic intro messages
+      await loadAvailableAssistants(true);
+      
+    } catch (error) {
+      console.error('❌ Failed to generate introduction for updated assistant:', error);
+    }
+  }, [loadAvailableAssistants, handleAssistantIntroduction, selectedAssistant, addMessage]);
   
   // 🆕 Handle new conversation with streaming check
   const handleNewConversationClick = useCallback(() => {
@@ -320,7 +378,7 @@ export const ChatContainer: React.FC = () => {
         onClick={() => setShowConversationSidebar(!showConversationSidebar)}
         className={`fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${
           showConversationSidebar 
-            ? 'left-2 lg:left-[420px]'
+            ? 'left-2 lg:left-[324px]'
             : 'left-2'
         } bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full p-3 shadow-lg hover:shadow-xl group hover:scale-105 transform`}
         title={showConversationSidebar ? 'Hide conversation history' : 'Show conversation history'}
@@ -367,8 +425,10 @@ export const ChatContainer: React.FC = () => {
             
             <EmbeddedAssistantManager
               selectedAssistantId={selectedAssistantId}
-              onAssistantSelect={handleAssistantSelect}
+              onAssistantSelect={handleAssistantSelectWithStreamingCheck}
               onAssistantChange={handleAssistantManagerChange}
+              onAssistantUpdated={handleAssistantUpdated}
+              isStreaming={isStreaming}
               className="h-full border-0 rounded-none bg-transparent"
             />
           </div>
@@ -441,7 +501,7 @@ export const ChatContainer: React.FC = () => {
             {!selectedAssistantId && messages.length === 0 && availableAssistants.length > 0 && (
               <AssistantSuggestions
                 suggestions={availableAssistants}
-                onSelect={handleAssistantSelect}
+                onSelect={handleAssistantSelectWithStreamingCheck}
                 onDismiss={() => console.log('✨ Assistant suggestions dismissed by user')}
                 maxSuggestions={4}
                 showOnlyOnce={true}
@@ -459,7 +519,8 @@ export const ChatContainer: React.FC = () => {
             {/* 🤖 Assistant selector */}
             <AssistantSelectorCard
               selectedAssistant={selectedAssistant}
-              onChangeClick={handleChangeAssistantClick}
+              onChangeClick={handleChangeAssistantClickWithStreamingCheck}
+              isStreaming={isStreaming}
             />
             
             {/* ✍️ Message input */}

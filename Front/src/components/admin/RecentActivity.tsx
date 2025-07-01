@@ -12,6 +12,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { RecentLogsResponse, UsageLogEntry, LogFilters } from '../../types/usage';
+import { formatConversationTimestamp } from '../../utils/chatHelpers';
 
 /**
  * Recent Activity Component
@@ -191,69 +192,6 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
   // =============================================================================
   // HELPER FUNCTIONS
   // =============================================================================
-
-  /**
-   * Format timestamp for display
-   * 
-   * Learning: Timestamps need to be human-readable and show recency.
-   * We use relative time for recent events and absolute for older ones.
-   * Added robust error handling and better timezone support.
-   */
-  const formatTimestamp = (timestamp: string): string => {
-    // Handle missing or invalid timestamps
-    if (!timestamp) {
-      return 'Unknown time';
-    }
-
-    try {
-      // Parse the timestamp - handle both UTC and local formats
-      const date = new Date(timestamp);
-      
-      // Check if the date is valid
-      if (isNaN(date.getTime())) {
-        console.warn('Invalid timestamp format:', timestamp);
-        return 'Invalid time';
-      }
-
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      // Handle future timestamps (might indicate timezone issues)
-      if (diffMs < 0) {
-        const futureDiffMinutes = Math.floor(Math.abs(diffMs) / (1000 * 60));
-        if (futureDiffMinutes < 60) {
-          return `In ${futureDiffMinutes}m (check timezone)`;
-        } else {
-          return date.toLocaleString();
-        }
-      }
-
-      // Current formatting with more granular control
-      if (diffMinutes < 1) {
-        return 'Just now';
-      } else if (diffMinutes < 60) {
-        return `${diffMinutes}m ago`;
-      } else if (diffHours < 24) {
-        return `${diffHours}h ago`;
-      } else if (diffDays < 7) {
-        return `${diffDays}d ago`;
-      } else {
-        // For older dates, show the actual date and time
-        return date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      }
-    } catch (error) {
-      console.error('Error formatting timestamp:', error, 'Original timestamp:', timestamp);
-      return 'Time error';
-    }
-  };
 
   /**
    * Format cost for display
@@ -545,7 +483,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
                       className="text-sm text-gray-500"
                       title={`Full timestamp: ${log.timestamp} | Parsed: ${log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Invalid'}`}
                     >
-                      {formatTimestamp(log.timestamp)}
+                      {formatConversationTimestamp(log.timestamp)}
                     </span>
                     <button
                       onClick={() => toggleLogExpansion(log.id)}

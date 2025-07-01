@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Mail, Lock, Shield, BarChart3, Save, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { authService } from '../services/authService'
+import { usageAnalyticsService } from '../services/usageAnalyticsService'
+import { UserUsageStats } from '../types/usage'
 
 // 👤 User Settings Page - Personal Profile Management
 export const UserSettings: React.FC = () => {
@@ -25,20 +27,17 @@ export const UserSettings: React.FC = () => {
     confirm_password: ''
   })
   
-  // 📊 Mock usage stats (you can integrate with real analytics later)
-  const [usageStats] = useState({
-    requests_this_month: 45,
-    tokens_used: 28750,
-    favorite_provider: 'OpenAI GPT-4',
-    last_activity: '2 hours ago'
-  })
+  // 📊 Add state for real usage stats
+  const [usageStats, setUsageStats] = useState<UserUsageStats | null>(null)
+  const [isUsageLoading, setIsUsageLoading] = useState(true)
+  const [usageError, setUsageError] = useState<string | null>(null)
   
   // 🔔 Success/error messages
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // 👤 Load current user data on component mount
   useEffect(() => {
-    const loadCurrentUser = async () => {
+    const loadCurrentUserAndUsage = async () => {
       try {
         const user = await authService.getCurrentUser()
         setCurrentUser(user)
@@ -49,15 +48,26 @@ export const UserSettings: React.FC = () => {
           new_password: '',
           confirm_password: ''
         })
+        // Fetch usage stats for this user
+        setIsUsageLoading(true)
+        setUsageError(null)
+        try {
+          const stats = await usageAnalyticsService.getMyUsageStats()
+          setUsageStats(stats)
+        } catch (err: any) {
+          setUsageError(err.message || 'Failed to load usage stats')
+        } finally {
+          setIsUsageLoading(false)
+        }
       } catch (error) {
         console.error('Failed to load current user:', error)
         setMessage({ type: 'error', text: 'Failed to load user profile' })
+        setIsUsageLoading(false)
       } finally {
         setIsLoading(false)
       }
     }
-
-    loadCurrentUser()
+    loadCurrentUserAndUsage()
   }, [])
 
   // Optimized navigation and form handlers with useCallback
@@ -375,22 +385,32 @@ export const UserSettings: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Usage This Month</h3>
               </div>
               <div className="space-y-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{usageStats.requests_this_month}</div>
-                  <div className="text-sm text-gray-600">AI Requests</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-teal-600">{usageStats.tokens_used.toLocaleString()}</div>
-                  <div className="text-sm text-gray-600">Tokens Used</div>
-                </div>
-                <div className="border-t pt-4">
-                  <div className="text-sm text-gray-600 mb-1">Favorite Provider:</div>
-                  <div className="font-medium">{usageStats.favorite_provider}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Last Activity:</div>
-                  <div className="font-medium text-green-600">{usageStats.last_activity}</div>
-                </div>
+                {isUsageLoading ? (
+                  <div className="text-center text-gray-500">Loading usage stats...</div>
+                ) : usageError ? (
+                  <div className="text-center text-red-600">{usageError}</div>
+                ) : usageStats ? (
+                  <>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{usageStats.requests.total}</div>
+                      <div className="text-sm text-gray-600">AI Requests</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-teal-600">{usageStats.tokens.total.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Tokens Used</div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <div className="text-sm text-gray-600 mb-1">Favorite Provider:</div>
+                      <div className="font-medium">{usageStats.favorite_provider || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600 mb-1">Last Activity:</div>
+                      <div className="font-medium text-green-600">{usageStats.last_activity || 'N/A'}</div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center text-gray-500">No usage data available.</div>
+                )}
               </div>
             </div>
           </div>
