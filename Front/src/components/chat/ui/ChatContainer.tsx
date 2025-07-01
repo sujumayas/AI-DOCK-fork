@@ -6,7 +6,7 @@ import React, { useEffect, useCallback, useState } from 'react';
 import { Settings, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
-import { ConversationSidebar } from '../ConversationSidebar';
+import { UnifiedSidebar } from './UnifiedSidebar';
 import { EmbeddedAssistantManager } from '../EmbeddedAssistantManager';
 import { AssistantSelectorCard } from '../AssistantSelectorCard';
 import { AssistantSuggestions } from '../AssistantSuggestions';
@@ -18,12 +18,13 @@ import { useAssistantManager } from '../../../hooks/chat/useAssistantManager';
 import { useConversationManager } from '../../../hooks/chat/useConversationManager';
 import { useResponsiveLayout } from '../../../hooks/chat/useResponsiveLayout';
 import { useAuth } from '../../../hooks/useAuth';
+import { useSidebarState } from '../../../hooks/chat/useSidebarState';
 import { useProjectManager } from '../../../hooks/chat/useProjectManager';
 import { ProjectSelectorCard } from './ProjectSelectorCard';
-import { ProjectManager } from '../ProjectManager';
 import { DEFAULT_AUTO_SAVE_CONFIG, shouldAutoSave } from '../../../types/conversation';
 import type { FileAttachment } from '../../../types/file';
 import { projectService } from '../../../services/projectService';
+import { assistantService } from '../../../services/assistantService';
 
 export const ChatContainer: React.FC = () => {
   const { user } = useAuth();
@@ -31,6 +32,15 @@ export const ChatContainer: React.FC = () => {
   // 📱 Responsive layout state
   const { isMobile } = useResponsiveLayout();
   
+  // 📁 Unified Sidebar state
+  const {
+    isOpen: showUnifiedSidebar,
+    mode: sidebarMode,
+    toggleSidebar,
+    setSidebarOpen: setShowUnifiedSidebar,
+    setSidebarMode,
+    toggleMode: toggleSidebarMode
+  } = useSidebarState('conversations', false);
   
   // 🎯 Model selection management
   const {
@@ -93,7 +103,7 @@ export const ChatContainer: React.FC = () => {
     isSavingConversation,
     lastAutoSaveMessageCount,
     autoSaveFailedAt,
-    showConversationSidebar,
+
     conversationRefreshTrigger,
     sidebarUpdateFunction,
     sidebarAddConversationFunction,
@@ -101,7 +111,7 @@ export const ChatContainer: React.FC = () => {
     handleSaveConversation,
     handleLoadConversation,
     handleNewConversation,
-    setShowConversationSidebar,
+
     setSidebarFunctions,
     handleAddConversationToSidebar
   } = useConversationManager(
@@ -169,9 +179,36 @@ export const ChatContainer: React.FC = () => {
       return;
     }
     
+    // Close unified sidebar and open assistant manager
+    setShowUnifiedSidebar(false);
     setShowAssistantManager(true);
-    console.log('🎯 Opening assistant manager from selector card');
+    console.log('🎯 Opening assistant manager from selector card (unified sidebar closed)');
   }, [setShowAssistantManager, isStreaming]);
+
+  // 🚫 Streaming-aware project selection wrapper
+  const handleProjectSelectWithStreamingCheck = useCallback((projectId: number | null) => {
+    // 🚫 Prevent project switching while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot switch projects while streaming is active');
+      return;
+    }
+    
+    handleProjectSelect(projectId);
+  }, [handleProjectSelect, isStreaming]);
+
+  const handleChangeProjectClickWithStreamingCheck = useCallback(() => {
+    // 🚫 Prevent opening project manager while streaming
+    if (isStreaming) {
+      console.log('🚫 Cannot open project manager while streaming is active');
+      return;
+    }
+    
+    // Open unified sidebar in projects mode
+    setSidebarMode('projects');
+    setShowUnifiedSidebar(true);
+    setShowAssistantManager(false);
+    console.log('🎯 Opening unified sidebar in projects mode from selector card');
+  }, [isStreaming]);
   
   // ⚡ Update messages as content streams in
   useEffect(() => {
@@ -195,201 +232,150 @@ export const ChatContainer: React.FC = () => {
       messages,
       DEFAULT_AUTO_SAVE_CONFIG.triggerAfterMessages
     );
-    
-    console.log('🔍 Auto-save check:', {
-      shouldTriggerAutoSave,
-      currentConversationId,
-      messagesLength: messages.length,
-      lastAutoSaveMessageCount,
-      isSavingConversation,
-      autoSaveFailedAt,
-      isStreaming,
-      isLoadingConversation,
-      conversationJustLoaded
-    });
-    
-    // 🔧 ENHANCED: More comprehensive checks to prevent unnecessary saves
-    if (
-      shouldTriggerAutoSave && 
-      messages.length > lastAutoSaveMessageCount &&
-      !isSavingConversation &&
-      !isStreaming && // Don't auto-save while streaming
-      !isLoadingConversation && // 🔧 FIX: Don't auto-save while loading conversation
-      !conversationJustLoaded && // 🔧 FIX: Don't auto-save immediately after loading
-      autoSaveFailedAt !== messages.length
-    ) {
-      console.log('🚀 Triggering auto-save for conversation', currentConversationId ? `(existing: ${currentConversationId})` : '(new)');
-      handleAutoSaveConversation(messages, { 
-        selectedConfigId: selectedConfigId || undefined, 
-        selectedModelId: selectedModelId || undefined,
-        projectId: selectedProjectId || undefined
-      });
-    } else if (shouldTriggerAutoSave && isSavingConversation) {
-      console.log('🔄 Auto-save already in progress, skipping trigger');
-    } else if (shouldTriggerAutoSave && isStreaming) {
-      console.log('🌊 Streaming in progress, deferring auto-save');
-    } else if (shouldTriggerAutoSave && isLoadingConversation) {
-      console.log('📖 Conversation loading in progress, skipping auto-save to prevent duplicate saves');
-    } else if (shouldTriggerAutoSave && conversationJustLoaded) {
-      console.log('📖 Conversation just loaded, skipping auto-save to allow state to settle');
-    } else if (messages.length <= lastAutoSaveMessageCount) {
-      console.log('🔄 No new messages since last auto-save, skipping');
+
+    // 🚫 Don't auto-save during conversation loading to prevent race conditions
+    if (isLoadingConversation || conversationJustLoaded) {
+      console.log('🚫 Skipping auto-save during conversation loading to prevent race conditions');
+      return;
     }
-  }, [
-    messages, 
-    currentConversationId, 
-    lastAutoSaveMessageCount, 
-    isSavingConversation, 
-    autoSaveFailedAt,
-    isStreaming,
-    isLoadingConversation,
-    conversationJustLoaded,
-    handleAutoSaveConversation,
-    selectedConfigId,
-    selectedModelId
-  ]);
-  
-  // 🔄 Update sidebar message count only when messages are sent (not loaded)
-  useEffect(() => {
-    console.log('🔄 Sidebar update check:', {
-      currentConversationId,
-      sidebarUpdateFunction: !!sidebarUpdateFunction,
-      messagesLength: messages.length,
-      isLoadingConversation,
-      previousMessageCount,
-      previousConversationId
-    });
-    
-    if (currentConversationId && sidebarUpdateFunction && messages.length > 0) {
-      // Case 1: New message sent (message count increased)
-      const isNewMessage = !isLoadingConversation && 
-                          messages.length > previousMessageCount && 
-                          previousMessageCount > 0;
-      
-      // Case 2: Conversation just got auto-saved (conversation ID appeared)
-      const isNewlySaved = previousConversationId === null && 
-                          currentConversationId !== null && 
-                          messages.length > 1; // Has actual conversation content
-      
-      console.log('🔄 Update conditions:', {
-        isNewMessage,
-        isNewlySaved,
-        willUpdate: isNewMessage || isNewlySaved
-      });
-      
-      if (isNewMessage || isNewlySaved) {
-        console.log('🔄 Updating conversation position:', 
-          isNewMessage ? 'new message' : 'newly saved');
-        // 🔧 CRITICAL FIX: Don't update sidebar without backend timestamp data
-        // This prevents "Just now" timestamps from appearing incorrectly
-        // The auto-save process will handle updating the sidebar with proper backend timestamps
-        console.log('🔄 Skipping direct sidebar update - letting auto-save handle timestamp updates properly');
-        // Note: The conversation manager's auto-save will call sidebar update with proper backend data
+
+    if (shouldTriggerAutoSave && !isStreaming) {
+      // 🧠 Smart detection: Only trigger auto-save for genuine new messages
+      const currentMessageCount = messages.length;
+      const hasNewMessages = currentMessageCount > previousMessageCount;
+      const conversationChanged = currentConversationId !== previousConversationId;
+
+      if (hasNewMessages && !conversationChanged) {
+        console.log('💾 Auto-save triggered: new messages detected', {
+          currentCount: currentMessageCount,
+          previousCount: previousMessageCount,
+          conversationId: currentConversationId
+        });
+
+                 handleAutoSaveConversation(messages, {
+           selectedConfigId: selectedConfigId || undefined,
+           selectedModelId: selectedModelId || undefined,
+           projectId: selectedProjectId || undefined
+         });
       }
-      
-      setPreviousMessageCount(messages.length);
+
+      // Update tracking variables for next comparison
+      setPreviousMessageCount(currentMessageCount);
       setPreviousConversationId(currentConversationId);
     }
-  }, [messages.length, currentConversationId, sidebarUpdateFunction, isLoadingConversation, previousMessageCount, previousConversationId]);
-  
-  // 📂 Handle project selection with streaming check
-  const handleProjectSelectWithStreamingCheck = useCallback((projectId: number | null) => {
-    // 🚫 Prevent project switching while streaming
-    if (isStreaming) {
-      console.log('🚫 Cannot switch projects while streaming is active');
-      return;
-    }
+  }, [
+    messages,
+    isStreaming,
+    handleAutoSaveConversation,
+    selectedConfigId,
+    selectedModelId,
+    selectedProjectId,
+    currentConversationId,
+    previousMessageCount,
+    previousConversationId,
+    isLoadingConversation,
+    conversationJustLoaded
+  ]);
 
-    handleProjectSelect(projectId);
-  }, [handleProjectSelect, isStreaming]);
-
-  // 📂 Handle opening project manager
-  const handleChangeProjectClickWithStreamingCheck = useCallback(() => {
-    // 🚫 Prevent opening project manager while streaming
-    if (isStreaming) {
-      console.log('🚫 Cannot open project manager while streaming is active');
-      return;
-    }
-
-    setShowProjectManager(true);
-    console.log('🎯 Opening project manager from selector card');
-  }, [setShowProjectManager, isStreaming]);
-
-  // 📤 Handle sending messages
-  const handleSendMessage = useCallback(async (content: string, attachments?: FileAttachment[]) => {
-    await sendMessage(content, attachments);
-  }, [sendMessage]);
-  
-  // 💾 Handle saving conversation
-  const handleSaveCurrentConversation = useCallback(async () => {
-    await handleSaveConversation(messages, { 
-      selectedConfigId: selectedConfigId || undefined, 
-      selectedModelId: selectedModelId || undefined,
-      projectId: selectedProjectId || undefined
-    });
-  }, [handleSaveConversation, messages, selectedConfigId, selectedModelId]);
-  
-  // 📖 Handle loading conversation
+  // 💾 Conversation loading with streaming check
   const handleLoadSelectedConversation = useCallback(async (conversationId: number) => {
-    // 🚫 Prevent conversation switching while streaming
+    // 🚫 Prevent conversation loading while streaming
     if (isStreaming) {
-      console.log('🚫 Cannot switch conversations while streaming is active');
+      console.log('🚫 Cannot load conversation while streaming is active');
       return;
     }
-    
-    setIsLoadingConversation(true);
+
     try {
+      setIsLoadingConversation(true);
+      setConversationJustLoaded(true);
+      
+      console.log('💾 Loading conversation:', conversationId);
       const loadedMessages = await handleLoadConversation(conversationId);
-      // Messages are set via the conversation manager callback
-      // Reset message count tracking for the loaded conversation
+      
+      // Set tracking state for the loaded conversation
       setPreviousMessageCount(loadedMessages.length);
       setPreviousConversationId(conversationId);
-      setConversationJustLoaded(true);
+      
+      console.log('✅ Conversation loaded successfully with', loadedMessages.length, 'messages');
+      
+    } catch (error) {
+      console.error('❌ Failed to load conversation:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load conversation');
     } finally {
       setIsLoadingConversation(false);
     }
-  }, [handleLoadConversation, isStreaming]);
-  
-  // 🤖 Handle assistant manager changes
-  const handleAssistantManagerChange = useCallback(() => {
-    // This will be called when assistants are created/edited/deleted
-    console.log('🔄 Assistant list updated from embedded manager');
-    // Refresh available assistants to reflect any changes
-    loadAvailableAssistants();
-  }, [loadAvailableAssistants]);
-  
-  // 📂 Handle project update with re-introduction
-  const handleProjectUpdated = useCallback(async (projectId: number) => {
-    console.log('📂 Project updated, generating new introduction:', projectId);
-    
+  }, [isStreaming, handleLoadConversation, setError]);
+
+  // 💾 Save current conversation
+  const handleSaveCurrentConversation = useCallback(async () => {
+    if (messages.length === 0) {
+      setError('No messages to save');
+      return;
+    }
+
     try {
-      // Get fresh project data from the service
+             await handleSaveConversation(messages, {
+         selectedConfigId: selectedConfigId || undefined,
+         selectedModelId: selectedModelId || undefined,
+         projectId: selectedProjectId || undefined
+       });
+      console.log('✅ Conversation saved manually');
+    } catch (error) {
+      console.error('❌ Failed to save conversation:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save conversation');
+    }
+  }, [messages, handleSaveConversation, selectedConfigId, selectedModelId, selectedProjectId, setError]);
+
+  // ✉️ Enhanced message sending with auto-save integration
+  const handleSendMessage = useCallback(async (
+    content: string, 
+    files?: FileAttachment[]
+  ) => {
+    try {
+      await sendMessage(content, files);
+      
+      // Update message count for next auto-save comparison
+      const newCount = messages.length + 2; // +1 for user message, +1 for assistant response
+      setPreviousMessageCount(newCount);
+      
+    } catch (error) {
+      console.error('❌ Failed to send message:', error);
+      // Error handling is done in useChatState
+    }
+  }, [sendMessage, messages.length]);
+
+  // 🤖 Assistant manager change handler
+  const handleAssistantManagerChange = useCallback(async () => {
+    await loadAvailableAssistants();
+  }, [loadAvailableAssistants]);
+
+  // 📂 Project selection helpers
+  const handleProjectUpdated = useCallback(async (projectId: number) => {
+    try {
+      // Load the updated project
       const updatedProject = await projectService.getProject(projectId);
       
-      // Generate a new introduction message for the updated project
-      const introMessage = handleProjectIntroduction(updatedProject, selectedProject);
+             // Generate a new introduction message for the updated project
+       const introMessage = handleProjectIntroduction(updatedProject, selectedProject);
       addMessage(introMessage);
       
       console.log('✅ Added re-introduction message for updated project');
       
-      // Refresh the available projects to get the updated data
-      await loadAvailableProjects(true);
+      // Refresh the available projects
+      await loadAvailableProjects();
       
     } catch (error) {
       console.error('❌ Failed to generate introduction for updated project:', error);
     }
   }, [loadAvailableProjects, handleProjectIntroduction, selectedProject, addMessage]);
 
-  // 🤖 Handle assistant update with re-introduction
+  // 🤖 Assistant updated handler  
   const handleAssistantUpdated = useCallback(async (assistantId: number) => {
-    console.log('🤖 Assistant updated, generating new introduction:', assistantId);
-    
     try {
-      // Get fresh assistant data from the service
-      const { assistantService } = await import('../../../services/assistantService');
-      const updatedAssistant = await assistantService.getAssistant(assistantId);
+             // Load the updated assistant data
+       const updatedAssistant = await assistantService.getAssistant(assistantId);
       
-      // Convert to summary format for introduction message
+      // Create assistant summary for introduction
       const assistantSummary = {
         id: updatedAssistant.id,
         name: updatedAssistant.name,
@@ -444,7 +430,7 @@ export const ChatContainer: React.FC = () => {
     }
   }, [conversationJustLoaded]);
 
-  // ⌨️ Projects manager keyboard shortcut (Ctrl/Cmd + P)
+  // ⌨️ Unified sidebar keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle shortcuts when not typing in input fields
@@ -462,105 +448,83 @@ export const ChatContainer: React.FC = () => {
         return;
       }
 
+      // Ctrl/Cmd + B for conversations
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
+        event.preventDefault();
+        setSidebarMode('conversations');
+        toggleSidebar();
+        setShowAssistantManager(false);
+        console.log('⌨️ Toggled conversations via keyboard shortcut');
+      }
+      
+      // Ctrl/Cmd + P for projects
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
         event.preventDefault();
-        setShowProjectManager(prev => !prev);
-        console.log('⌨️ Toggled project manager via keyboard shortcut');
+        setSidebarMode('projects');
+        toggleSidebar();
+        setShowAssistantManager(false);
+        console.log('⌨️ Toggled projects via keyboard shortcut');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isStreaming]);
+  }, [isStreaming, setShowAssistantManager]);
   
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 overflow-hidden">
       
-      {/* 🎯 Conversation Sidebar Toggle */}
+      {/* 📁 Unified Sidebar Toggle */}
       <button
-        onClick={() => setShowConversationSidebar(!showConversationSidebar)}
+        onClick={() => {
+          const newState = !showUnifiedSidebar;
+          // Close assistant manager when opening unified sidebar
+          if (newState) {
+            setShowAssistantManager(false);
+          }
+          setShowUnifiedSidebar(newState);
+        }}
         disabled={isStreaming}
         className={`fixed top-1/2 translate-y-12 z-50 transition-all duration-300 ${
-          showConversationSidebar && !isMobile
-            ? 'left-[324px]'
-            : 'left-2'
+          showUnifiedSidebar ? 'left-80' : 'left-2'
         } bg-white/5 hover:bg-white/10 backdrop-blur-lg border border-white/10 rounded-full p-3 shadow-2xl hover:shadow-3xl group hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
-        title={`${showConversationSidebar ? 'Hide' : 'Show'} conversation history`}
-        aria-label={`${showConversationSidebar ? 'Hide' : 'Show'} conversation history`}
+        title={`${showUnifiedSidebar ? 'Hide' : 'Show'} sidebar`}
+        aria-label={`${showUnifiedSidebar ? 'Hide' : 'Show'} sidebar`}
       >
-        {showConversationSidebar ? (
+        {showUnifiedSidebar ? (
           <ChevronLeft className="w-4 h-4 text-white group-hover:text-blue-100 transition-colors" />
         ) : (
           <ChevronRight className="w-4 h-4 text-white group-hover:text-blue-100 transition-colors" />
         )}
       </button>
       
-      
-      {/* 💾 Conversation Sidebar */}
-      <ConversationSidebar
-        isOpen={showConversationSidebar}
-        onClose={() => setShowConversationSidebar(false)}
+      {/* 📁 Unified Sidebar */}
+      <UnifiedSidebar
+        mode={sidebarMode}
+        onModeChange={(mode) => {
+          if (isStreaming) return;
+          setSidebarMode(mode);
+        }}
+        isOpen={showUnifiedSidebar}
+        onClose={() => setShowUnifiedSidebar(false)}
         onSelectConversation={handleLoadSelectedConversation}
-        onCreateNew={handleNewConversationClick}
+        onCreateNewConversation={handleNewConversationClick}
         currentConversationId={currentConversationId || undefined}
-        onConversationUpdate={() => {}}
         refreshTrigger={conversationRefreshTrigger}
         onSidebarReady={(updateFn, addFn) => {
           setSidebarFunctions(updateFn, addFn);
         }}
         isStreaming={isStreaming}
+        selectedProjectId={selectedProjectId}
+        onProjectSelect={handleProjectSelectWithStreamingCheck}
+        onProjectChange={handleProjectChange}
+        onProjectUpdated={handleProjectUpdated}
       />
-      
-      {/* 📂 Project Manager */}
-      {showProjectManager && (
-        <div className={`fixed z-50 bg-gradient-to-br from-teal-600 via-teal-700 to-emerald-600 shadow-xl transform transition-all duration-300 ease-in-out ${
-          isMobile 
-            ? `inset-x-0 bottom-0 h-96 rounded-t-xl ${
-                showProjectManager ? 'translate-y-0' : 'translate-y-full'
-              }`
-            : `inset-y-0 right-0 w-96 ${
-                showProjectManager ? 'translate-x-0' : 'translate-x-full'
-              }`
-        }`}>
-          <div className="h-full overflow-y-auto">
-            {isMobile && (
-              <div className="flex justify-center py-3 bg-white/10">
-                <div className="w-12 h-1 bg-white/30 rounded-full"></div>
-              </div>
-            )}
-            
-            <ProjectManager
-              selectedProjectId={selectedProject?.id || null}
-              onProjectSelect={handleProjectSelectWithStreamingCheck}
-              onProjectChange={handleProjectChange}
-              onProjectUpdated={handleProjectUpdated}
-              isStreaming={isStreaming}
-              className="h-full border-0 rounded-none bg-transparent"
-              currentConversationId={currentConversationId || undefined}
-              onSelectConversation={handleLoadSelectedConversation}
-              onNewConversation={handleNewConversationClick}
-            />
-          </div>
-        </div>
-      )}
 
       {/* 🤖 Assistant Manager */}
       {showAssistantManager && (
-        <div className={`fixed z-40 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-600 shadow-xl transform transition-all duration-300 ease-in-out ${
-          isMobile 
-            ? `inset-x-0 bottom-0 h-96 rounded-t-xl ${
-                showAssistantManager ? 'translate-y-0' : 'translate-y-full'
-              }`
-            : `inset-y-0 right-0 w-96 ${
-                showAssistantManager ? 'translate-x-0' : 'translate-x-full'
-              }`
-        }`}>
+        <div className="fixed inset-y-0 right-0 w-96 z-40 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-600 shadow-xl transform transition-all duration-300 ease-in-out translate-x-0">
           <div className="h-full overflow-y-auto">
-            {isMobile && (
-              <div className="flex justify-center py-3 bg-white/10">
-                <div className="w-12 h-1 bg-white/30 rounded-full"></div>
-              </div>
-            )}
             
             <EmbeddedAssistantManager
               selectedAssistantId={selectedAssistantId}
@@ -575,21 +539,18 @@ export const ChatContainer: React.FC = () => {
       )}
       
       {/* 🎭 Backdrop */}
-      {(showAssistantManager || showProjectManager) && (
+      {showAssistantManager && (
         <div 
-          className={`fixed inset-0 z-30 transition-opacity duration-300 ${
-            isMobile ? 'bg-black/60' : 'bg-black/50'
-          }`}
+          className="fixed inset-0 z-30 bg-black/50 transition-opacity duration-300"
           onClick={() => {
             setShowAssistantManager(false);
-            setShowProjectManager(false);
           }}
         />
       )}
       
       {/* Main chat interface with sidebar-aware spacing */}
       <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${
-        showConversationSidebar && !isMobile ? 'lg:ml-80' : 'ml-0'
+        showUnifiedSidebar ? 'ml-80' : 'ml-0'
       }`}>
         {/* 🎛️ Header */}
         <ChatHeader
@@ -604,7 +565,12 @@ export const ChatContainer: React.FC = () => {
           onModelChange={handleModelChange}
           selectedAssistant={selectedAssistant}
           selectedProject={selectedProject}
-          onOpenProjectManager={() => setShowProjectManager(true)}
+          onOpenProjectManager={() => {
+            // Open unified sidebar in projects mode
+            setSidebarMode('projects');
+            setShowUnifiedSidebar(true);
+            setShowAssistantManager(false);
+          }}
           messages={messages}
           currentConversationId={currentConversationId}
           conversationTitle={conversationTitle}

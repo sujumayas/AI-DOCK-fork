@@ -27,34 +27,31 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 from pydantic import BaseModel, Field
 
 class ProjectCreate(BaseModel):
-    """Request model for creating a project."""
-    name: str = Field(..., min_length=1, max_length=100, description="Project name")
-    description: Optional[str] = Field(None, max_length=500, description="Project description")
-    system_prompt: Optional[str] = Field(None, description="Custom system prompt for the project")
-    model_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="LLM model preferences")
-    color: Optional[str] = Field("#3B82F6", max_length=20, description="Project color")
-    icon: Optional[str] = Field("💼", max_length=50, description="Project icon")
-    is_favorited: Optional[bool] = Field(False, description="Whether project is favorited")
+    """Request model for creating a project folder."""
+    name: str = Field(..., min_length=1, max_length=100, description="Folder name")
+    description: Optional[str] = Field(None, max_length=500, description="Folder description")
+    default_assistant_id: Optional[int] = Field(None, description="Default assistant ID for new conversations in this folder")
+    color: Optional[str] = Field("#3B82F6", max_length=20, description="Folder color")
+    icon: Optional[str] = Field("📁", max_length=50, description="Folder icon")
+    is_favorited: Optional[bool] = Field(False, description="Whether folder is favorited")
 
 class ProjectUpdate(BaseModel):
-    """Request model for updating a project."""
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Project name")
-    description: Optional[str] = Field(None, max_length=500, description="Project description")
-    system_prompt: Optional[str] = Field(None, description="Custom system prompt for the project")
-    model_preferences: Optional[Dict[str, Any]] = Field(None, description="LLM model preferences")
-    color: Optional[str] = Field(None, max_length=20, description="Project color")
-    icon: Optional[str] = Field(None, max_length=50, description="Project icon")
-    is_favorited: Optional[bool] = Field(None, description="Whether project is favorited")
+    """Request model for updating a project folder."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Folder name")
+    description: Optional[str] = Field(None, max_length=500, description="Folder description")
+    default_assistant_id: Optional[int] = Field(None, description="Default assistant ID for new conversations in this folder")
+    color: Optional[str] = Field(None, max_length=20, description="Folder color")
+    icon: Optional[str] = Field(None, max_length=50, description="Folder icon")
+    is_favorited: Optional[bool] = Field(None, description="Whether folder is favorited")
 
 class ProjectResponse(BaseModel):
-    """Response model for project data."""
+    """Response model for project folder data."""
     id: int
     name: str
     description: Optional[str]
-    system_prompt: Optional[str]
-    system_prompt_preview: Optional[str]
-    model_preferences: Optional[Dict[str, Any]]
-    has_custom_preferences: bool
+    default_assistant_id: Optional[int]
+    default_assistant_name: Optional[str]
+    has_default_assistant: bool
     color: Optional[str]
     icon: Optional[str]
     user_id: int
@@ -95,17 +92,8 @@ def create_project_response(project, include_sensitive: bool = True) -> ProjectR
 
 async def create_project_response_async(project, db: AsyncSession, include_sensitive: bool = True) -> ProjectResponse:
     """Create a ProjectResponse from a Project model using async methods."""
-    # Get the base dictionary with everything included for preview fields
-    project_dict = await project.to_dict_async(db, include_sensitive=True)
-    
-    # Add computed fields
-    project_dict['system_prompt_preview'] = project.system_prompt_preview
-    project_dict['has_custom_preferences'] = bool(project_dict.get('model_preferences', {}))
-    
-    # Remove sensitive fields if not requested
-    if not include_sensitive:
-        project_dict.pop('system_prompt', None)
-        project_dict.pop('model_preferences', None)
+    # Get the base dictionary
+    project_dict = await project.to_dict_async(db, include_sensitive=include_sensitive)
     
     return ProjectResponse(**project_dict)
 

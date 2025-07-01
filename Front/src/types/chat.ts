@@ -117,6 +117,35 @@ export interface DynamicModelsResponse {
   };
 }
 
+// =============================================================================
+// UNIFIED MODELS (All Providers Combined)
+// =============================================================================
+
+export interface UnifiedModelInfo {
+  id: string;
+  display_name: string;
+  provider: string;
+  config_id: number;
+  config_name: string;
+  is_default: boolean;
+  cost_tier: 'low' | 'medium' | 'high';
+  capabilities: string[];
+  is_recommended: boolean;
+  relevance_score?: number;
+}
+
+export interface UnifiedModelsResponse {
+  models: UnifiedModelInfo[];
+  total_models: number;
+  total_configs: number;
+  default_model_id?: string;
+  default_config_id?: number;
+  cached: boolean;
+  providers: string[];
+  filtering_applied: boolean;
+  original_total_models?: number;
+}
+
 export interface ProcessedModelsData {
   models: ModelInfo[];
   defaultModel: string;

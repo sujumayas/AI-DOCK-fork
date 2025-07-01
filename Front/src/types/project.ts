@@ -1,9 +1,7 @@
 /**
- * Project Types
- * Interfaces for user-created projects that group conversations with custom prompts
+ * Project Folder Types
+ * Interfaces for simple project folders that organize conversations with default assistants
  */
-
-// ProjectModelPreferences removed - using Record<string, any> for flexibility
 
 export interface ProjectSummary {
   id: number;
@@ -15,16 +13,18 @@ export interface ProjectSummary {
   is_archived: boolean;
   conversation_count: number;
   last_accessed_at?: string;
+  default_assistant_id?: number;
+  default_assistant_name?: string;
+  has_default_assistant: boolean;
 }
 
 export interface ProjectDetails {
   id: number;
   name: string;
   description?: string;
-  system_prompt?: string;
-  system_prompt_preview?: string;
-  model_preferences?: Record<string, any>;
-  has_custom_preferences: boolean;
+  default_assistant_id?: number;
+  default_assistant_name?: string;
+  has_default_assistant: boolean;
   color?: string;
   icon?: string;
   user_id: number;
@@ -35,6 +35,24 @@ export interface ProjectDetails {
   created_at: string;
   updated_at: string;
   last_accessed_at?: string;
+}
+
+export interface ProjectCreateRequest {
+  name: string;
+  description?: string;
+  default_assistant_id?: number;
+  color?: string;
+  icon?: string;
+  is_favorited?: boolean;
+}
+
+export interface ProjectUpdateRequest {
+  name?: string;
+  description?: string;
+  default_assistant_id?: number;
+  color?: string;
+  icon?: string;
+  is_favorited?: boolean;
 }
 
 export interface ProjectListResponse {

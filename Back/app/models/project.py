@@ -1,5 +1,5 @@
-# AI Dock Project Model
-# Database model for user-created projects that group conversations with custom assistants
+# AI Dock Project Model - Simplified Folder System
+# Database model for simple project folders that organize conversations with default assistants
 
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Index, Table
 from sqlalchemy.orm import relationship
@@ -20,19 +20,19 @@ project_conversations = Table(
 
 class Project(Base):
     """
-    Project model - stores user-created projects that group conversations with custom prompts.
+    Project model - simplified folder system for organizing conversations.
     
-    Each project represents a workspace with:
-    - Custom system prompt defining the project context
-    - Multiple conversations grouped together
-    - Model preferences specific to the project
-    - Private to the user who created it
+    Each project is now a simple folder with:
+    - A name and optional description
+    - A default assistant that gets used for new conversations in this folder
+    - Visual customization (color, icon)
+    - Simple folder-like organization
     
-    Think of projects like "workspaces" - a Research Project, 
-    a Coding Project, a Writing Project, etc.
+    Think of projects as "folders" - a Research folder, a Coding folder, etc.
+    Each folder has a default assistant that new chats will use.
     
     Table: projects
-    Purpose: Store user-created projects with their configurations and conversation groups
+    Purpose: Simple folder organization with default assistants
     """
     
     # =============================================================================
@@ -45,42 +45,36 @@ class Project(Base):
     # COLUMNS (DATABASE FIELDS)
     # =============================================================================
     
-    # Primary Key - unique identifier for each project
+    # Primary Key - unique identifier for each project folder
     id = Column(
         Integer, 
         primary_key=True, 
         index=True,
-        comment="Unique project identifier"
+        comment="Unique project folder identifier"
     )
     
-    # Project Identification and Description
+    # Project Folder Identification and Description
     name = Column(
         String(100),                # Keep names concise but descriptive
-        nullable=False,             # Every project must have a name
+        nullable=False,             # Every folder must have a name
         index=True,                 # Index for fast searching
-        comment="Human-readable name for the project (e.g., 'Research Assistant', 'Code Review')"
+        comment="Human-readable name for the project folder (e.g., 'Research', 'Coding', 'Writing')"
     )
     
     description = Column(
-        String(500),                # Brief description of project's purpose
+        String(500),                # Brief description of folder's purpose
         nullable=True,              # Optional field
-        comment="Brief description of what this project is for and its purpose"
+        comment="Brief description of what this folder is for"
     )
     
-    # Core Project Configuration
-    system_prompt = Column(
-        Text,                       # Use Text for longer content (no character limit)
-        nullable=True,              # System prompt is optional for projects
-        comment="The system prompt that defines this project's context and behavior"
-    )
-    
-    # Model Preferences stored as JSON
-    # This allows flexible configuration per project
-    model_preferences = Column(
-        JSON,
-        nullable=True,              # Optional - will use defaults if not set
-        default={},                 # Empty dict as default
-        comment="JSON object storing LLM preferences: temperature, max_tokens, model, etc."
+    # Default Assistant Integration - SIMPLIFIED APPROACH
+    # Instead of complex system prompts, each folder has a default assistant
+    default_assistant_id = Column(
+        Integer,
+        ForeignKey('assistants.id'),
+        nullable=True,              # Optional - can have folders without default assistants
+        index=True,                 # Index for fast assistant lookups
+        comment="Default assistant that gets used for new conversations in this folder"
     )
     
     # Visual customization
@@ -88,51 +82,51 @@ class Project(Base):
         String(20),                 # Hex color code or color name
         nullable=True,
         default="#3B82F6",          # Default blue color
-        comment="Color for the project in the UI"
+        comment="Color for the folder in the UI"
     )
     
     icon = Column(
         String(50),                 # Icon name or emoji
         nullable=True,
-        default="💼",               # Default briefcase emoji
-        comment="Icon or emoji representing the project"
+        default="📁",               # Default folder emoji
+        comment="Icon or emoji representing the folder"
     )
     
     # =============================================================================
     # OWNERSHIP AND ACCESS CONTROL
     # =============================================================================
     
-    # Foreign key to User - who owns this project?
+    # Foreign key to User - who owns this folder?
     user_id = Column(
         Integer,
         ForeignKey('users.id', ondelete="CASCADE"),     # References the 'id' column in 'users' table
-        nullable=False,             # Every project must have an owner
+        nullable=False,             # Every folder must have an owner
         index=True,                 # Index for fast user lookups
-        comment="Foreign key to the user who created this project"
+        comment="Foreign key to the user who created this folder"
     )
     
     # Status Control
     is_active = Column(
         Boolean,
-        default=True,               # New projects are active by default
+        default=True,               # New folders are active by default
         nullable=False,
-        index=True,                 # Index for filtering active projects
-        comment="Whether this project is active and available for use"
+        index=True,                 # Index for filtering active folders
+        comment="Whether this folder is active and available for use"
     )
     
     is_archived = Column(
         Boolean,
-        default=False,              # New projects are not archived
+        default=False,              # New folders are not archived
         nullable=False,
-        index=True,                 # Index for filtering archived projects
-        comment="Whether this project is archived (hidden from main view)"
+        index=True,                 # Index for filtering archived folders
+        comment="Whether this folder is archived (hidden from main view)"
     )
     
     is_favorited = Column(
         Boolean,
-        default=False,              # New projects are not favorited
+        default=False,              # New folders are not favorited
         nullable=False,
-        comment="Whether this project is marked as a favorite"
+        comment="Whether this folder is marked as a favorite"
     )
     
     # =============================================================================
@@ -144,7 +138,7 @@ class Project(Base):
         DateTime(timezone=True),
         server_default=func.now(),  # Database sets this automatically
         nullable=False,
-        comment="When this project was created"
+        comment="When this folder was created"
     )
     
     updated_at = Column(
@@ -152,24 +146,31 @@ class Project(Base):
         server_default=func.now(),
         onupdate=func.now(),        # Update this every time record changes
         nullable=False,
-        comment="When this project was last updated"
+        comment="When this folder was last updated"
     )
     
     last_accessed_at = Column(
         DateTime(timezone=True),
         nullable=True,
-        comment="When this project was last accessed/used"
+        comment="When this folder was last accessed/used"
     )
     
     # =============================================================================
     # RELATIONSHIPS (SQLALCHEMY CONNECTIONS TO OTHER TABLES)
     # =============================================================================
     
-    # Relationship to User - the owner of this project
+    # Relationship to User - the owner of this folder
     user = relationship(
         "User",
         back_populates="projects",      # User model will have a 'projects' attribute
         lazy="select"                   # Load user data when needed
+    )
+    
+    # Relationship to Default Assistant
+    default_assistant = relationship(
+        "Assistant",
+        foreign_keys=[default_assistant_id],
+        lazy="select"
     )
     
     # Many-to-many relationship to Conversations
@@ -186,115 +187,68 @@ class Project(Base):
     
     def __repr__(self) -> str:
         """
-        String representation of the Project object.
+        String representation of the Project folder object.
         This is what you see when you print(project) or in debugger.
         """
-        return f"<Project(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+        return f"<ProjectFolder(id={self.id}, name='{self.name}', user_id={self.user_id})>"
     
     def __str__(self) -> str:
         """Human-friendly string representation."""
         return f"{self.name} (by {self.user.username if self.user else 'Unknown'})"
     
     # =============================================================================
-    # PROPERTY METHODS
+    # PROPERTY METHODS - SIMPLIFIED
     # =============================================================================
     
     @property
     def display_name(self) -> str:
         """
-        Get the display name for this project.
-        Returns the name, ensuring it's never empty.
+        Get the display name for this folder.
         """
-        return self.name or f"Project #{self.id}"
+        return self.name or "Untitled Folder"
     
     @property
     def short_description(self) -> str:
         """
-        Get a shortened version of the description for UI display.
-        Truncates to 100 characters with ellipsis.
+        Get a shortened description for list views.
         """
         if not self.description:
-            return "No description provided"
+            return "No description"
         
-        if len(self.description) <= 100:
-            return self.description
-        
-        return self.description[:97] + "..."
-    
-    @property
-    def system_prompt_preview(self) -> str:
-        """
-        Get a preview of the system prompt for UI display.
-        Truncates to 150 characters with ellipsis.
-        """
-        if not self.system_prompt:
-            return "No system prompt defined"
-        
-        if len(self.system_prompt) <= 150:
-            return self.system_prompt
-        
-        return self.system_prompt[:147] + "..."
+        # Truncate to 100 characters for list views
+        return self.description[:100] + "..." if len(self.description) > 100 else self.description
     
     @property
     def conversation_count(self) -> int:
         """
-        Get the number of conversations associated with this project.
-        Note: This property should only be accessed when conversations are already loaded.
-        For async contexts, use get_conversation_count_async() instead.
+        Get the number of conversations in this folder.
+        This is a synchronous property - use get_conversation_count_async for async contexts.
         """
-        try:
-            # Check if conversations is loaded to avoid triggering lazy load
-            if hasattr(self, '_sa_instance_state'):
-                from sqlalchemy.orm import object_session
-                from sqlalchemy.inspection import inspect
-                
-                # Get the state of the conversations relationship
-                state = inspect(self)
-                conversations_state = state.attrs.conversations
-                
-                # If conversations haven't been loaded yet, return 0 to avoid async issues
-                if not conversations_state.loaded_value:
-                    return 0
-            
-            return len(self.conversations) if self.conversations else 0
-        except Exception:
-            # Fallback to 0 if any issues occur
-            return 0
-
+        return len(self.conversations) if self.conversations else 0
+    
     async def get_conversation_count_async(self, db_session) -> int:
         """
-        Asynchronously get the number of conversations associated with this project.
-        This method safely counts conversations without triggering lazy loads.
+        Get the number of conversations in this folder (async version).
         
         Args:
-            db_session: The async database session to use
+            db_session: Database session for async queries
             
         Returns:
-            Number of conversations in this project
+            Number of conversations in this folder
         """
-        try:
-            from sqlalchemy import select, func
-            from ..models.conversation import Conversation
-            
-            # Query to count conversations associated with this project
-            query = select(func.count(project_conversations.c.conversation_id)).where(
-                project_conversations.c.project_id == self.id
-            )
-            
-            result = await db_session.execute(query)
-            count = result.scalar() or 0
-            return count
-        except Exception as e:
-            # Log the error and return 0 as fallback
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error counting conversations for project {self.id}: {str(e)}")
-            return 0
-
+        from sqlalchemy import select, func
+        from .conversation import Conversation
+        
+        query = select(func.count(project_conversations.c.conversation_id)).where(
+            project_conversations.c.project_id == self.id
+        )
+        result = await db_session.execute(query)
+        return result.scalar() or 0
+    
     @property
     def is_new(self) -> bool:
         """
-        Check if this project was created recently (within last 24 hours).
+        Check if this folder was created recently (within last 24 hours).
         Useful for showing "new" badges in the UI.
         """
         if not self.created_at:
@@ -307,93 +261,33 @@ class Project(Base):
     @property
     def last_activity(self) -> Optional[datetime]:
         """
-        Get the most recent activity time for this project.
-        Returns the latest of: last_accessed_at, updated_at, or most recent conversation update.
+        Get the timestamp of the last activity in this folder.
+        This could be when it was last accessed or when the last conversation was updated.
         """
-        times = [self.updated_at]
-        
-        if self.last_accessed_at:
-            times.append(self.last_accessed_at)
-        
-        if self.conversations:
-            for conv in self.conversations:
-                if conv.updated_at:
-                    times.append(conv.updated_at)
-        
-        return max(times) if times else None
+        # Use last_accessed_at if available, otherwise fall back to updated_at
+        return self.last_accessed_at or self.updated_at
+    
+    @property
+    def default_assistant_name(self) -> Optional[str]:
+        """
+        Get the name of the default assistant for this folder.
+        """
+        return self.default_assistant.name if self.default_assistant else None
+    
+    @property
+    def has_default_assistant(self) -> bool:
+        """
+        Check if this folder has a default assistant configured.
+        """
+        return self.default_assistant_id is not None and self.default_assistant is not None
     
     # =============================================================================
-    # MODEL PREFERENCES METHODS
-    # =============================================================================
-    
-    def get_model_preference(self, key: str, default: Any = None) -> Any:
-        """
-        Get a specific model preference value.
-        
-        Args:
-            key: The preference key (e.g., 'temperature', 'max_tokens')
-            default: Default value if key doesn't exist
-            
-        Returns:
-            The preference value or default
-            
-        Example:
-            temperature = project.get_model_preference('temperature', 0.7)
-        """
-        if not self.model_preferences or not isinstance(self.model_preferences, dict):
-            return default
-        
-        return self.model_preferences.get(key, default)
-    
-    def set_model_preference(self, key: str, value: Any) -> None:
-        """
-        Set a specific model preference value.
-        
-        Args:
-            key: The preference key
-            value: The preference value
-            
-        Example:
-            project.set_model_preference('temperature', 0.8)
-        """
-        if not self.model_preferences:
-            self.model_preferences = {}
-        
-        # Ensure we're working with a mutable dict
-        preferences = dict(self.model_preferences)
-        preferences[key] = value
-        self.model_preferences = preferences
-    
-    def get_effective_model_preferences(self) -> Dict[str, Any]:
-        """
-        Get the complete model preferences with defaults applied.
-        
-        Returns:
-            Dictionary with all preferences including defaults
-        """
-        # Default LLM preferences
-        defaults = {
-            "model": "gpt-3.5-turbo",
-            "temperature": 0.7,
-            "max_tokens": 2048,
-            "top_p": 1.0,
-            "frequency_penalty": 0.0,
-            "presence_penalty": 0.0
-        }
-        
-        # Merge with user preferences (user preferences override defaults)
-        if self.model_preferences and isinstance(self.model_preferences, dict):
-            defaults.update(self.model_preferences)
-        
-        return defaults
-    
-    # =============================================================================
-    # CONVERSATION MANAGEMENT METHODS
+    # FOLDER MANAGEMENT METHODS - SIMPLIFIED
     # =============================================================================
     
     def add_conversation(self, conversation) -> None:
         """
-        Add a conversation to this project.
+        Add a conversation to this folder.
         
         Args:
             conversation: Conversation object to add
@@ -404,7 +298,7 @@ class Project(Base):
     
     def remove_conversation(self, conversation) -> None:
         """
-        Remove a conversation from this project.
+        Remove a conversation from this folder.
         
         Args:
             conversation: Conversation object to remove
@@ -415,111 +309,111 @@ class Project(Base):
     
     def get_recent_conversations(self, limit: int = 10) -> List:
         """
-        Get the most recently updated conversations in this project.
+        Get the most recent conversations in this folder.
         
         Args:
             limit: Maximum number of conversations to return
             
         Returns:
-            List of conversations ordered by update time (newest first)
+            List of recent conversations, sorted by update time
         """
         if not self.conversations:
             return []
         
-        # Sort by updated_at descending and take the limit
-        sorted_conversations = sorted(
-            self.conversations,
-            key=lambda c: c.updated_at or datetime.min,
+        # Sort by updated_at in descending order (most recent first)
+        sorted_convs = sorted(
+            self.conversations, 
+            key=lambda c: c.updated_at or c.created_at, 
             reverse=True
         )
         
-        return sorted_conversations[:limit]
+        return sorted_convs[:limit]
     
     # =============================================================================
-    # BUSINESS LOGIC METHODS
+    # ACCESS CONTROL METHODS - SIMPLIFIED
     # =============================================================================
     
     def can_be_used_by(self, user) -> bool:
         """
-        Check if a specific user can use this project.
-        For now, only the owner can use their projects.
+        Check if a user can use this folder.
         
         Args:
             user: User object to check
             
         Returns:
-            True if user can use this project
+            True if user can use this folder
         """
-        if not self.is_active or self.is_archived:
-            return False
-        
-        # Only the owner can use their project
-        return self.user_id == user.id
+        return (
+            self.is_active and 
+            not self.is_archived and 
+            self.user_id == user.id
+        )
     
     def can_be_edited_by(self, user) -> bool:
         """
-        Check if a specific user can edit this project.
-        Only the owner can edit their projects.
+        Check if a user can edit this folder.
         
         Args:
             user: User object to check
             
         Returns:
-            True if user can edit this project
+            True if user can edit this folder
         """
         return self.user_id == user.id
     
     def can_be_deleted_by(self, user) -> bool:
         """
-        Check if a specific user can delete this project.
-        Only the owner can delete their projects.
+        Check if a user can delete this folder.
         
         Args:
             user: User object to check
             
         Returns:
-            True if user can delete this project
+            True if user can delete this folder
         """
         return self.user_id == user.id
     
+    # =============================================================================
+    # STATUS MANAGEMENT METHODS
+    # =============================================================================
+    
     def activate(self) -> None:
-        """Activate this project (make it available for use)."""
+        """Activate this folder."""
         self.is_active = True
-        self.is_archived = False
         self.updated_at = datetime.utcnow()
     
     def deactivate(self) -> None:
-        """Deactivate this project (hide from use but don't delete)."""
+        """Deactivate this folder."""
         self.is_active = False
         self.updated_at = datetime.utcnow()
     
     def archive(self) -> None:
-        """Archive this project (hide from main view but keep data)."""
+        """Archive this folder."""
         self.is_archived = True
         self.updated_at = datetime.utcnow()
     
     def unarchive(self) -> None:
-        """Unarchive this project (restore to main view)."""
+        """Unarchive this folder."""
         self.is_archived = False
         self.updated_at = datetime.utcnow()
     
     def toggle_favorite(self) -> None:
-        """Toggle the favorite status of this project."""
+        """Toggle favorite status of this folder."""
         self.is_favorited = not self.is_favorited
         self.updated_at = datetime.utcnow()
     
     def mark_accessed(self) -> None:
-        """Mark this project as accessed (update last_accessed_at)."""
+        """Mark this folder as accessed (update last_accessed_at)."""
         self.last_accessed_at = datetime.utcnow()
     
-    def update_system_prompt(self, new_prompt: str) -> None:
+    def set_default_assistant(self, assistant_id: Optional[int]) -> None:
         """
-        Update the system prompt and timestamp.
+        Set the default assistant for this folder.
         
         Args:
-            new_prompt: The new system prompt text
+            assistant_id: ID of the assistant to set as default (None to remove)
         """
-        self.system_prompt = new_prompt
+        self.default_assistant_id = assistant_id
         self.updated_at = datetime.utcnow()
     
     # =============================================================================
@@ -528,7 +422,7 @@ class Project(Base):
     
     def validate_name(self) -> bool:
         """
-        Validate project name format.
+        Validate folder name format.
         
         Returns:
             True if name is valid
@@ -540,162 +434,81 @@ class Project(Base):
         name = self.name.strip()
         return 1 <= len(name) <= 100
     
-    def validate_model_preferences(self) -> bool:
-        """
-        Validate model preferences structure.
-        
-        Returns:
-            True if model preferences are valid
-        """
-        if self.model_preferences is None:
-            return True  # Null is allowed
-        
-        if not isinstance(self.model_preferences, dict):
-            return False
-        
-        # Validate specific preference types if they exist
-        preferences = self.model_preferences
-        
-        # Temperature should be between 0 and 2
-        if 'temperature' in preferences:
-            temp = preferences['temperature']
-            if not isinstance(temp, (int, float)) or not 0 <= temp <= 2:
-                return False
-        
-        # Max tokens should be positive integer
-        if 'max_tokens' in preferences:
-            tokens = preferences['max_tokens']
-            if not isinstance(tokens, int) or tokens <= 0:
-                return False
-        
-        return True
-    
     def is_valid(self) -> bool:
         """
-        Check if the project data is valid overall.
+        Check if this folder is valid.
         
         Returns:
             True if all validation checks pass
         """
-        return (
-            self.validate_name() and
-            self.validate_model_preferences()
-        )
+        return self.validate_name()
     
     # =============================================================================
-    # SERIALIZATION METHODS
+    # SERIALIZATION METHODS - SIMPLIFIED
     # =============================================================================
     
     def to_dict(self, include_sensitive: bool = False, include_conversations: bool = False) -> Dict[str, Any]:
         """
-        Convert project to dictionary for API responses.
+        Convert folder to dictionary for API responses.
         
         Args:
-            include_sensitive: Whether to include sensitive data like system prompt
+            include_sensitive: Whether to include sensitive data
             include_conversations: Whether to include conversation list
             
         Returns:
-            Dictionary representation of the project
+            Dictionary representation of the folder
         """
-        base_dict = {
+        data = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
             "color": self.color,
             "icon": self.icon,
+            "user_id": self.user_id,
             "is_active": self.is_active,
             "is_archived": self.is_archived,
             "is_favorited": self.is_favorited,
+            "conversation_count": self.conversation_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "last_accessed_at": self.last_accessed_at.isoformat() if self.last_accessed_at else None,
-            "conversation_count": self.conversation_count,
-            "user_id": self.user_id
+            "default_assistant_id": self.default_assistant_id,
+            "default_assistant_name": self.default_assistant_name,
+            "has_default_assistant": self.has_default_assistant
         }
         
-        # Include sensitive data only if requested
-        if include_sensitive:
-            base_dict.update({
-                "system_prompt": self.system_prompt,
-                "model_preferences": self.model_preferences or {}
-            })
-        else:
-            # Provide safe previews for public API
-            base_dict.update({
-                "system_prompt_preview": self.system_prompt_preview,
-                "has_custom_preferences": bool(self.model_preferences)
-            })
-        
-        # Include conversations if requested
         if include_conversations and self.conversations:
-            base_dict["conversations"] = [
-                conv.to_dict() for conv in self.get_recent_conversations()
+            data["conversations"] = [
+                {
+                    "id": conv.id,
+                    "title": conv.title,
+                    "message_count": conv.message_count,
+                    "updated_at": conv.updated_at.isoformat() if conv.updated_at else None
+                }
+                for conv in self.conversations
             ]
         
-        return base_dict
-
+        return data
+    
     async def to_dict_async(self, db_session, include_sensitive: bool = False, include_conversations: bool = False) -> Dict[str, Any]:
         """
-        Convert project to dictionary for API responses with async conversation count.
+        Convert folder to dictionary using async methods.
         
         Args:
-            db_session: The async database session to use
-            include_sensitive: Whether to include sensitive data like system prompt
+            db_session: Database session for async queries
+            include_sensitive: Whether to include sensitive data
             include_conversations: Whether to include conversation list
             
         Returns:
-            Dictionary representation of the project
+            Dictionary representation of the folder
         """
-        base_dict = {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "color": self.color,
-            "icon": self.icon,
-            "is_active": self.is_active,
-            "is_archived": self.is_archived,
-            "is_favorited": self.is_favorited,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "last_accessed_at": self.last_accessed_at.isoformat() if self.last_accessed_at else None,
-            "conversation_count": await self.get_conversation_count_async(db_session),
-            "user_id": self.user_id
-        }
+        data = self.to_dict(include_sensitive=include_sensitive, include_conversations=include_conversations)
         
-        # Include sensitive data only if requested
-        if include_sensitive:
-            base_dict.update({
-                "system_prompt": self.system_prompt,
-                "model_preferences": self.model_preferences or {}
-            })
-        else:
-            # Provide safe previews for public API
-            base_dict.update({
-                "system_prompt_preview": self.system_prompt_preview,
-                "has_custom_preferences": bool(self.model_preferences)
-            })
+        # Update conversation count with async method
+        data["conversation_count"] = await self.get_conversation_count_async(db_session)
         
-        # Include conversations if requested
-        if include_conversations and self.conversations:
-            base_dict["conversations"] = [
-                conv.to_dict() for conv in self.get_recent_conversations()
-            ]
-        
-        return base_dict
+        return data
 
-    def to_dict_full(self) -> Dict[str, Any]:
-        """
-        Get complete dictionary representation including sensitive data.
-        Use for owner access or administrative purposes.
-        """
-        return self.to_dict(include_sensitive=True, include_conversations=True)
-    
-    def to_dict_public(self) -> Dict[str, Any]:
-        """
-        Get public dictionary representation without sensitive data.
-        Use for shared access or public listings.
-        """
-        return self.to_dict(include_sensitive=False, include_conversations=False)
 
 # =============================================================================
 # MODEL INDEXES FOR PERFORMANCE
@@ -704,10 +517,10 @@ class Project(Base):
 # Create indexes for common query patterns
 # These will be created automatically when the table is created
 
-# Index for finding user's projects
+# Index for finding user's folders
 Index('idx_project_user_active', Project.user_id, Project.is_active)
 
-# Index for searching projects by name
+# Index for searching folders by name
 Index('idx_project_name_active', Project.name, Project.is_active)
 
 # Index for ordering by creation time
@@ -716,98 +529,94 @@ Index('idx_project_created', Project.created_at.desc())
 # Index for ordering by last activity
 Index('idx_project_last_accessed', Project.last_accessed_at.desc())
 
-# Index for archived projects
+# Index for archived folders
 Index('idx_project_archived', Project.user_id, Project.is_archived)
 
-# Index for favorited projects
+# Index for favorited folders
 Index('idx_project_favorited', Project.user_id, Project.is_favorited)
+
+# Index for default assistant lookups
+Index('idx_project_default_assistant', Project.default_assistant_id)
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
-def create_default_project(user_id: int, name: str = "General Project") -> Project:
+def create_default_project(user_id: int, name: str = "General", assistant_id: Optional[int] = None) -> Project:
     """
-    Create a default project for a new user.
+    Create a default folder for a new user.
     
     Args:
-        user_id: ID of the user who will own this project
-        name: Name for the project
+        user_id: ID of the user who will own this folder
+        name: Name for the folder
+        assistant_id: Optional default assistant ID
         
     Returns:
         Project object with default configuration
     """
     return Project(
         name=name,
-        description="A general-purpose project for organizing conversations.",
-        system_prompt="You are working within a general project context. Provide helpful and organized responses.",
-        model_preferences={
-            "temperature": 0.7,
-            "max_tokens": 2048,
-            "model": "gpt-3.5-turbo"
-        },
+        description=f"General folder for organizing {name.lower()} conversations.",
+        default_assistant_id=assistant_id,
         color="#3B82F6",
-        icon="💼",
+        icon="📁",
         user_id=user_id,
         is_active=True
     )
 
-def create_sample_projects(user_id: int) -> List[Project]:
+def create_sample_projects(user_id: int, general_assistant_id: Optional[int] = None) -> List[Project]:
     """
-    Create a set of sample projects for demonstration purposes.
+    Create a set of sample folders for demonstration purposes.
     
     Args:
-        user_id: ID of the user who will own these projects
+        user_id: ID of the user who will own these folders
+        general_assistant_id: Optional general assistant ID to use as default
         
     Returns:
         List of sample Project objects
     """
     projects = []
     
-    # Research Project
+    # General folder
     projects.append(Project(
-        name="Research Assistant",
-        description="For research tasks, fact-checking, and academic work.",
-        system_prompt="You are a research assistant. Help users find information, analyze sources, summarize findings, and maintain academic rigor. Always cite sources when possible and ask for clarification on research scope.",
-        model_preferences={
-            "temperature": 0.3,  # Lower temperature for more factual responses
-            "max_tokens": 3000,
-            "model": "gpt-4"
-        },
-        color="#10B981",
+        name="General",
+        description="General conversations and discussions.",
+        default_assistant_id=general_assistant_id,
+        color="#3B82F6",
+        icon="💬",
+        user_id=user_id,
+        is_active=True
+    ))
+    
+    # Work folder
+    projects.append(Project(
+        name="Work",
+        description="Work-related conversations and projects.",
+        default_assistant_id=general_assistant_id,
+        color="#059669",
+        icon="💼",
+        user_id=user_id,
+        is_active=True
+    ))
+    
+    # Research folder
+    projects.append(Project(
+        name="Research",
+        description="Research and learning conversations.",
+        default_assistant_id=general_assistant_id,
+        color="#7C3AED",
         icon="🔬",
         user_id=user_id,
         is_active=True
     ))
     
-    # Coding Project
+    # Coding folder
     projects.append(Project(
-        name="Code Development",
-        description="For programming tasks, code review, and software development.",
-        system_prompt="You are a senior software engineer. Help users with coding problems, code review, architecture decisions, and best practices. Always provide working examples and explain your reasoning.",
-        model_preferences={
-            "temperature": 0.4,  # Moderate temperature for balanced technical responses
-            "max_tokens": 4000,
-            "model": "gpt-4"
-        },
-        color="#8B5CF6",
+        name="Coding",
+        description="Programming and development discussions.",
+        default_assistant_id=general_assistant_id,
+        color="#DC2626",
         icon="💻",
-        user_id=user_id,
-        is_active=True
-    ))
-    
-    # Creative Writing Project
-    projects.append(Project(
-        name="Creative Writing",
-        description="For creative writing, storytelling, and content creation.",
-        system_prompt="You are a creative writing mentor. Help users develop stories, characters, and creative content. Encourage experimentation, provide constructive feedback, and inspire creativity.",
-        model_preferences={
-            "temperature": 0.9,  # Higher temperature for more creative responses
-            "max_tokens": 4000,
-            "model": "gpt-4"
-        },
-        color="#F59E0B",
-        icon="✍️",
         user_id=user_id,
         is_active=True
     ))

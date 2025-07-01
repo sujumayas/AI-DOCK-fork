@@ -10,6 +10,10 @@ export type {
   SmartProcessedModelsData 
 } from './chat/models';
 
+export type {
+  UnifiedModelsResponse
+} from '../types/chat';
+
 // 🎯 REFACTORING COMPLETE: chatService.ts (1,088 lines) → Modular Architecture
 //
 // **Original File**: 1,088 lines with multiple responsibilities

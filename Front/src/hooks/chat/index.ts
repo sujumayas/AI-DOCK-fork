@@ -6,6 +6,7 @@ export { useModelSelection } from './useModelSelection';
 export { useAssistantManager } from './useAssistantManager';
 export { useConversationManager } from './useConversationManager';
 export { useResponsiveLayout } from './useResponsiveLayout';
+export { useSidebarState } from './useSidebarState';
 
 // Re-export types for convenience
 export type { 
@@ -37,3 +38,10 @@ export type {
   ResponsiveLayoutActions, 
   ResponsiveLayoutReturn 
 } from './useResponsiveLayout';
+
+export type { 
+  SidebarState, 
+  SidebarActions, 
+  SidebarReturn, 
+  SidebarMode 
+} from './useSidebarState';

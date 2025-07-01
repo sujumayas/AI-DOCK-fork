@@ -18,8 +18,7 @@ export interface ConversationManagerState {
   lastAutoSaveMessageCount: number;
   autoSaveFailedAt: number | null;
   
-  // Sidebar state
-  showConversationSidebar: boolean;
+  // Sidebar integration
   conversationRefreshTrigger: number;
   sidebarUpdateFunction: ((id: number, count: number, backendData?: Partial<any>) => void) | null;
   sidebarAddConversationFunction: ((conv: any) => void) | null;
@@ -34,8 +33,7 @@ export interface ConversationManagerActions {
   // Conversation lifecycle
   handleNewConversation: () => void;
   
-  // Sidebar management
-  setShowConversationSidebar: (show: boolean) => void;
+  // Sidebar integration
   setSidebarFunctions: (updateFn: (id: number, count: number, backendData?: Partial<any>) => void, addFn: (conv: any) => void) => void;
   handleAddConversationToSidebar: (conversation: any) => void;
   
@@ -57,8 +55,7 @@ export const useConversationManager = (
   const [lastAutoSaveMessageCount, setLastAutoSaveMessageCount] = useState(0);
   const [autoSaveFailedAt, setAutoSaveFailedAt] = useState<number | null>(null);
   
-  // 💾 Sidebar state
-  const [showConversationSidebar, setShowConversationSidebar] = useState(false);
+  // 💾 Sidebar integration state
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
   const [sidebarUpdateFunction, setSidebarUpdateFunction] = useState<((id: number, count: number, backendData?: Partial<any>) => void) | null>(null);
   const [sidebarAddConversationFunction, setSidebarAddConversationFunction] = useState<((conv: any) => void) | null>(null);
@@ -305,11 +302,6 @@ export const useConversationManager = (
         setConversationTitle(null);
       }
       
-      // Close sidebar on mobile
-      if (window.innerWidth < 1024) {
-        setShowConversationSidebar(false);
-      }
-      
       console.log('✅ Conversation loaded:', chatMessages.length, 'messages (state initialized)');
       
       if (onConversationLoad) {
@@ -382,7 +374,6 @@ export const useConversationManager = (
     isSavingConversation,
     lastAutoSaveMessageCount,
     autoSaveFailedAt,
-    showConversationSidebar,
     conversationRefreshTrigger,
     sidebarUpdateFunction,
     sidebarAddConversationFunction,
@@ -392,7 +383,6 @@ export const useConversationManager = (
     handleSaveConversation,
     handleLoadConversation,
     handleNewConversation,
-    setShowConversationSidebar,
     setSidebarFunctions,
     handleAddConversationToSidebar,
     setConversationError

@@ -5,25 +5,16 @@ import {
   DynamicModelsResponse, 
   ProcessedModelsData, 
   ModelInfo,
-  UnifiedModelsResponse
+  UnifiedModelsResponse,
+  UnifiedModelInfo
 } from '../../types/chat';
 import { coreChatService } from './core';
 import { modelHelpers } from './modelHelpers';
 import { createChatServiceError, logChatError } from './errors';
 
-// 🆕 UNIFIED MODELS TYPES: New single model list approach
-export interface UnifiedModelInfo {
-  id: string;
-  display_name: string;
-  provider: string;
-  config_id: number;
-  config_name: string;
-  is_default: boolean;
-  cost_tier: 'low' | 'medium' | 'high';
-  capabilities: string[];
-  is_recommended: boolean;
-  relevance_score?: number;
-}
+// 🆕 UNIFIED MODELS TYPES: Now imported from types/chat.ts
+// Re-export for backward compatibility
+export type { UnifiedModelInfo } from '../../types/chat';
 
 // Enhanced processed models data with smart filtering capabilities
 export interface SmartProcessedModelsData extends ProcessedModelsData {

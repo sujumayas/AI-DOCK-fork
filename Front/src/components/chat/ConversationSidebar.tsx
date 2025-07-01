@@ -527,15 +527,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 z-50 lg:relative lg:inset-auto lg:z-auto">
-      {/* Mobile overlay */}
-      <div 
-        className="absolute inset-0 bg-black/50 lg:hidden"
-        onClick={onClose}
-      />
-      
+    <div className="fixed inset-y-0 left-0 z-50 w-80">
       {/* Sidebar content */}
-      <div className="absolute left-0 top-0 h-full w-80 bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl lg:relative lg:w-full lg:shadow-none flex flex-col">
+      <div className="h-full w-full bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/20 flex-shrink-0">
           <div className="flex items-center space-x-2">
@@ -562,12 +556,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
               <Plus className="w-4 h-4" />
             </button>
             
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
-            >
-              <X className="w-4 h-4" />
-            </button>
+
           </div>
         </div>
         
