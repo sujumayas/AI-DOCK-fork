@@ -394,12 +394,12 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   const renderConversationItem = (conversation: ConversationSummary) => (
     <div
       key={conversation.id}
-      className={`group relative mx-2 mb-1 rounded-lg transition-all duration-200 ${
+      className={`group relative mx-2 mb-2 rounded-xl transition-all duration-200 ${
         currentConversationId === conversation.id
-          ? 'bg-blue-50 border border-blue-200'
+          ? 'bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 shadow-lg'
           : isStreaming
-          ? 'bg-gray-50 border border-gray-200 opacity-60'
-          : 'hover:bg-gray-50 border border-transparent'
+          ? 'bg-white/5 backdrop-blur-sm border border-white/10 opacity-60'
+          : 'hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-white/20 hover:shadow-lg hover:scale-[1.02] transform'
       }`}
     >
       {/* Conversation item */}
@@ -428,18 +428,18 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                   setNewTitle('');
                 }
               }}
-              className="w-full px-2 py-1 text-sm font-medium border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-sm font-medium bg-white/10 backdrop-blur-sm border border-blue-400/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 text-white placeholder-blue-300"
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <h3 className="text-sm font-medium text-gray-800 truncate">
+            <h3 className="text-sm font-medium text-white truncate">
               {conversation.title}
             </h3>
           )}
           
           {/* Metadata */}
-          <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
+          <div className="flex items-center space-x-3 mt-2 text-xs text-blue-300">
             <div className="flex items-center">
               <MessageSquare className="w-3 h-3 mr-1" />
               {conversation.message_count} messages
@@ -453,14 +453,14 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         </div>
         
         {/* Action buttons */}
-        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
           <button
             onClick={(e) => {
               e.stopPropagation();
               setEditingTitle(conversation.id);
               setNewTitle(conversation.title);
             }}
-            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+            className="p-1.5 text-blue-300 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-200 hover:scale-110 transform"
             title="Rename conversation"
           >
             <Edit3 className="w-3 h-3" />
@@ -471,7 +471,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
               e.stopPropagation();
               setSelectedForDelete(conversation.id);
             }}
-            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+            className="p-1.5 text-blue-300 hover:text-red-200 hover:bg-red-500/20 backdrop-blur-sm border border-white/10 hover:border-red-400/30 rounded-lg transition-all duration-200 hover:scale-110 transform"
             title="Delete conversation"
           >
             <Trash2 className="w-3 h-3" />
@@ -481,19 +481,19 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       
       {/* Delete confirmation */}
       {selectedForDelete === conversation.id && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-lg border border-red-200 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-lg rounded-xl border border-red-400/30 flex items-center justify-center shadow-2xl">
           <div className="text-center p-4">
-            <p className="text-sm text-gray-700 mb-3">Delete this conversation?</p>
-            <div className="flex space-x-2">
+            <p className="text-sm text-white font-medium mb-4">Delete this conversation?</p>
+            <div className="flex space-x-3">
               <button
                 onClick={() => handleDeleteConversation(conversation.id)}
-                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                className="px-4 py-2 bg-red-500/80 backdrop-blur-sm border border-red-400/50 text-white text-xs rounded-lg hover:bg-red-400/80 transition-all duration-200 font-medium shadow-lg"
               >
                 Delete
               </button>
               <button
                 onClick={() => setSelectedForDelete(null)}
-                className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-blue-200 text-xs rounded-lg hover:bg-white/20 transition-all duration-200 font-medium"
               >
                 Cancel
               </button>
@@ -510,19 +510,20 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     
     return (
       <div key={title} className="mb-6">
-        <div className="sticky top-0 z-10 px-4 py-2 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-              {title}
-            </h3>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              {conversations.length}
-            </span>
+        <div className="sticky top-0 z-10 px-4 py-3 bg-black/60 backdrop-blur-md border-b border-white/10 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-blue-200 uppercase tracking-wide">
+                {title}
+              </h3>
+              <span className="text-xs text-blue-300 bg-white/10 backdrop-blur-sm border border-white/20 px-2 py-1 rounded-full">
+                {conversations.length}
+              </span>
           </div>
         </div>
         <div className="py-1">
           {conversations.map(renderConversationItem)}
         </div>
+        
       </div>
     );
   };
@@ -533,12 +534,14 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   const content = (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/20 flex-shrink-0">
-        <div className="flex items-center space-x-2">
-          <Archive className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
+      <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-center w-8 h-8 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-lg shadow-md">
+            <MessageSquare className="w-4 h-4 text-blue-200" />
+          </div>
+          <h2 className="text-lg font-semibold text-white">Conversations</h2>
           {totalCount > 0 && (
-            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+            <span className="px-2 py-1 text-xs bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-200 rounded-full">
               {totalCount}
             </span>
           )}
@@ -547,10 +550,10 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         <div className="flex items-center space-x-2">
           <button
             onClick={isStreaming ? undefined : onCreateNew}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-2 rounded-lg transition-all duration-200 ${
               isStreaming
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-blue-600 hover:bg-blue-50'
+                ? 'text-blue-400 cursor-not-allowed opacity-50'
+                : 'text-blue-200 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:scale-105 transform'
             }`}
             title={isStreaming ? 'Cannot create new conversation while AI is responding' : 'New conversation'}
             disabled={isStreaming}
@@ -560,7 +563,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           {!embedded && (
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-blue-200 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-200 hover:scale-105 transform"
             >
               <X className="w-4 h-4" />
             </button>
@@ -569,30 +572,30 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       </div>
       
       {/* Search box */}
-      <div className="p-4 border-b border-white/20 flex-shrink-0">
+      <div className="p-4 border-b border-white/10 flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-300" />
           <input
             type="text"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 text-sm text-white placeholder-blue-300 transition-all duration-200"
           />
           
           {isSearching && (
-            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-blue-300" />
           )}
         </div>
       </div>
       
       {/* Error message */}
       {error && (
-        <div className="p-4 bg-red-50 border-l-4 border-red-400 mx-4 mt-4 rounded flex-shrink-0">
-          <p className="text-red-700 text-sm">{error}</p>
+        <div className="p-4 bg-red-500/20 backdrop-blur-sm border border-red-400/30 mx-4 mt-4 rounded-xl flex-shrink-0">
+          <p className="text-red-200 text-sm">{error}</p>
           <button
             onClick={() => setError(null)}
-            className="text-red-600 hover:text-red-800 text-xs mt-1"
+            className="text-red-300 hover:text-red-100 text-xs mt-1 transition-colors"
           >
             Dismiss
           </button>
@@ -601,12 +604,12 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       
       {/* 🌊 Streaming notice */}
       {isStreaming && (
-        <div className="mx-4 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex-shrink-0">
+        <div className="mx-4 mb-2 p-3 bg-amber-500/20 backdrop-blur-sm border border-amber-400/30 rounded-xl flex-shrink-0 shadow-lg">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-            <p className="text-sm text-amber-800 font-medium">AI is responding...</p>
+            <div className="w-2 h-2 bg-amber-300 rounded-full animate-pulse shadow-lg"></div>
+            <p className="text-sm text-amber-100 font-medium">AI is responding...</p>
           </div>
-          <p className="text-xs text-amber-700 mt-1">
+          <p className="text-xs text-amber-200 mt-1">
             Conversation switching is disabled while streaming
           </p>
         </div>
@@ -619,25 +622,29 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       >
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Loading conversations...</span>
+            <Loader2 className="w-6 h-6 animate-spin text-blue-300" />
+            <span className="ml-2 text-blue-200">Loading conversations...</span>
           </div>
         ) : displayConversations.length === 0 ? (
           <div className="text-center py-8 px-4">
             {searchQuery.trim() ? (
               <div>
-                <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No conversations found</p>
-                <p className="text-gray-400 text-sm mt-1">Try a different search term</p>
+                <div className="flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl shadow-lg mx-auto mb-4">
+                  <Search className="w-8 h-8 text-blue-300" />
+                </div>
+                <p className="text-white font-medium">No conversations found</p>
+                <p className="text-blue-300 text-sm mt-1">Try a different search term</p>
               </div>
             ) : (
               <div>
-                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No conversations yet</p>
-                <p className="text-gray-400 text-sm mt-1">Start chatting to save conversations</p>
+                <div className="flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl shadow-lg mx-auto mb-4">
+                  <MessageSquare className="w-8 h-8 text-blue-300" />
+                </div>
+                <p className="text-white font-medium">No conversations yet</p>
+                <p className="text-blue-300 text-sm mt-1">Start chatting to save conversations</p>
                 <button
                   onClick={onCreateNew}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
                 >
                   Start New Chat
                 </button>
@@ -656,8 +663,8 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             {/* Infinite scroll loading indicator */}
             {isLoadingMore && (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                <span className="ml-2 text-sm text-gray-600">Loading more...</span>
+                <Loader2 className="w-4 h-4 animate-spin text-blue-300" />
+                <span className="ml-2 text-sm text-blue-200">Loading more...</span>
               </div>
             )}
           </div>
@@ -671,8 +678,8 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       
       {/* Footer */}
       {!isLoading && conversations.length > 0 && (
-        <div className="p-4 border-t border-white/20 bg-gray-50/50 flex-shrink-0">
-          <p className="text-xs text-gray-500 text-center">
+        <div className="p-4 border-t border-white/10 bg-white/5 backdrop-blur-lg flex-shrink-0">
+          <p className="text-xs text-blue-300 text-center">
             {searchQuery.trim() ? (
               `${searchResults.length} search results`
             ) : (
@@ -683,7 +690,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           {hasMore && !searchQuery.trim() && !isLoadingMore && (
             <button
               onClick={() => loadConversations(true)}
-              className="w-full mt-2 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="w-full mt-3 px-4 py-2 text-xs text-blue-200 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg transition-all duration-200 font-medium"
             >
               Load more conversations
             </button>
@@ -701,7 +708,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   // Standalone mode - render with fixed positioning and background
   return (
     <div className="fixed inset-y-0 left-0 z-50 w-80">
-      <div className="h-full w-full bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl flex flex-col">
+      <div className="h-full w-full bg-white/5 backdrop-blur-lg border-r border-white/10 shadow-2xl flex flex-col">
         {content}
       </div>
     </div>

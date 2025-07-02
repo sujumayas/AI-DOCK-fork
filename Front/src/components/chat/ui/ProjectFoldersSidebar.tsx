@@ -114,7 +114,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
   const handleNewConversationInFolder = (folderId: number | null) => {
     if (isStreaming) return;
     
-    const folder = folderId ? folders.find(f => f.id === folderId) : null;
+    const folder = folderId ? folders.find(f => f.id === folderId) || null : null;
     
     console.log('🆕 Creating new chat in folder:', {
       folderId,
@@ -191,12 +191,12 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
   const renderFolderItem = (folder: ProjectSummary) => (
     <div
       key={folder.id}
-      className={`group relative mx-2 mb-1 rounded-lg transition-all duration-200 ${
+      className={`group relative mx-2 mb-2 rounded-xl transition-all duration-200 ${
         viewingFolderId === folder.id
-          ? 'bg-blue-50 border border-blue-200'
+          ? 'bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 shadow-lg'
           : isStreaming
-          ? 'bg-gray-50 border border-gray-200 opacity-60'
-          : 'hover:bg-gray-50 border border-transparent'
+          ? 'bg-white/5 backdrop-blur-sm border border-white/10 opacity-60'
+          : 'hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-white/20 hover:shadow-lg hover:scale-[1.02] transform'
       }`}
     >
       <div
@@ -207,24 +207,24 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
         title={isStreaming ? 'Cannot switch folders while AI is responding' : 'View folder contents'}
       >
         {/* Folder icon */}
-        <div className={`flex items-center justify-center w-8 h-8 rounded-lg mr-3 ${
+        <div className={`flex items-center justify-center w-10 h-10 rounded-xl mr-3 backdrop-blur-sm border shadow-md ${
           viewingFolderId === folder.id
-            ? 'bg-blue-100 text-blue-600'
-            : 'bg-gray-100 text-gray-600'
+            ? 'bg-blue-500/30 border-blue-400/40 text-blue-100'
+            : 'bg-white/10 border-white/20 text-blue-200'
         }`}>
           {folder.icon ? (
             <span className="text-sm">{folder.icon}</span>
           ) : viewingFolderId === folder.id ? (
-            <FolderOpen className="w-4 h-4" />
+            <FolderOpen className="w-5 h-5" />
           ) : (
-            <Folder className="w-4 h-4" />
+            <Folder className="w-5 h-5" />
           )}
         </div>
 
         {/* Folder info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2">
-            <h3 className="text-sm font-medium text-gray-800 truncate">
+            <h3 className="text-sm font-medium text-white truncate">
               {folder.name}
             </h3>
             {folder.is_favorited && (
@@ -232,7 +232,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
             )}
             {folder.has_default_assistant && (
               <div 
-                className="flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs" 
+                className="flex items-center px-2 py-1 rounded-full bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-200 text-xs" 
                 title={`New chats in this folder will use ${folder.default_assistant_name}`}
               >
                 <Bot className="w-3 h-3 mr-1" />
@@ -242,18 +242,18 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
           </div>
 
           {folder.description && (
-            <p className="text-xs text-gray-500 truncate mt-1">
+            <p className="text-xs text-blue-300 truncate mt-1">
               {folder.description}
             </p>
           )}
 
-          <div className="flex items-center space-x-3 mt-1 text-xs text-gray-400">
+          <div className="flex items-center space-x-3 mt-2 text-xs text-blue-400">
             <div className="flex items-center">
               <MessageSquare className="w-3 h-3 mr-1" />
               {folder.conversation_count} chats
             </div>
             {folder.has_default_assistant && (
-              <div className="flex items-center text-blue-500">
+              <div className="flex items-center text-blue-300">
                 <Bot className="w-3 h-3 mr-1" />
                 {folder.default_assistant_name}
               </div>
@@ -269,21 +269,21 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                 e.stopPropagation();
                 setDropdownOpen(dropdownOpen === folder.id ? null : folder.id);
               }}
-              className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="p-2 text-blue-300 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-105 transform"
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>
 
             {/* Dropdown menu */}
             {dropdownOpen === folder.id && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
-                <div className="py-1">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl border border-white/20 z-10">
+                <div className="py-2">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleNewConversationInFolder(folder.id);
                     }}
-                    className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-3 py-2 text-sm text-blue-100 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     New Chat in Folder
@@ -294,7 +294,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                       e.stopPropagation();
                       handleEditFolder(folder);
                     }}
-                    className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-3 py-2 text-sm text-blue-100 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <Settings className="w-4 h-4 mr-2" />
                     Edit Folder
@@ -305,10 +305,10 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                       e.stopPropagation();
                       handleToggleFavorite(folder.id);
                     }}
-                    className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-3 py-2 text-sm text-blue-100 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <Star className={`w-4 h-4 mr-2 ${folder.is_favorited ? 'fill-current text-yellow-400' : ''}`} />
-                    {folder.is_favorited ? 'Remove Favorite' : 'Add Favorite'}
+                    {folder.is_favorited ? 'Remove from Favorites' : 'Add to Favorites'}
                   </button>
                   
                   <button
@@ -316,21 +316,23 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                       e.stopPropagation();
                       handleArchiveFolder(folder.id);
                     }}
-                    className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-3 py-2 text-sm text-blue-100 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <Archive className="w-4 h-4 mr-2" />
-                    Archive
+                    {folder.is_archived ? 'Unarchive' : 'Archive'}
                   </button>
+                  
+                  <div className="border-t border-white/20 my-1"></div>
                   
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteFolder(folder.id);
                     }}
-                    className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                    className="flex items-center w-full px-3 py-2 text-sm text-red-300 hover:text-red-200 hover:bg-red-500/20 transition-colors"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                    Delete Folder
                   </button>
                 </div>
               </div>
@@ -346,24 +348,26 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
     return (
       <div className="h-full flex flex-col">
         {/* Header with back button */}
-        <div className="p-4 border-b border-white/20">
+        <div className="p-4 border-b border-white/10">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={handleBackToFolders}
-                className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                className="p-2 text-blue-200 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-200 hover:scale-105 transform"
                 title="Back to folders"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <FolderOpen className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-800">{viewingFolderName}</h2>
+              <div className="flex items-center justify-center w-8 h-8 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-lg shadow-md">
+                <FolderOpen className="w-4 h-4 text-blue-200" />
+              </div>
+              <h2 className="text-lg font-semibold text-white">{viewingFolderName}</h2>
             </div>
             
             {!isStreaming && (
               <button
                 onClick={handleNewConversationInCurrentFolder}
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                className="p-2 text-blue-200 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-200 hover:scale-105 transform"
                 title="New conversation in this folder"
               >
                 <Plus className="w-4 h-4" />
@@ -393,13 +397,15 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-white/20">
+      <div className="p-4 border-b border-white/10">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
-            <Folder className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-800">Folders</h2>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-center w-8 h-8 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-lg shadow-md">
+              <Folder className="w-4 h-4 text-blue-200" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">Folders</h2>
             {activeFolders.length > 0 && (
-              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+              <span className="px-2 py-1 text-xs bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-200 rounded-full">
                 {activeFolders.length}
               </span>
             )}
@@ -408,7 +414,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
           {!isStreaming && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-2 text-blue-200 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-200 hover:scale-105 transform"
               title="Create new folder"
             >
               <Plus className="w-4 h-4" />
@@ -418,13 +424,13 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-300" />
           <input
             type="text"
             placeholder="Search folders..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 text-sm text-white placeholder-blue-300 transition-all duration-200"
           />
         </div>
       </div>
@@ -433,15 +439,15 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Loading folders...</span>
+            <Loader2 className="w-6 h-6 animate-spin text-blue-300" />
+            <span className="ml-2 text-blue-200">Loading folders...</span>
           </div>
         ) : error ? (
           <div className="p-4 text-center">
-            <p className="text-red-600 text-sm">{error}</p>
+            <p className="text-red-300 text-sm">{error}</p>
             <button
               onClick={loadFolders}
-              className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="mt-3 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
             >
               Retry
             </button>
@@ -449,11 +455,10 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
         ) : (
           <div className="py-2">
 
-
             {/* Active folders */}
             {activeFolders.length > 0 && (
               <div className="mb-4">
-                <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <div className="px-4 py-2 text-xs font-semibold text-blue-300 uppercase tracking-wide">
                   Active Folders
                 </div>
                 {activeFolders.map(renderFolderItem)}
@@ -463,7 +468,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
             {/* Archived folders */}
             {archivedFolders.length > 0 && (
               <div className="mb-4">
-                <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <div className="px-4 py-2 text-xs font-semibold text-blue-300 uppercase tracking-wide">
                   Archived
                 </div>
                 {archivedFolders.map(renderFolderItem)}
@@ -473,12 +478,14 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
             {/* Empty state */}
             {activeFolders.length === 0 && archivedFolders.length === 0 && (
               <div className="text-center py-8 px-4">
-                <Folder className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No folders yet</p>
-                <p className="text-gray-400 text-sm mt-1">Create folders to organize your conversations</p>
+                <div className="flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl shadow-lg mx-auto mb-4">
+                  <Folder className="w-8 h-8 text-blue-300" />
+                </div>
+                <p className="text-white font-medium">No folders yet</p>
+                <p className="text-blue-300 text-sm mt-1">Create folders to organize your conversations</p>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-medium"
                 >
                   Create First Folder
                 </button>
@@ -494,7 +501,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
         onClose={() => setShowCreateModal(false)}
         onFolderCreated={(folderId) => {
           // Set context for new chat in the created folder
-          const newFolder = folders.find(f => f.id === folderId);
+          const newFolder = folders.find(f => f.id === folderId) || null;
           if (newFolder) {
             onNewChatInFolder(folderId, newFolder);
           }

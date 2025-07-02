@@ -1,4 +1,4 @@
-// 📁 Unified Sidebar Component - FIXED VERSION
+// 📁 Unified Sidebar Component - Modern Glassmorphism Design
 // Toggles between Conversations and Project Folders with complete separation
 // Folders are purely organizational and don't interfere with active chats
 
@@ -55,18 +55,18 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
 
   return (
     <div className="fixed inset-y-0 left-0 z-50 w-80">
-      {/* Sidebar container */}
-      <div className="h-full w-full bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl flex flex-col">
+      {/* Sidebar container with glassmorphism */}
+      <div className="h-full w-full bg-white/5 backdrop-blur-lg border-r border-white/10 shadow-2xl flex flex-col">
         
         {/* Header with mode toggle */}
-        <div className="flex items-center justify-between p-4 border-b border-white/20 flex-shrink-0">
-          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center space-x-1 bg-white/10 backdrop-blur-sm rounded-xl p-1 border border-white/20">
             <button
               onClick={() => onModeChange('conversations')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
+              className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
                 mode === 'conversations'
-                  ? 'bg-blue-500 text-white shadow-md font-semibold'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105'
+                  : 'text-blue-100 hover:text-white hover:bg-white/10'
               }`}
               disabled={isStreaming}
             >
@@ -76,10 +76,10 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
             
             <button
               onClick={() => onModeChange('projects')}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
+              className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
                 mode === 'projects'
-                  ? 'bg-blue-500 text-white shadow-md font-semibold'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105'
+                  : 'text-blue-100 hover:text-white hover:bg-white/10'
               }`}
               disabled={isStreaming}
             >
@@ -90,7 +90,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
           
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-blue-200 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10 hover:scale-105 transform"
           >
             <X className="w-4 h-4" />
           </button>
@@ -127,14 +127,14 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
           )}
         </div>
         
-        {/* Streaming indicator */}
+        {/* Streaming indicator with glassmorphism */}
         {isStreaming && (
-          <div className="mx-4 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex-shrink-0">
+          <div className="mx-4 mb-4 p-3 bg-amber-500/20 backdrop-blur-sm border border-amber-400/30 rounded-xl flex-shrink-0 shadow-lg">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-              <p className="text-sm text-amber-800 font-medium">AI is responding...</p>
+              <div className="w-2 h-2 bg-amber-300 rounded-full animate-pulse shadow-lg"></div>
+              <p className="text-sm text-amber-100 font-medium">AI is responding...</p>
             </div>
-            <p className="text-xs text-amber-700 mt-1">
+            <p className="text-xs text-amber-200 mt-1">
               {mode === 'conversations' ? 'Chat switching disabled while streaming' : 'Folder switching disabled while streaming'}
             </p>
           </div>
