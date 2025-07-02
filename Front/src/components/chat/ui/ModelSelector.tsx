@@ -1,9 +1,9 @@
-// 🎯 Model Selection Dropdown Component
-// Intelligent model selection with filtering and grouping
-// Extracted from ChatInterface.tsx for better modularity
+// 🎯 Model Selection Component - Modern Glassmorphism Design
+// Intelligent model selection with filtering, grouping, and enhanced UX
+// Enhanced with modern styling patterns matching the app's glassmorphism theme
 
-import React from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { AlertCircle, Loader2, ChevronDown, Zap, Brain, Star, Check, Filter } from 'lucide-react';
 import { UnifiedModelsResponse, UnifiedModelInfo } from '../../../services/chatService';
 
 export interface ModelSelectorProps {
@@ -27,15 +27,56 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   onModelChange,
   isMobile
 }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
   // Get current model info
   const currentModelInfo = unifiedModelsData?.models.find(m => m.id === selectedModelId);
   
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle visibility state for animations
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+    } else {
+      // Delay hiding to allow close animation
+      const timer = setTimeout(() => setIsVisible(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // Handle dropdown toggle with animation
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen);
+  };
+
+  // Handle model selection
+  const handleModelSelect = (modelId: string) => {
+    onModelChange(modelId);
+    setIsOpen(false);
+  };
+
   // Don't render if models are loading
   if (modelsLoading) {
     return (
-      <div className="flex items-center px-3 md:px-4 py-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg text-sm text-gray-300 min-w-0 hover:bg-white/10 transition-all duration-300">
-        <Loader2 className="w-3 h-3 animate-spin mr-1" />
-        <span>Loading models...</span>
+      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300">
+        <div className="flex items-center justify-center space-x-3">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+          <span className="text-white/90 font-medium">Loading AI models...</span>
+        </div>
       </div>
     );
   }
@@ -43,9 +84,16 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   // Show error state
   if (modelsError) {
     return (
-      <div className="flex items-center px-3 md:px-4 py-2 bg-red-500/10 backdrop-blur-lg border border-red-300/30 rounded-lg text-sm text-red-300 min-w-0">
-        <AlertCircle className="w-3 h-3 mr-1" />
-        <span>Failed to load</span>
+      <div className="bg-red-500/10 backdrop-blur-md border border-red-400/30 rounded-2xl p-4 shadow-lg">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-red-500/20 rounded-xl flex items-center justify-center">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+          </div>
+          <div>
+            <div className="text-red-300 font-medium">Failed to load models</div>
+            <div className="text-red-400/70 text-sm">Please try refreshing the page</div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -54,59 +102,181 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   if (!unifiedModelsData || unifiedModelsData.models.length === 0) {
     return null;
   }
-  
+
+  // Get cost tier icon and color
+  const getCostTierDisplay = (costTier: string) => {
+    switch (costTier) {
+      case 'high':
+        return { icon: '💎', color: 'text-amber-400', label: 'Premium' };
+      case 'medium':
+        return { icon: '⚡', color: 'text-yellow-400', label: 'Standard' };
+      case 'low':
+        return { icon: '🟢', color: 'text-green-400', label: 'Economy' };
+      default:
+        return { icon: '🔹', color: 'text-blue-400', label: 'Unknown' };
+    }
+  };
+
+  const costDisplay = currentModelInfo ? getCostTierDisplay(currentModelInfo.cost_tier) : null;
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
-      <label className="text-xs md:text-sm font-medium text-white whitespace-nowrap">
-        AI Model:
-      </label>
-      
-      <div className="relative min-w-0">
-        {/* Model Selection Dropdown */}
-        <select
-          value={selectedModelId || ''}
-          onChange={(e) => onModelChange(e.target.value)}
-          className="px-3 md:px-4 py-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/10 min-w-0 max-w-[280px] md:max-w-none pr-8 appearance-none hover:bg-white/10 transition-all duration-300"
-          title={currentModelInfo ? 
-            `${currentModelInfo.provider} • ${currentModelInfo.cost_tier} cost • Score: ${currentModelInfo.relevance_score || 'N/A'}/100` 
-            : ''
-          }
-        >
-          {/* Show All Toggle Option */}
-          <optgroup label="📋 Model View Options">
-            <option value="__toggle_filter__" className="font-medium text-blue-600 bg-blue-50">
-              {showAllModels 
-                ? `🔍 Show Fewer Models (${unifiedModelsData.original_total_models ? unifiedModelsData.original_total_models - unifiedModelsData.total_models : ''} hidden)`
-                : `👁️ Show All Models (${unifiedModelsData.original_total_models ? unifiedModelsData.original_total_models - unifiedModelsData.total_models : ''} more)`
-              }
-            </option>
-          </optgroup>
-          
-          {/* Current Models */}
-          {groupedModels && Object.entries(groupedModels).map(([provider, models]) => (
-            <optgroup key={provider} label={`${provider} Models`}>
-              {models.map((model) => (
-                <option key={model.id} value={model.id} className="text-gray-700 bg-white">
-                  {model.display_name}
-                  {model.is_default && ' (Default)'}
-                  {model.is_recommended && ' ⭐'}
-                  {model.cost_tier === 'high' && ' 💰'}
-                  {model.cost_tier === 'medium' && ' 🟡'}
-                  {model.cost_tier === 'low' && ' 🟢'}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        
-        {/* Visual indicator overlay for filtering status */}
-        <div className="absolute right-1 top-1/2 transform -translate-y-1/2 pointer-events-none">
-          <div className={`w-2 h-2 rounded-full ${
-            showAllModels
-              ? 'bg-orange-400'  // Orange for "show all"
-              : 'bg-blue-400'    // Blue for "filtered"
-          }`} title={showAllModels ? 'All models shown' : 'Filtered models shown'}></div>
+    <div className="relative" ref={dropdownRef}>
+      {/* Compact Model Selector Button */}
+      <button
+        ref={buttonRef}
+        onClick={toggleDropdown}
+        className="flex items-center space-x-3 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-blue-400/50 transition-all duration-300 group min-w-[240px]"
+      >
+        {/* Model Icon */}
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
+          <Brain className="w-4 h-4 text-white" />
         </div>
+        
+        {/* Model Info */}
+        <div className="flex-1 text-left min-w-0">
+          {currentModelInfo ? (
+            <>
+              <div className="flex items-center space-x-2">
+                <span className="text-white font-medium truncate">
+                  {currentModelInfo.display_name}
+                </span>
+                {currentModelInfo.is_recommended && (
+                  <Star className="w-3 h-3 text-yellow-400 fill-current flex-shrink-0" />
+                )}
+                {currentModelInfo.is_default && (
+                  <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded border border-blue-400/30 flex-shrink-0">
+                    Default
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-1 text-xs">
+                <span className="text-white/70">{currentModelInfo.provider}</span>
+                {costDisplay && (
+                  <>
+                    <span className="text-white/40">•</span>
+                    <span className={`${costDisplay.color}`}>
+                      {costDisplay.icon} {costDisplay.label}
+                    </span>
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <span className="text-white/80">Select a model...</span>
+          )}
+        </div>
+        
+        {/* Dropdown Arrow */}
+        <ChevronDown className={`w-4 h-4 text-white/60 group-hover:text-white/80 transition-all duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown Menu */}
+      <div 
+        className={`absolute top-full left-0 right-0 mt-2 bg-gray-900/80 backdrop-blur-3xl border border-white/30 rounded-2xl shadow-2xl z-50 overflow-hidden transform transition-all duration-300 ease-out ${
+          isOpen 
+            ? 'opacity-100 scale-y-100 translate-y-0' 
+            : 'opacity-0 scale-y-0 -translate-y-2'
+        }`}
+        style={{
+          transformOrigin: 'top center',
+          maxHeight: isOpen ? '320px' : '0px'
+        }}
+      >
+        {isVisible && (
+          <div className="overflow-y-auto max-h-80 model-selector-dropdown">
+            {/* Filter Toggle Option */}
+            <div className="p-2 border-b border-white/20">
+              <button
+                onClick={() => handleModelSelect('__toggle_filter__')}
+                className="w-full flex items-center space-x-3 px-3 py-2 rounded-xl hover:bg-white/15 transition-all duration-200 group/item"
+              >
+                <div className="w-8 h-8 bg-blue-500/30 rounded-lg flex items-center justify-center">
+                  <Filter className="w-4 h-4 text-blue-300" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="text-white font-medium text-sm">
+                    {showAllModels ? 'Show Essential Models' : 'Show All Models'}
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Model Groups */}
+            {groupedModels && Object.entries(groupedModels).map(([provider, models]) => (
+              <div key={provider} className="p-2">
+                {/* Provider Header */}
+                <div className="px-3 py-2 text-xs font-semibold text-white/70 uppercase tracking-wider">
+                  🤖 {provider} Models
+                </div>
+                
+                {/* Models */}
+                {models.map((model) => {
+                  const isSelected = selectedModelId === model.id;
+                  const modelCostDisplay = getCostTierDisplay(model.cost_tier);
+                  
+                  return (
+                    <button
+                      key={model.id}
+                      onClick={() => handleModelSelect(model.id)}
+                      className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-200 group/item ${
+                        isSelected 
+                          ? 'bg-blue-500/30 border border-blue-400/50' 
+                          : 'hover:bg-white/15 border border-transparent'
+                      }`}
+                    >
+                      {/* Model Icon */}
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        isSelected 
+                          ? 'bg-blue-500/40' 
+                          : 'bg-white/10 group-hover/item:bg-white/15'
+                      }`}>
+                        {isSelected ? (
+                          <Check className="w-4 h-4 text-blue-200" />
+                        ) : (
+                          <Zap className="w-4 h-4 text-white/80" />
+                        )}
+                      </div>
+                      
+                      {/* Model Info */}
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center space-x-2">
+                          <span className={`font-medium ${isSelected ? 'text-blue-100' : 'text-white'}`}>
+                            {model.display_name}
+                          </span>
+                          {model.is_recommended && (
+                            <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                          )}
+                          {model.is_default && (
+                            <span className="px-1.5 py-0.5 bg-blue-500/30 text-blue-200 text-xs rounded border border-blue-400/40">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2 text-xs">
+                          <span className={`${isSelected ? 'text-blue-200/80' : 'text-white/80'}`}>
+                            {provider}
+                          </span>
+                          <span className={`flex items-center space-x-1 ${modelCostDisplay.color}`}>
+                            <span>{modelCostDisplay.icon}</span>
+                            <span>{modelCostDisplay.label}</span>
+                          </span>
+                          {model.relevance_score && (
+                            <>
+                              <span className="text-white/50">•</span>
+                              <span className={`${isSelected ? 'text-blue-200/80' : 'text-white/80'}`}>
+                                {model.relevance_score}/100
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
