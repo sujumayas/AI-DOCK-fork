@@ -372,120 +372,8 @@ class ConversationService {
   // PROJECT-CONVERSATION INTEGRATION
   // =============================================================================
   
-  /**
-   * Get conversations for a specific project
-   */
-  async getProjectConversations(projectId: number): Promise<ConversationSummary[]> {
-    try {
-      console.log('📂 Fetching conversations for project:', projectId);
-      
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/conversations`, {
-        method: 'GET',
-        headers: authService.getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new ConversationServiceError(
-          errorData.detail || 'Failed to fetch project conversations',
-          response.status
-        );
-      }
-      
-      const conversations: ConversationSummary[] = await response.json();
-      console.log('✅ Project conversations loaded:', conversations.length);
-      
-      return conversations;
-      
-    } catch (error) {
-      console.error('❌ Failed to fetch project conversations:', error);
-      
-      if (error instanceof ConversationServiceError) {
-        throw error;
-      }
-      
-      throw new ConversationServiceError(
-        error instanceof Error ? error.message : 'Failed to fetch project conversations'
-      );
-    }
-  }
   
-  /**
-   * Add a conversation to a project
-   */
-  async addConversationToProject(projectId: number, conversationId: number): Promise<ConversationOperationResponse> {
-    try {
-      console.log('📂 Adding conversation to project:', { projectId, conversationId });
-      
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/conversations`, {
-        method: 'POST',
-        headers: authService.getAuthHeaders(),
-        body: JSON.stringify({ conversation_id: conversationId })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new ConversationServiceError(
-          errorData.detail || 'Failed to add conversation to project',
-          response.status
-        );
-      }
-      
-      const result: ConversationOperationResponse = await response.json();
-      console.log('✅ Conversation added to project');
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Failed to add conversation to project:', error);
-      
-      if (error instanceof ConversationServiceError) {
-        throw error;
-      }
-      
-      throw new ConversationServiceError(
-        error instanceof Error ? error.message : 'Failed to add conversation to project'
-      );
-    }
-  }
   
-  /**
-   * Remove a conversation from a project
-   */
-  async removeConversationFromProject(projectId: number, conversationId: number): Promise<ConversationOperationResponse> {
-    try {
-      console.log('📂 Removing conversation from project:', { projectId, conversationId });
-      
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/conversations/${conversationId}`, {
-        method: 'DELETE',
-        headers: authService.getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new ConversationServiceError(
-          errorData.detail || 'Failed to remove conversation from project',
-          response.status
-        );
-      }
-      
-      const result: ConversationOperationResponse = await response.json();
-      console.log('✅ Conversation removed from project');
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Failed to remove conversation from project:', error);
-      
-      if (error instanceof ConversationServiceError) {
-        throw error;
-      }
-      
-      throw new ConversationServiceError(
-        error instanceof Error ? error.message : 'Failed to remove conversation from project'
-      );
-    }
-  }
   
   // =============================================================================
   // CONVENIENCE METHODS
@@ -494,12 +382,14 @@ class ConversationService {
   /**
    * Save current chat messages as a new conversation
    * 🔧 FIXED: Removed model name storage per user request
+   * 📁 ENHANCED: Added folder/project assignment support
    */
   async saveCurrentChat(
     messages: ChatMessage[],
     title?: string,
     configId?: number,
-    model?: string // Parameter kept for backward compatibility but not used
+    model?: string, // Parameter kept for backward compatibility but not used
+    projectId?: number // 📁 NEW: Add folder assignment
   ): Promise<ConversationDetail> {
     // Convert ChatMessage to ConversationMessageCreate using utility function
     // 🔧 FIXED: No longer storing model names per user request
@@ -514,6 +404,7 @@ class ConversationService {
       title: conversationTitle,
       messages: conversationMessages,
       llm_config_id: configId,
+      project_id: projectId, // 📁 Include folder assignment
       // 🔧 REMOVED: model_used field completely - no longer storing model names
     });
   }

@@ -218,7 +218,7 @@ class ProjectServiceClass {
   ): Promise<ProjectDetails> {
     try {
       const response = await apiRequest<ProjectDetails>(`/api/projects/${projectId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify(data),
       });
       return response;
@@ -279,8 +279,9 @@ class ProjectServiceClass {
   // Add conversation to project
   async addConversationToProject(projectId: number, conversationId: number): Promise<void> {
     try {
-      await apiRequest<void>(`/api/projects/${projectId}/conversations/${conversationId}`, {
+      await apiRequest<void>(`/api/projects/${projectId}/conversations`, {
         method: 'POST',
+        body: JSON.stringify({ conversation_id: conversationId }),
       });
     } catch (error) {
       console.error(`Failed to add conversation ${conversationId} to project ${projectId}:`, error);

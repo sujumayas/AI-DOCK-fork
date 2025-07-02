@@ -53,6 +53,8 @@ class ConversationCreate(ConversationBase):
     """Schema for creating a conversation"""
     llm_config_id: Optional[int] = Field(None, description="LLM configuration used")
     model_used: Optional[str] = Field(None, description="Model used in conversation")
+    project_id: Optional[int] = Field(None, description="Project/folder to assign conversation to")
+    assistant_id: Optional[int] = Field(None, description="Assistant to use for conversation (overrides project default)")
 
 class ConversationUpdate(BaseModel):
     """Schema for updating a conversation"""
@@ -66,6 +68,10 @@ class ConversationSummary(ConversationBase):
     message_count: int
     last_message_at: Optional[datetime]
     model_used: Optional[str]
+    project_id: Optional[int] = Field(None, description="Project/folder this conversation belongs to")
+    project: Optional[Dict[str, Any]] = Field(None, description="Project details if associated")
+    assistant_id: Optional[int] = Field(None, description="Assistant ID if one is assigned")
+    assistant: Optional[Dict[str, Any]] = Field(None, description="Assistant details if one is assigned")
 
     class Config:
         from_attributes = True
@@ -87,6 +93,8 @@ class ConversationSaveFromMessages(BaseModel):
     messages: List[ConversationMessageCreate] = Field(..., description="List of messages to save")
     llm_config_id: Optional[int] = Field(None, description="LLM configuration used")
     model_used: Optional[str] = Field(None, description="Primary model used")
+    project_id: Optional[int] = Field(None, description="Project/folder to assign conversation to")
+    assistant_id: Optional[int] = Field(None, description="Assistant to use for conversation (overrides project default)")
 
     @validator('messages')
     def validate_messages(cls, v):

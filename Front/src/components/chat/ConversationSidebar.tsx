@@ -36,6 +36,8 @@ interface ConversationSidebarProps {
   onSidebarReady?: (updateFn: (id: number, count: number, backendData?: Partial<ConversationSummary>) => void, addFn: (conv: any) => void) => void;
   // 🌊 NEW: Streaming state to prevent conversation switching during streaming
   isStreaming?: boolean;
+  // 🆕 NEW: Embedded mode for use within UnifiedSidebar
+  embedded?: boolean;
 }
 
 export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
@@ -46,7 +48,8 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   currentConversationId,
   refreshTrigger,
   onSidebarReady,
-  isStreaming = false
+  isStreaming = false,
+  embedded = false
 }) => {
   // State management
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -525,163 +528,181 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   };
   
   if (!isOpen) return null;
-  
-  return (
-    <div className="fixed inset-y-0 left-0 z-50 w-80">
-      {/* Sidebar content */}
-      <div className="h-full w-full bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/20 flex-shrink-0">
-          <div className="flex items-center space-x-2">
-            <Archive className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
-            {totalCount > 0 && (
-              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
-                {totalCount}
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={isStreaming ? undefined : onCreateNew}
-              className={`p-2 rounded-lg transition-colors ${
-                isStreaming
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-blue-600 hover:bg-blue-50'
-              }`}
-              title={isStreaming ? 'Cannot create new conversation while AI is responding' : 'New conversation'}
-              disabled={isStreaming}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            
 
-          </div>
-        </div>
-        
-        {/* Search box */}
-        <div className="p-4 border-b border-white/20 flex-shrink-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            
-            {isSearching && (
-              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-            )}
-          </div>
-        </div>
-        
-        {/* Error message */}
-        {error && (
-          <div className="p-4 bg-red-50 border-l-4 border-red-400 mx-4 mt-4 rounded flex-shrink-0">
-            <p className="text-red-700 text-sm">{error}</p>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-600 hover:text-red-800 text-xs mt-1"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-        
-        {/* 🌊 Streaming notice */}
-        {isStreaming && (
-          <div className="mx-4 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex-shrink-0">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-              <p className="text-sm text-amber-800 font-medium">AI is responding...</p>
-            </div>
-            <p className="text-xs text-amber-700 mt-1">
-              Conversation switching is disabled while streaming
-            </p>
-          </div>
-        )}
-        
-        {/* Conversation list */}
-        <div 
-          className="flex-1 overflow-y-auto min-h-0 scroll-smooth conversation-scrollbar"
-          onScroll={handleScroll}
-        >
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-              <span className="ml-2 text-gray-600">Loading conversations...</span>
-            </div>
-          ) : displayConversations.length === 0 ? (
-            <div className="text-center py-8 px-4">
-              {searchQuery.trim() ? (
-                <div>
-                  <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No conversations found</p>
-                  <p className="text-gray-400 text-sm mt-1">Try a different search term</p>
-                </div>
-              ) : (
-                <div>
-                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No conversations yet</p>
-                  <p className="text-gray-400 text-sm mt-1">Start chatting to save conversations</p>
-                  <button
-                    onClick={onCreateNew}
-                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Start New Chat
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : groupedConversations ? (
-            <div className="py-2">
-              {/* Render time-grouped conversations */}
-              {renderTimeGroup('Today', groupedConversations.today)}
-              {renderTimeGroup('Yesterday', groupedConversations.yesterday)}
-              {renderTimeGroup('This Week', groupedConversations.thisWeek)}
-              {renderTimeGroup('This Month', groupedConversations.thisMonth)}
-              {renderTimeGroup('Older', groupedConversations.older)}
-              
-              {/* Infinite scroll loading indicator */}
-              {isLoadingMore && (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  <span className="ml-2 text-sm text-gray-600">Loading more...</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="py-2">
-              {/* Fallback: render search results without grouping */}
-              {displayConversations.map(renderConversationItem)}
-            </div>
+  // Content shared between embedded and standalone modes
+  const content = (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-white/20 flex-shrink-0">
+        <div className="flex items-center space-x-2">
+          <Archive className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
+          {totalCount > 0 && (
+            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+              {totalCount}
+            </span>
           )}
         </div>
         
-        {/* Footer */}
-        {!isLoading && conversations.length > 0 && (
-          <div className="p-4 border-t border-white/20 bg-gray-50/50 flex-shrink-0">
-            <p className="text-xs text-gray-500 text-center">
-              {searchQuery.trim() ? (
-                `${searchResults.length} search results`
-              ) : (
-                `${conversations.length} of ${totalCount} conversations`
-              )}
-            </p>
-            
-            {hasMore && !searchQuery.trim() && !isLoadingMore && (
-              <button
-                onClick={() => loadConversations(true)}
-                className="w-full mt-2 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                Load more conversations
-              </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={isStreaming ? undefined : onCreateNew}
+            className={`p-2 rounded-lg transition-colors ${
+              isStreaming
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-blue-600 hover:bg-blue-50'
+            }`}
+            title={isStreaming ? 'Cannot create new conversation while AI is responding' : 'New conversation'}
+            disabled={isStreaming}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+          {!embedded && (
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {/* Search box */}
+      <div className="p-4 border-b border-white/20 flex-shrink-0">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          
+          {isSearching && (
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+          )}
+        </div>
+      </div>
+      
+      {/* Error message */}
+      {error && (
+        <div className="p-4 bg-red-50 border-l-4 border-red-400 mx-4 mt-4 rounded flex-shrink-0">
+          <p className="text-red-700 text-sm">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-600 hover:text-red-800 text-xs mt-1"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      
+      {/* 🌊 Streaming notice */}
+      {isStreaming && (
+        <div className="mx-4 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex-shrink-0">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+            <p className="text-sm text-amber-800 font-medium">AI is responding...</p>
+          </div>
+          <p className="text-xs text-amber-700 mt-1">
+            Conversation switching is disabled while streaming
+          </p>
+        </div>
+      )}
+      
+      {/* Conversation list */}
+      <div 
+        className="flex-1 overflow-y-auto min-h-0 scroll-smooth conversation-scrollbar"
+        onScroll={handleScroll}
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Loading conversations...</span>
+          </div>
+        ) : displayConversations.length === 0 ? (
+          <div className="text-center py-8 px-4">
+            {searchQuery.trim() ? (
+              <div>
+                <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No conversations found</p>
+                <p className="text-gray-400 text-sm mt-1">Try a different search term</p>
+              </div>
+            ) : (
+              <div>
+                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No conversations yet</p>
+                <p className="text-gray-400 text-sm mt-1">Start chatting to save conversations</p>
+                <button
+                  onClick={onCreateNew}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Start New Chat
+                </button>
+              </div>
             )}
           </div>
+        ) : groupedConversations ? (
+          <div className="py-2">
+            {/* Render time-grouped conversations */}
+            {renderTimeGroup('Today', groupedConversations.today)}
+            {renderTimeGroup('Yesterday', groupedConversations.yesterday)}
+            {renderTimeGroup('This Week', groupedConversations.thisWeek)}
+            {renderTimeGroup('This Month', groupedConversations.thisMonth)}
+            {renderTimeGroup('Older', groupedConversations.older)}
+            
+            {/* Infinite scroll loading indicator */}
+            {isLoadingMore && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <span className="ml-2 text-sm text-gray-600">Loading more...</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-2">
+            {/* Fallback: render search results without grouping */}
+            {displayConversations.map(renderConversationItem)}
+          </div>
         )}
+      </div>
+      
+      {/* Footer */}
+      {!isLoading && conversations.length > 0 && (
+        <div className="p-4 border-t border-white/20 bg-gray-50/50 flex-shrink-0">
+          <p className="text-xs text-gray-500 text-center">
+            {searchQuery.trim() ? (
+              `${searchResults.length} search results`
+            ) : (
+              `${conversations.length} of ${totalCount} conversations`
+            )}
+          </p>
+          
+          {hasMore && !searchQuery.trim() && !isLoadingMore && (
+            <button
+              onClick={() => loadConversations(true)}
+              className="w-full mt-2 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              Load more conversations
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  // Embedded mode - render content without fixed positioning
+  if (embedded) {
+    return <div className="h-full w-full flex flex-col">{content}</div>;
+  }
+
+  // Standalone mode - render with fixed positioning and background
+  return (
+    <div className="fixed inset-y-0 left-0 z-50 w-80">
+      <div className="h-full w-full bg-white/95 backdrop-blur-sm border-r border-white/20 shadow-2xl flex flex-col">
+        {content}
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ export interface Conversation {
   message_count: number;
   llm_config_id?: number;
   model_used?: string;
+  project_id?: number; // Add project/folder assignment support
 }
 
 export interface ConversationMessage {
@@ -44,10 +45,17 @@ export interface ConversationSummary {
   message_count: number;
   last_message_at?: string;
   model_used?: string;
+  project_id?: number; // Add project/folder assignment support
 }
 
 export interface ConversationDetail extends ConversationSummary {
   messages: ConversationMessage[];
+  project?: {
+    id: number;
+    name: string;
+    color?: string;
+    icon?: string;
+  }; // Full project information from backend
 }
 
 // =============================================================================
@@ -58,6 +66,7 @@ export interface ConversationCreate {
   title: string;
   llm_config_id?: number;
   model_used?: string;
+  project_id?: number; // Add project/folder assignment support
 }
 
 export interface ConversationUpdate {
@@ -79,6 +88,7 @@ export interface ConversationSaveFromMessages {
   messages: ConversationMessageCreate[];
   llm_config_id?: number;
   model_used?: string;
+  project_id?: number;  // Add project/folder assignment support
 }
 
 // =============================================================================
@@ -153,8 +163,7 @@ export interface ConversationSidebarState {
 
 export interface AutoSaveConfig {
   enabled: boolean;
-  triggerAfterMessages: number; // Save after X messages (default: 3)
-  saveInterval?: number; // Auto-save every X seconds (optional)
+  triggerAfterMessages: number; // Save after X user messages (default: 1, ignores system messages)
   maxConversationsToKeep: number; // Cleanup old conversations
 }
 
@@ -291,14 +300,15 @@ export function generateTitleFromMessages(messages: ChatMessage[]): string {
 }
 
 /**
- * Check if auto-save should trigger
+ * Check if auto-save should trigger - only save after actual user messages
  */
 export function shouldAutoSave(
   messages: ChatMessage[], 
-  triggerAfterMessages: number = 3
+  triggerAfterMessages: number = 1
 ): boolean {
-  const hasAssistantResponse = messages.some(msg => msg.role === 'assistant');
-  return messages.length >= triggerAfterMessages && hasAssistantResponse;
+  // Count only user messages, not system messages (like project introductions)
+  const userMessages = messages.filter(msg => msg.role === 'user');
+  return userMessages.length >= triggerAfterMessages;
 }
 
 // =============================================================================
@@ -307,7 +317,7 @@ export function shouldAutoSave(
 
 export const DEFAULT_AUTO_SAVE_CONFIG: AutoSaveConfig = {
   enabled: true,
-  triggerAfterMessages: 3,
+  triggerAfterMessages: 1, // Save immediately after first user message (ignores system messages)
   maxConversationsToKeep: 100
 };
 

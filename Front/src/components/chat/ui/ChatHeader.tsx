@@ -103,9 +103,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
         <div className="flex items-center space-x-2 md:space-x-4">
           <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-            {selectedProject 
-              ? selectedProject.name 
-              : selectedAssistant 
+            {selectedAssistant 
               ? `Chat with ${selectedAssistant.name}` 
               : 'AI Chat'
             }
@@ -173,17 +171,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <span className="hidden md:inline ml-1">Dashboard</span>
           </button>
           
-          {/* 📂 Project indicator */}
-          {selectedProject && (
-            <div className="flex items-center px-2 md:px-3 py-1.5 md:py-1 bg-teal-500/20 backdrop-blur-sm border border-teal-300/30 rounded-md text-xs md:text-sm text-teal-100 min-w-0">
-              <div className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0">
-                {selectedProject.icon || '📂'}
-              </div>
-              <span className="whitespace-nowrap">
-                {selectedProject.name}
-              </span>
-            </div>
-          )}
+          {/* 📂 Project indicator - REMOVED per requirements: folder context only in sidebar */}
           
           {/* 🤖 Assistant indicator */}
           {selectedAssistant && (
@@ -211,18 +199,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       {selectedConfig && currentModelInfo && (
         <div className="mt-2 text-xs md:text-sm text-blue-100">
           <div className="flex flex-wrap items-center gap-1 md:gap-2">
-            {/* 📂 Project info */}
-            {selectedProject && (
-              <div className="flex items-center">
-                <div className="w-3 h-3 md:w-4 md:h-4 mr-1 text-teal-300 flex-shrink-0">
-                  {selectedProject.icon || '📂'}
-                </div>
-                <span className="whitespace-nowrap">
-                  Project: <strong className="text-teal-200">{selectedProject.name}</strong>
-                </span>
-                <span className="mx-1 text-blue-300">•</span>
-              </div>
-            )}
+            {/* 📂 Project info - REMOVED per requirements: folder context only in sidebar */}
             
             {/* 🤖 Assistant info */}
             {selectedAssistant && (

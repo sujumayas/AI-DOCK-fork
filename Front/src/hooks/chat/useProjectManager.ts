@@ -22,6 +22,8 @@ export interface ProjectManagerReturn {
   setShowProjectManager: (show: boolean) => void;
   clearProjectFromUrl: () => void;
   loadAvailableProjects: (skipIntro?: boolean) => Promise<void>;
+  // Added for default assistant integration
+  getProjectDefaultAssistantId: (projectId: number) => number | null;
 }
 
 export const useProjectManager = (
@@ -174,6 +176,17 @@ export const useProjectManager = (
     });
   }, [setSearchParams]);
 
+  // Get default assistant ID for a project
+  const getProjectDefaultAssistantId = useCallback((projectId: number): number | null => {
+    if (selectedProject && selectedProject.id === projectId) {
+      return selectedProject.default_assistant_id || null;
+    }
+    
+    // Fallback to project summary if available
+    const projectSummary = availableProjects.find(p => p.id === projectId);
+    return projectSummary?.default_assistant_id || null;
+  }, [selectedProject, availableProjects]);
+
   return {
     availableProjects,
     selectedProjectId,
@@ -186,6 +199,7 @@ export const useProjectManager = (
     handleProjectIntroduction,
     setShowProjectManager,
     clearProjectFromUrl,
-    loadAvailableProjects
+    loadAvailableProjects,
+    getProjectDefaultAssistantId
   };
 };

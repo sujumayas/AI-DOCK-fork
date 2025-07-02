@@ -31,6 +31,15 @@ from ..services.llm_service import llm_service
 from ..schemas.chat_api.requests import ChatRequest, ChatMessage
 from pydantic import BaseModel, Field
 
+# 🤖 NEW: Import assistant and conversation services for saving
+from ..services.chat import (
+    process_file_attachments,
+    process_assistant_integration,
+    create_chat_conversation_for_assistant,
+    generate_conversation_title
+)
+from ..services.conversation_service import conversation_service
+
 # =============================================================================
 # STREAMING REQUEST/RESPONSE SCHEMAS
 # =============================================================================
@@ -58,6 +67,11 @@ class StreamingChatRequest(BaseModel):
     stream_delay_ms: Optional[int] = Field(100, ge=10, le=1000, description="Delay between chunks in milliseconds")
     include_usage_in_stream: Optional[bool] = Field(True, description="Include usage info in final chunk")
     
+    # 🤖 NEW: Add conversation and assistant parameters
+    assistant_id: Optional[int] = Field(None, description="ID of assistant")
+    conversation_id: Optional[int] = Field(None, description="ID of conversation")
+    project_id: Optional[int] = Field(None, description="ID of project")
+    
     class Config:
         schema_extra = {
             "example": {
@@ -68,7 +82,10 @@ class StreamingChatRequest(BaseModel):
                 "temperature": 0.7,
                 "max_tokens": 1000,
                 "stream_delay_ms": 50,
-                "include_usage_in_stream": True
+                "include_usage_in_stream": True,
+                "assistant_id": 1,
+                "conversation_id": 1,
+                "project_id": 1
             }
         }
 
@@ -144,6 +161,10 @@ async def stream_chat_message_sse(
     max_tokens: Optional[int] = None,
     stream_delay_ms: Optional[int] = 100,
     include_usage_in_stream: Optional[bool] = True,
+    # 🤖 NEW: Add conversation and assistant parameters
+    assistant_id: Optional[int] = None,
+    conversation_id: Optional[int] = None,
+    project_id: Optional[int] = None,
     request: Request = None,
     db: AsyncSession = Depends(get_async_db)
 ):
@@ -244,16 +265,20 @@ async def stream_chat_message_sse(
         else:
             logger.info(f"🔍 DEBUG: No file_attachment_ids in query parameters")
         
-        # 🏗️ Build StreamingChatRequest from query parameters
+        # 📝 Create StreamingChatRequest from query parameters
         stream_request = StreamingChatRequest(
             config_id=config_id,
             messages=chat_messages,
-            file_attachment_ids=parsed_file_ids,  # 📁 NEW: Include file attachment IDs
+            file_attachment_ids=parsed_file_ids,
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
             stream_delay_ms=stream_delay_ms,
-            include_usage_in_stream=include_usage_in_stream
+            include_usage_in_stream=include_usage_in_stream,
+            # 🤖 NEW: Add conversation and assistant parameters
+            assistant_id=assistant_id,
+            conversation_id=conversation_id,
+            project_id=project_id
         )
         
         logger.info(f"🌊 SSE streaming request from {current_user.email}: config_id={config_id}, request_id={request_id}")
@@ -453,10 +478,12 @@ async def stream_chat_generator(
     🎯 Async generator that yields streaming chat chunks.
     
     This is the core streaming logic that:
-    1. Converts request to LLM service format
-    2. Calls streaming LLM service method
-    3. Formats each chunk as Server-Sent Events
-    4. Handles all the same business logic as regular chat
+    1. Processes assistant integration and conversation creation
+    2. Converts request to LLM service format
+    3. Calls streaming LLM service method
+    4. Formats each chunk as Server-Sent Events
+    5. Saves messages to conversation after streaming completes
+    6. Handles all the same business logic as regular chat
     
     🎓 Learning: Async generators allow us to yield data incrementally
     while maintaining all existing business logic and error handling.
@@ -469,6 +496,7 @@ async def stream_chat_generator(
         session_id: Session identifier
         client_ip: Client IP address
         user_agent: Client user agent
+        db: Database session for conversation operations
         
     Yields:
         str: Server-Sent Events formatted chunks
@@ -476,6 +504,84 @@ async def stream_chat_generator(
     
     chunk_index = 0
     start_time = asyncio.get_event_loop().time()
+    
+    # 🤖 STEP 1: PROCESS ASSISTANT INTEGRATION AND CONVERSATION SETUP
+    chat_conversation = None
+    assistant = None
+    accumulated_response_content = ""
+    
+    try:
+        # Process assistant integration if assistant_id provided
+        if stream_request.assistant_id or stream_request.conversation_id:
+            assistant_integration = await process_assistant_integration(
+                assistant_id=stream_request.assistant_id,
+                conversation_id=stream_request.conversation_id,
+                user=current_user,
+                db=db
+            )
+            
+            # Extract assistant data
+            assistant = assistant_integration.get("assistant")
+            assistant_system_prompt = assistant_integration.get("system_prompt")
+            chat_conversation = assistant_integration.get("chat_conversation")
+            should_create_conversation = assistant_integration.get("should_create_conversation", False)
+            
+            # Log assistant integration results
+            if assistant:
+                logger.info(f"🤖 Streaming with assistant '{assistant.name}' (ID: {assistant.id})")
+            else:
+                logger.info(f"🌊 Streaming general chat (no assistant)")
+                
+            # Auto-create conversation if needed
+            if should_create_conversation:
+                try:
+                    # Find the first user message for conversation title generation
+                    first_user_message = ""
+                    for msg in stream_request.messages:
+                        if msg.role == "user":
+                            first_user_message = msg.content
+                            break
+                    
+                    if assistant and first_user_message:
+                        # Create assistant conversation
+                        new_chat_conversation = await create_chat_conversation_for_assistant(
+                            db=db,
+                            assistant=assistant,
+                            user=current_user,
+                            first_message_content=first_user_message
+                        )
+                        
+                        if new_chat_conversation:
+                            chat_conversation = new_chat_conversation
+                            logger.info(f"🎉 Auto-created assistant conversation {chat_conversation.id}")
+                    
+                    elif first_user_message:
+                        # Create general conversation
+                        conversation_title = generate_conversation_title(
+                            assistant_name="AI Assistant",
+                            first_message=first_user_message
+                        )
+                        
+                        # Create the conversation
+                        general_conversation = await conversation_service.create_conversation(
+                            db=db,
+                            user_id=current_user.id,
+                            title=conversation_title,
+                            llm_config_id=stream_request.config_id,
+                            project_id=stream_request.project_id
+                        )
+                        
+                        chat_conversation = general_conversation
+                        logger.info(f"🎉 Auto-created general conversation {chat_conversation.id}")
+                        
+                except Exception as conv_error:
+                    logger.error(f"Failed to auto-create conversation (non-critical): {str(conv_error)}")
+        
+        logger.info(f"🌊 Starting streaming generation for user {current_user.email}, conversation {chat_conversation.id if chat_conversation else 'None'}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error in assistant/conversation setup: {str(e)}")
+        # Continue without conversation saving
     
     try:
         # 📁 NEW: Process file attachments for streaming chat
@@ -587,6 +693,9 @@ async def stream_chat_generator(
             sse_data = f"data: {chunk.json()}\n\n"
             yield sse_data
             
+            # 🧮 Accumulate response content for conversation saving
+            accumulated_response_content += chunk_data.get("content", "")
+            
             # 🕐 Add small delay for better streaming visualization
             if stream_request.stream_delay_ms and stream_request.stream_delay_ms > 0:
                 await asyncio.sleep(stream_request.stream_delay_ms / 1000.0)
@@ -596,6 +705,50 @@ async def stream_chat_generator(
             # 🏁 Break if this was the final chunk
             if chunk_data.get("is_final"):
                 break
+        
+        # 💾 STEP 3: SAVE MESSAGES TO CONVERSATION AFTER STREAMING COMPLETES
+        if chat_conversation and accumulated_response_content:
+            try:
+                # Save the user message
+                last_user_message = None
+                for msg in reversed(stream_request.messages):
+                    if msg.role == "user":
+                        last_user_message = msg.content
+                        break
+                
+                if last_user_message:
+                    await conversation_service.save_message_to_conversation(
+                        db=db,
+                        conversation_id=chat_conversation.id,
+                        role="user",
+                        content=last_user_message,
+                        metadata={"file_attachments": stream_request.file_attachment_ids or []}
+                    )
+                    logger.info(f"💾 Saved user message to conversation {chat_conversation.id}")
+                
+                # Save the assistant response
+                await conversation_service.save_message_to_conversation(
+                    db=db,
+                    conversation_id=chat_conversation.id,
+                    role="assistant",
+                    content=accumulated_response_content,
+                    tokens_used=chunk_data.get("usage", {}).get("total_tokens"),
+                    cost=str(chunk_data.get("cost")) if chunk_data.get("cost") else None,
+                    response_time_ms=chunk_data.get("response_time_ms"),
+                    metadata={
+                        "provider": chunk_data.get("provider"),
+                        "assistant_id": assistant.id if assistant else None,
+                        "streaming": True
+                    }
+                )
+                logger.info(f"💾 Saved assistant response to conversation {chat_conversation.id}")
+                
+            except Exception as save_error:
+                logger.error(f"Failed to save messages to conversation (non-critical): {str(save_error)}")
+        elif chat_conversation:
+            logger.warning(f"📝 No accumulated content to save for conversation {chat_conversation.id}")
+        else:
+            logger.info(f"📝 No conversation to save messages to (messages sent but not persisted)")
         
         # 🎯 Send completion marker
         yield "data: [DONE]\n\n"

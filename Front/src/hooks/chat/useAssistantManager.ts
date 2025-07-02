@@ -18,6 +18,9 @@ export interface AssistantManagerState {
   assistantsLoading: boolean;
   assistantsError: string | null;
   showAssistantManager: boolean;
+
+  // Auto-activation state
+  isAutoActivation: boolean;
 }
 
 export interface AssistantManagerActions {
@@ -27,6 +30,8 @@ export interface AssistantManagerActions {
   handleAssistantIntroduction: (assistant: AssistantSummary, previousAssistant: AssistantSummary | null) => ChatMessage;
   setShowAssistantManager: (show: boolean) => void;
   clearAssistantFromUrl: () => void;
+  activateAssistantFromConversation: (assistantId: number | null) => void;
+  deactivateAssistant: () => void;
 }
 
 export interface AssistantManagerReturn extends AssistantManagerState, AssistantManagerActions {}
@@ -44,8 +49,9 @@ export const useAssistantManager = (
   const [assistantsError, setAssistantsError] = useState<string | null>(null);
   const [showAssistantManager, setShowAssistantManager] = useState(false);
   
-  // 🔧 Flag to prevent automatic introduction during manual updates
+  // 🔧 Flags to control automatic behavior
   const [isManualUpdate, setIsManualUpdate] = useState(false);
+  const [isAutoActivation, setIsAutoActivation] = useState(false);
   
   // 🤖 Load available assistants
   const loadAvailableAssistants = useCallback(async (isUpdate = false) => {
@@ -148,8 +154,9 @@ export const useAssistantManager = (
   }, [loadAvailableAssistants]);
   
   // 🤖 Handle assistant selection
-  const handleAssistantSelect = useCallback((assistantId: number | null) => {
+  const handleAssistantSelect = useCallback((assistantId: number | null, isAuto = false) => {
     setSelectedAssistantId(assistantId);
+    setIsAutoActivation(isAuto);
     
     const newSearchParams = new URLSearchParams(searchParams);
     if (assistantId) {
@@ -159,7 +166,7 @@ export const useAssistantManager = (
     }
     setSearchParams(newSearchParams, { replace: true });
     
-    console.log('🤖 Assistant selected:', assistantId);
+    console.log('🤖 Assistant selected:', assistantId, isAuto ? '(auto)' : '(manual)');
   }, [searchParams, setSearchParams]);
   
   // 🤖 Handle assistant change (for backward compatibility with dropdown)
@@ -212,6 +219,16 @@ export const useAssistantManager = (
     }
   }, [searchParams, setSearchParams]);
   
+  // 🤖 Activate assistant from conversation
+  const activateAssistantFromConversation = useCallback((assistantId: number | null) => {
+    handleAssistantSelect(assistantId, true);
+  }, [handleAssistantSelect]);
+
+  // 🤖 Deactivate assistant
+  const deactivateAssistant = useCallback(() => {
+    handleAssistantSelect(null);
+  }, [handleAssistantSelect]);
+
   return {
     // State
     availableAssistants,
@@ -220,6 +237,7 @@ export const useAssistantManager = (
     assistantsLoading,
     assistantsError,
     showAssistantManager,
+    isAutoActivation,
     
     // Actions
     loadAvailableAssistants,
@@ -227,6 +245,8 @@ export const useAssistantManager = (
     handleAssistantChange,
     handleAssistantIntroduction,
     setShowAssistantManager,
-    clearAssistantFromUrl
+    clearAssistantFromUrl,
+    activateAssistantFromConversation,
+    deactivateAssistant
   };
 };

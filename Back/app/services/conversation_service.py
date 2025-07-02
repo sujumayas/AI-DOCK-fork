@@ -28,28 +28,43 @@ class ConversationService:
         title: str,
         llm_config_id: Optional[int] = None,
         model_used: Optional[str] = None,  # Keep parameter for backward compatibility but ignore it
-        project_id: Optional[int] = None
+        project_id: Optional[int] = None,
+        assistant_id: Optional[int] = None  # Explicit assistant ID takes precedence over project default
     ) -> Conversation:
-        """Create a new conversation"""
+        """Create a new conversation with optional project and assistant"""
         try:
+            # Get project's default assistant if project_id is provided and no explicit assistant_id
+            project_assistant_id = None
+            if project_id and not assistant_id:
+                project = await self.get_project(db, project_id, user_id)
+                if project and project.default_assistant_id:
+                    project_assistant_id = project.default_assistant_id
+                    logger.info(f"Using project's default assistant {project_assistant_id} for conversation")
+
+            # Create conversation using either explicit assistant_id or project's default
             conversation = Conversation(
                 user_id=user_id,
                 title=title,
                 llm_config_id=llm_config_id,
                 message_count=0,
-                is_active=True
-                # 🔧 FIXED: No longer setting model_used per user request
+                is_active=True,
+                assistant_id=assistant_id or project_assistant_id  # Explicit takes precedence
             )
             
-            # Link to project if specified
-            if project_id:
-                project = await self.get_project(db, project_id, user_id)
-                if project:
-                    project.add_conversation(conversation)
-            
+            # Save conversation first
             db.add(conversation)
             await db.commit()
             await db.refresh(conversation)
+            
+            # Link to project if specified (after conversation is saved)
+            if project_id:
+                from .project_service import ProjectService
+                project_service = ProjectService(db)
+                await project_service.add_conversation_to_project(
+                    project_id=project_id,
+                    conversation_id=conversation.id,
+                    user_id=user_id
+                )
             
             logger.info(f"Created conversation {conversation.id} for user {user_id}")
             return conversation
@@ -65,9 +80,10 @@ class ConversationService:
         conversation_id: int,
         user_id: int
     ) -> Optional[Conversation]:
-        """Get conversation with all messages"""
+        """Get conversation with all messages and project information"""
         stmt = select(Conversation).options(
-            selectinload(Conversation.messages)
+            selectinload(Conversation.messages),
+            selectinload(Conversation.projects)  # Load project relationships for folder functionality
         ).where(
             and_(
                 Conversation.id == conversation_id,
@@ -86,8 +102,10 @@ class ConversationService:
         offset: int = 0,
         project_id: Optional[int] = None
     ) -> List[Conversation]:
-        """Get user's conversations with pagination"""
-        base_query = select(Conversation).where(Conversation.user_id == user_id)
+        """Get user's conversations with pagination and project information"""
+        base_query = select(Conversation).options(
+            selectinload(Conversation.projects)  # Load project relationships for folder functionality
+        ).where(Conversation.user_id == user_id)
         
         if project_id:
             # Filter by project if specified
@@ -203,7 +221,9 @@ class ConversationService:
         messages: List[Dict[str, Any]],
         llm_config_id: Optional[int] = None,
         model_used: Optional[str] = None,  # Keep for backward compatibility but ignore
-        title: Optional[str] = None
+        title: Optional[str] = None,
+        project_id: Optional[int] = None,  # 📁 Add folder assignment support
+        assistant_id: Optional[int] = None  # Explicit assistant ID takes precedence over project default
     ) -> Conversation:
         """Save a complete conversation from message list with enhanced validation"""
         
@@ -221,7 +241,8 @@ class ConversationService:
                 db=db,
                 user_id=user_id,
                 title=title,
-                llm_config_id=llm_config_id
+                llm_config_id=llm_config_id,
+                project_id=project_id  # 📁 Pass folder assignment
                 # 🔧 FIXED: No longer passing model_used per user request
             )
             

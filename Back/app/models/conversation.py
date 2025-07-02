@@ -151,12 +151,38 @@ class Conversation(Base):
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dict for API responses"""
+        # Get project information (assuming single project per conversation for folder functionality)
+        project_info = None
+        try:
+            if hasattr(self, 'projects') and self.projects:
+                first_project = self.projects[0]  # Use first project as primary folder
+                project_info = {
+                    "id": first_project.id,
+                    "name": first_project.name,
+                    "color": first_project.color,
+                    "icon": first_project.icon
+                }
+        except (AttributeError, IndexError):
+            # Handle cases where projects relationship isn't loaded or is empty
+            project_info = None
+        
+        # Get assistant name safely
+        assistant_name = None
+        try:
+            if hasattr(self, 'assistant') and self.assistant:
+                assistant_name = self.assistant.name
+        except AttributeError:
+            # Handle cases where assistant relationship isn't loaded
+            assistant_name = None
+        
         return {
             "id": self.id,
             "title": self.title,
             "user_id": self.user_id,
             "assistant_id": self.assistant_id,  # NEW: Include assistant reference
-            "assistant_name": self.assistant.name if self.assistant else None,  # NEW: Include assistant name for UI
+            "assistant_name": assistant_name,  # NEW: Include assistant name for UI
+            "project_id": project_info["id"] if project_info else None,  # Add project_id for easy access
+            "project": project_info,  # Add full project information
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "is_active": self.is_active,  # NEW: Include active status

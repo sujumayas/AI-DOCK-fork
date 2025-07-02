@@ -1,11 +1,12 @@
-// 📁 Unified Sidebar Component
-// Toggles between Conversations and Project Folders with mutual exclusion
-// Replaces the previous right-side project panel with a left-side folder system
+// 📁 Unified Sidebar Component - FIXED VERSION
+// Toggles between Conversations and Project Folders with complete separation
+// Folders are purely organizational and don't interfere with active chats
 
 import React from 'react';
 import { MessageSquare, Folder, X } from 'lucide-react';
 import { ConversationSidebar } from '../ConversationSidebar';
 import { ProjectFoldersSidebar } from './ProjectFoldersSidebar';
+import { ProjectSummary } from '../../../types/project';
 
 type SidebarMode = 'conversations' | 'projects';
 
@@ -23,11 +24,13 @@ interface UnifiedSidebarProps {
   onSidebarReady?: (updateFn: (id: number, count: number, backendData?: any) => void, addFn: (conv: any) => void) => void;
   isStreaming?: boolean;
   
-  // Project props
-  selectedProjectId: number | null;
-  onProjectSelect: (projectId: number | null) => void;
+  // 🔧 FIXED: Folder props (organizational only, no active chat interference)
+  onFolderNavigate: (folderId: number | null, folderData: ProjectSummary | null) => void;
+  onNewChatInFolder: (folderId: number | null, folderData: ProjectSummary | null) => void;
   onProjectChange: () => Promise<void>;
   onProjectUpdated: (projectId: number) => void;
+  viewingFolderId: number | null;
+  viewingFolderName: string;
 }
 
 export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
@@ -41,10 +44,12 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
   refreshTrigger,
   onSidebarReady,
   isStreaming = false,
-  selectedProjectId,
-  onProjectSelect,
+  onFolderNavigate,
+  onNewChatInFolder,
   onProjectChange,
-  onProjectUpdated
+  onProjectUpdated,
+  viewingFolderId,
+  viewingFolderName
 }) => {
   if (!isOpen) return null;
 
@@ -73,7 +78,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
               onClick={() => onModeChange('projects')}
               className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
                 mode === 'projects'
-                  ? 'bg-green-500 text-white shadow-md font-semibold'
+                  ? 'bg-blue-500 text-white shadow-md font-semibold'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
               disabled={isStreaming}
@@ -107,14 +112,17 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
             />
           ) : (
             <ProjectFoldersSidebar
-              selectedProjectId={selectedProjectId}
-              onProjectSelect={onProjectSelect}
+              onFolderNavigate={onFolderNavigate}
+              onNewChatInFolder={onNewChatInFolder}
               onProjectChange={onProjectChange}
               onProjectUpdated={onProjectUpdated}
               isStreaming={isStreaming}
               onSelectConversation={onSelectConversation}
               onCreateNewConversation={onCreateNewConversation}
               currentConversationId={currentConversationId}
+              refreshTrigger={refreshTrigger}
+              viewingFolderId={viewingFolderId}
+              viewingFolderName={viewingFolderName}
             />
           )}
         </div>
@@ -134,4 +142,4 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
       </div>
     </div>
   );
-}; 
+};

@@ -51,7 +51,11 @@ async_engine = create_async_engine(
     
     # For SQLite only - allows multiple threads to access the database
     connect_args=(
-        {"check_same_thread": False} 
+        {
+            "check_same_thread": False,
+            "timeout": 30,  # 30 second timeout for lock waits
+            "isolation_level": None  # Use autocommit for better concurrency
+        } 
         if settings.database_url.startswith("sqlite") 
         else {}
     )
@@ -77,7 +81,11 @@ sync_engine = create_engine(
     
     # For SQLite only
     connect_args=(
-        {"check_same_thread": False} 
+        {
+            "check_same_thread": False,
+            "timeout": 30,  # 30 second timeout for lock waits
+            "isolation_level": None  # Use autocommit for better concurrency
+        } 
         if settings.database_url.startswith("sqlite") 
         else {}
     )

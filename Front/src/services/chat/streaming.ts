@@ -126,6 +126,20 @@ export class StreamingChatService {
       console.log('📁 Including file attachments in stream:', request.file_attachment_ids);
     }
     
+    // 🤖 Include assistant and conversation IDs for conversation saving
+    if (request.assistant_id) {
+      streamUrl.searchParams.set('assistant_id', request.assistant_id.toString());
+      console.log('🤖 Including assistant ID in stream:', request.assistant_id);
+    }
+    if (request.conversation_id) {
+      streamUrl.searchParams.set('conversation_id', request.conversation_id.toString());
+      console.log('💬 Including conversation ID in stream:', request.conversation_id);
+    }
+    if (request.project_id) {
+      streamUrl.searchParams.set('project_id', request.project_id.toString());
+      console.log('🗂️ Including project ID in stream:', request.project_id);
+    }
+    
     console.log('🌊 Creating EventSource connection to:', streamUrl.toString().replace(authToken, 'TOKEN_HIDDEN'));
     
     // 📡 Set up EventSource for the stream

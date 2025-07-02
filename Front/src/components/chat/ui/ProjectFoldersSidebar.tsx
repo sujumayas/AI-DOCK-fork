@@ -1,6 +1,6 @@
-// 📁 Project Folders Sidebar - Simplified Version
-// Shows project folders as simple containers with default assistants
-// Replaces the complex project manager with a folder-based approach
+// 📁 Project Folders Sidebar - FIXED VERSION
+// Pure organizational folders that don't interfere with active chats
+// Folders only organize saved conversations and set context for NEW chat creation
 
 import React, { useEffect, useState } from 'react';
 import { 
@@ -15,32 +15,44 @@ import {
   Bot,
   MessageSquare,
   Loader2,
-  Search
+  Search,
+  ArrowLeft
 } from 'lucide-react';
 import { ProjectSummary, ProjectCreateRequest, ProjectUpdateRequest } from '../../../types/project';
 import { projectService } from '../../../services/projectService';
 import { CreateProjectFolderModal } from './CreateProjectFolderModal';
 import { EditProjectFolderModal } from './EditProjectFolderModal';
+import { ProjectConversationList } from './ProjectConversationList';
 
 interface ProjectFoldersSidebarProps {
-  selectedProjectId: number | null;
-  onProjectSelect: (projectId: number | null) => void;
+  // 🔧 FIXED: Remove selectedProjectId - folders don't affect active chat
+  onFolderNavigate: (folderId: number | null, folderData: ProjectSummary | null) => void;
+  onNewChatInFolder: (folderId: number | null, folderData: ProjectSummary | null) => void;
   onProjectChange: () => Promise<void>;
   onProjectUpdated: (projectId: number) => void;
   isStreaming: boolean;
   onSelectConversation?: (conversationId: number) => void;
   onCreateNewConversation?: () => void;
   currentConversationId?: number;
+  refreshTrigger?: number;
+  
+  // 🆕 NEW: Viewing state for pure organizational navigation
+  viewingFolderId: number | null;
+  viewingFolderName: string;
 }
 
 export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
-  selectedProjectId,
-  onProjectSelect,
+  onFolderNavigate,
+  onNewChatInFolder,
   onProjectChange,
   onProjectUpdated,
   isStreaming,
   onSelectConversation,
-  onCreateNewConversation
+  onCreateNewConversation,
+  currentConversationId,
+  refreshTrigger,
+  viewingFolderId,
+  viewingFolderName
 }) => {
   // State
   const [folders, setFolders] = useState<ProjectSummary[]>([]);
@@ -71,24 +83,61 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
     loadFolders();
   }, []);
 
-  // Handle folder selection
+  // 🔧 FIXED: Pure folder navigation - no impact on active chat
   const handleFolderSelect = (folderId: number | null) => {
     if (isStreaming) return;
     
-    onProjectSelect(folderId);
+    if (folderId === null) {
+      // Navigate back to folders list view
+      onFolderNavigate(null, null);
+    } else {
+      // Navigate to folder view (organizational only)
+      const folder = folders.find(f => f.id === folderId);
+      if (folder) {
+        onFolderNavigate(folderId, folder);
+        console.log('📁 Navigating to folder (organizational only):', {
+          name: folder.name,
+          id: folder.id,
+          note: 'This does NOT affect any active chat session'
+        });
+      }
+    }
     setDropdownOpen(null);
   };
+  
+  // 🔧 FIXED: Handle going back to folder list view
+  const handleBackToFolders = () => {
+    onFolderNavigate(null, null);
+  };
 
-  // Handle creating new conversation in folder
+  // 🆕 NEW: Separate handler for creating new chat in folder
   const handleNewConversationInFolder = (folderId: number | null) => {
     if (isStreaming) return;
     
-    // Select the folder first
-    onProjectSelect(folderId);
+    const folder = folderId ? folders.find(f => f.id === folderId) : null;
     
-    // Then create new conversation
+    console.log('🆕 Creating new chat in folder:', {
+      folderId,
+      folderName: folder?.name,
+      defaultAssistant: folder?.default_assistant_name,
+      note: 'This will create a NEW chat tab and set folder context'
+    });
+    
+    // Set folder context for the new chat
+    onNewChatInFolder(folderId, folder);
+    
+    // Create new conversation with the folder context
     if (onCreateNewConversation) {
       onCreateNewConversation();
+    }
+  };
+  
+  // 🆕 NEW: Handle new conversation in currently viewed folder
+  const handleNewConversationInCurrentFolder = () => {
+    if (isStreaming) return;
+    
+    if (viewingFolderId) {
+      handleNewConversationInFolder(viewingFolderId);
     }
   };
 
@@ -133,11 +182,6 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
       await projectService.deleteProject(folderId);
       await loadFolders();
       setDropdownOpen(null);
-      
-      // If the deleted folder was selected, clear selection
-      if (selectedProjectId === folderId) {
-        onProjectSelect(null);
-      }
     } catch (error) {
       console.error('Failed to delete folder:', error);
     }
@@ -148,7 +192,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
     <div
       key={folder.id}
       className={`group relative mx-2 mb-1 rounded-lg transition-all duration-200 ${
-        selectedProjectId === folder.id
+        viewingFolderId === folder.id
           ? 'bg-blue-50 border border-blue-200'
           : isStreaming
           ? 'bg-gray-50 border border-gray-200 opacity-60'
@@ -160,17 +204,17 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
         className={`flex items-center p-3 transition-colors ${
           isStreaming ? 'cursor-not-allowed' : 'cursor-pointer'
         }`}
-        title={isStreaming ? 'Cannot switch folders while AI is responding' : ''}
+        title={isStreaming ? 'Cannot switch folders while AI is responding' : 'View folder contents'}
       >
         {/* Folder icon */}
         <div className={`flex items-center justify-center w-8 h-8 rounded-lg mr-3 ${
-          selectedProjectId === folder.id
+          viewingFolderId === folder.id
             ? 'bg-blue-100 text-blue-600'
             : 'bg-gray-100 text-gray-600'
         }`}>
           {folder.icon ? (
             <span className="text-sm">{folder.icon}</span>
-          ) : selectedProjectId === folder.id ? (
+          ) : viewingFolderId === folder.id ? (
             <FolderOpen className="w-4 h-4" />
           ) : (
             <Folder className="w-4 h-4" />
@@ -187,7 +231,13 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
               <Star className="w-3 h-3 text-yellow-400 fill-current" />
             )}
             {folder.has_default_assistant && (
-              <Bot className="w-3 h-3 text-blue-500" title={`Default: ${folder.default_assistant_name}`} />
+              <div 
+                className="flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs" 
+                title={`New chats in this folder will use ${folder.default_assistant_name}`}
+              >
+                <Bot className="w-3 h-3 mr-1" />
+                <span className="truncate max-w-[100px]">{folder.default_assistant_name}</span>
+              </div>
             )}
           </div>
 
@@ -203,7 +253,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
               {folder.conversation_count} chats
             </div>
             {folder.has_default_assistant && (
-              <div className="flex items-center">
+              <div className="flex items-center text-blue-500">
                 <Bot className="w-3 h-3 mr-1" />
                 {folder.default_assistant_name}
               </div>
@@ -229,7 +279,10 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
               <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
                 <div className="py-1">
                   <button
-                    onClick={() => handleNewConversationInFolder(folder.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNewConversationInFolder(folder.id);
+                    }}
                     className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -237,7 +290,10 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                   </button>
                   
                   <button
-                    onClick={() => handleEditFolder(folder)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditFolder(folder);
+                    }}
                     className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     <Settings className="w-4 h-4 mr-2" />
@@ -245,7 +301,10 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                   </button>
                   
                   <button
-                    onClick={() => handleToggleFavorite(folder.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleFavorite(folder.id);
+                    }}
                     className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     <Star className={`w-4 h-4 mr-2 ${folder.is_favorited ? 'fill-current text-yellow-400' : ''}`} />
@@ -253,7 +312,10 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                   </button>
                   
                   <button
-                    onClick={() => handleArchiveFolder(folder.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleArchiveFolder(folder.id);
+                    }}
                     className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     <Archive className="w-4 h-4 mr-2" />
@@ -261,7 +323,10 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
                   </button>
                   
                   <button
-                    onClick={() => handleDeleteFolder(folder.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteFolder(folder.id);
+                    }}
                     className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -276,10 +341,59 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
     </div>
   );
 
+  // If viewing a specific folder, show its conversation list
+  if (viewingFolderId) {
+    return (
+      <div className="h-full flex flex-col">
+        {/* Header with back button */}
+        <div className="p-4 border-b border-white/20">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleBackToFolders}
+                className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                title="Back to folders"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <FolderOpen className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-semibold text-gray-800">{viewingFolderName}</h2>
+            </div>
+            
+            {!isStreaming && (
+              <button
+                onClick={handleNewConversationInCurrentFolder}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="New conversation in this folder"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Folder conversation list */}
+        <div className="flex-1 overflow-hidden">
+          <ProjectConversationList
+            projectId={viewingFolderId}
+            projectName={viewingFolderName}
+            currentConversationId={currentConversationId}
+            onSelectConversation={onSelectConversation}
+            onNewConversation={handleNewConversationInCurrentFolder}
+            isStreaming={isStreaming}
+            refreshTrigger={refreshTrigger}
+            className="h-full"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise show folder list
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-white/20">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <Folder className="w-5 h-5 text-blue-600" />
@@ -334,30 +448,7 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
           </div>
         ) : (
           <div className="py-2">
-            {/* All Conversations option */}
-            <div className="mx-2 mb-3">
-              <button
-                onClick={() => handleFolderSelect(null)}
-                disabled={isStreaming}
-                className={`w-full p-3 rounded-lg transition-all duration-200 ${
-                  selectedProjectId === null
-                    ? 'bg-blue-50 border border-blue-200'
-                    : isStreaming
-                    ? 'bg-gray-50 border border-gray-200 opacity-60'
-                    : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-md">
-                    <MessageSquare className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h4 className="font-medium text-gray-900">All Conversations</h4>
-                    <p className="text-xs text-gray-500">View all chats across folders</p>
-                  </div>
-                </div>
-              </button>
-            </div>
+
 
             {/* Active folders */}
             {activeFolders.length > 0 && (
@@ -402,7 +493,11 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onFolderCreated={(folderId) => {
-          onProjectSelect(folderId);
+          // Set context for new chat in the created folder
+          const newFolder = folders.find(f => f.id === folderId);
+          if (newFolder) {
+            onNewChatInFolder(folderId, newFolder);
+          }
           onProjectChange();
           loadFolders();
         }}
@@ -418,13 +513,9 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
           folder={editingFolder}
           onFolderUpdated={(folderId) => {
             onProjectUpdated(folderId);
-            onProjectChange();
             loadFolders();
           }}
           onFolderDeleted={(folderId) => {
-            if (selectedProjectId === folderId) {
-              onProjectSelect(null);
-            }
             onProjectChange();
             loadFolders();
           }}
@@ -440,4 +531,4 @@ export const ProjectFoldersSidebar: React.FC<ProjectFoldersSidebarProps> = ({
       )}
     </div>
   );
-}; 
+};

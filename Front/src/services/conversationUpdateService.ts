@@ -207,7 +207,7 @@ export class ConversationUpdateService {
     messages: ChatMessage[],
     existingConversationId: number | null,
     storedMessageCount: number,
-    config?: { selectedConfigId?: number; selectedModelId?: string }
+    config?: { selectedConfigId?: number; selectedModelId?: string; projectId?: number }
   ): Promise<{ conversationId: number; isNewConversation: boolean }> {
     const operationKey = existingConversationId 
       ? `smart_save_${existingConversationId}` 
@@ -236,7 +236,7 @@ export class ConversationUpdateService {
     messages: ChatMessage[],
     existingConversationId: number | null,
     storedMessageCount: number,
-    config?: { selectedConfigId?: number; selectedModelId?: string }
+    config?: { selectedConfigId?: number; selectedModelId?: string; projectId?: number }
   ): Promise<{ conversationId: number; isNewConversation: boolean }> {
     try {
       if (existingConversationId && messages.length > storedMessageCount) {
@@ -260,7 +260,8 @@ export class ConversationUpdateService {
           messages,
           undefined, // Auto-generate title
           config?.selectedConfigId,
-          config?.selectedModelId
+          config?.selectedModelId,
+          config?.projectId // 📁 Pass folder assignment
         );
         
         // Initialize state tracking for new conversation

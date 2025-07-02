@@ -94,8 +94,12 @@ async def send_chat_message(
                 user_id=current_user.id
             )
             if project:
-                project_system_prompt = project.system_prompt
-                logger.info(f"🗂️ Using project '{project.name}' (ID: {project.id}) context")
+                # If project has a default assistant, we'll use that assistant's system prompt
+                project_system_prompt = None
+                if project.default_assistant_id:
+                    logger.info(f"🗂️ Using project '{project.name}' (ID: {project.id}) with default assistant {project.default_assistant_id}")
+                else:
+                    logger.info(f"🗂️ Using project '{project.name}' (ID: {project.id}) context")
             else:
                 logger.warning(f"⚠️ Project {chat_request.project_id} not found or not accessible")
         
@@ -267,25 +271,9 @@ async def send_chat_message(
             for msg in chat_request.messages
         ]
         
-        # Inject project system prompt first, if available
-        if project_system_prompt:
-            has_system_message = any(msg["role"] == "system" for msg in messages)
-            
-            if has_system_message:
-                # Update existing system message to include project prompt
-                for msg in messages:
-                    if msg["role"] == "system":
-                        msg["content"] = f"{project_system_prompt}\n\n{msg['content']}"
-                        logger.info(f"🗂️ Enhanced existing system message with project prompt")
-                        break
-            else:
-                # Add project system prompt as the first message
-                messages.insert(0, {
-                    "role": "system",
-                    "content": project_system_prompt,
-                    "name": f"project_{project.id}"
-                })
-                logger.info(f"🗂️ Injected project system prompt: '{project.name}' ({len(project_system_prompt)} chars)")
+        # Note: Project system prompts are handled via default assistants in the current model
+        # If project has a default assistant, that assistant's system prompt will be used
+        # This provides better flexibility and consistency with the assistant system
         
         # Inject assistant system prompt if available
         if assistant_system_prompt:

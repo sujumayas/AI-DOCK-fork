@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Folder, Bot, Palette, Trash2, Archive, Star } from 'lucide-react';
 import { ProjectSummary, ProjectUpdateRequest } from '../../../types/project';
-import { Assistant } from '../../../types/assistant';
+import { AssistantSummary } from '../../../types/assistant';
 import { projectService } from '../../../services/projectService';
 import { assistantService } from '../../../services/assistantService';
 
@@ -35,7 +35,7 @@ export const EditProjectFolderModal: React.FC<EditProjectFolderModalProps> = ({
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [assistants, setAssistants] = useState<Assistant[]>([]);
+  const [assistants, setAssistants] = useState<AssistantSummary[]>([]);
   const [loadingAssistants, setLoadingAssistants] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -74,10 +74,12 @@ export const EditProjectFolderModal: React.FC<EditProjectFolderModalProps> = ({
   const loadAssistants = async () => {
     setLoadingAssistants(true);
     try {
-      const data = await assistantService.getAssistants();
-      setAssistants(data);
+      const response = await assistantService.getAssistants();
+      // Extract the assistants array from the response
+      setAssistants(response.assistants || []);
     } catch (error) {
       console.error('Failed to load assistants:', error);
+      setAssistants([]); // Set empty array on error
     } finally {
       setLoadingAssistants(false);
     }
@@ -257,7 +259,7 @@ export const EditProjectFolderModal: React.FC<EditProjectFolderModalProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">No default assistant</option>
-                {assistants.map(assistant => (
+                {Array.isArray(assistants) && assistants.map(assistant => (
                   <option key={assistant.id} value={assistant.id}>
                     {assistant.name}
                   </option>

@@ -1,6 +1,6 @@
-// 🔐 Login Page Component - Professional Blue Aesthetic
+// 🔐 Login Page Component - Modern Glassmorphism Design
 // This is where users enter their credentials to access AI Dock
-// Updated to match the Dashboard's beautiful blue gradient theme
+// Updated to match the app's modern glassmorphism theme with blue gradients
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -92,17 +92,21 @@ export const LoginPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-teal-600 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 flex items-center justify-center p-4 relative">
+      {/* Decorative gradient blobs */}
+      <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 right-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl -rotate-45 pointer-events-none" />
+      
+      <div className="w-full max-w-md relative z-10">
         {/* Header Section with Glassmorphism */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-2 mb-6">
-            <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg ring-4 ring-blue-500/20">
               <Shield className="h-8 w-8 text-white" />
             </div>
-            <Sparkles className="h-6 w-6 text-yellow-300" />
+            <Sparkles className="h-6 w-6 text-yellow-300 animate-pulse" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome to AI Dock</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent mb-2">Welcome to AI Dock</h1>
           <p className="text-blue-100">Sign in to access your secure AI gateway</p>
           <p className="text-blue-200 text-sm mt-2">
             <span className="font-medium">InDigital XP Platform</span> • Intercorp Retail
@@ -110,12 +114,12 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Login Form Card with Glassmorphism */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
+        <div className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/10 hover:shadow-3xl transition-all duration-300">
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-              <span className="text-red-700 text-sm">{error}</span>
+            <div className="mb-6 p-4 bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-xl flex items-center space-x-2">
+              <AlertCircle className="h-5 w-5 text-red-300 flex-shrink-0" />
+              <span className="text-red-100 text-sm">{error}</span>
             </div>
           )}
 
@@ -123,19 +127,19 @@ export const LoginPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-blue-100 mb-2">
                 Email Address
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-blue-300" />
                 </div>
                 <input
                   id="email"
                   type="email"
                   value={credentials.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full pl-10 pr-3 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 shadow-lg hover:shadow-xl text-white placeholder-blue-200"
                   placeholder="Enter your email"
                   autoComplete="email"
                   disabled={isLoading}
@@ -146,19 +150,19 @@ export const LoginPage: React.FC = () => {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-blue-100 mb-2">
                 Password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-5 w-5 text-blue-300" />
                 </div>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={credentials.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full pl-10 pr-12 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 shadow-lg hover:shadow-xl text-white placeholder-blue-200"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={isLoading}
@@ -167,13 +171,13 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-white/10 rounded-r-xl transition-colors"
                   disabled={isLoading}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <EyeOff className="h-5 w-5 text-blue-300 hover:text-blue-100 transition-colors" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <Eye className="h-5 w-5 text-blue-300 hover:text-blue-100 transition-colors" />
                   )}
                 </button>
               </div>
@@ -183,7 +187,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 text-white py-3 px-4 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="w-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white py-3 px-4 rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center space-x-2">
@@ -198,14 +202,14 @@ export const LoginPage: React.FC = () => {
 
           {/* Footer */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-blue-200">
               Need access? Contact your system administrator
             </p>
           </div>
         </div>
 
         {/* Development Note with Glassmorphism */}
-        <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+        <div className="mt-6 p-4 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg">
           <p className="text-sm text-blue-100">
             <strong className="text-white">Development Mode:</strong> Use the test account created in your backend
           </p>

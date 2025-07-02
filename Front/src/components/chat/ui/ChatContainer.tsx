@@ -1,6 +1,6 @@
-// 💬 Main Chat Interface Container (Refactored)
-// Orchestrates all chat functionality using modular hooks and components
-// Replaces the large ChatInterface.tsx with clean, maintainable architecture
+// 💬 Main Chat Interface Container (Refactored) - FIXED VERSION
+// Orchestrates all chat functionality with proper folder separation
+// Folders are purely organizational and don't interfere with active chats
 
 import React, { useEffect, useCallback, useState } from 'react';
 import { Settings, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
@@ -19,11 +19,9 @@ import { useConversationManager } from '../../../hooks/chat/useConversationManag
 import { useResponsiveLayout } from '../../../hooks/chat/useResponsiveLayout';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSidebarState } from '../../../hooks/chat/useSidebarState';
-import { useProjectManager } from '../../../hooks/chat/useProjectManager';
-import { ProjectSelectorCard } from './ProjectSelectorCard';
+import { useFolderContext } from '../../../hooks/folder/useFolderContext';
 import { DEFAULT_AUTO_SAVE_CONFIG, shouldAutoSave } from '../../../types/conversation';
 import type { FileAttachment } from '../../../types/file';
-import { projectService } from '../../../services/projectService';
 import { assistantService } from '../../../services/assistantService';
 
 export const ChatContainer: React.FC = () => {
@@ -42,6 +40,19 @@ export const ChatContainer: React.FC = () => {
     toggleMode: toggleSidebarMode
   } = useSidebarState('conversations', false);
   
+  // 🔧 FIXED: Folder context (organizational only, no active chat interference)
+  const {
+    viewingFolderId,
+    viewingFolder,
+    folderForNewChat,
+    folderForNewChatData,
+    setViewingFolder,
+    setFolderForNewChat,
+    clearNewChatFolderContext,
+    getNewChatFolderDefaultAssistantId,
+    hasNewChatFolderContext
+  } = useFolderContext();
+  
   // 🎯 Model selection management
   const {
     unifiedModelsData,
@@ -57,25 +68,6 @@ export const ChatContainer: React.FC = () => {
     handleModelChange,
     setError: setModelError
   } = useModelSelection();
-  
-  // 📂 Project management
-  const {
-    availableProjects,
-    selectedProjectId,
-    selectedProject,
-    projectsLoading,
-    projectsError,
-    showProjectManager,
-    handleProjectSelect,
-    handleProjectChange,
-    handleProjectIntroduction,
-    setShowProjectManager,
-    clearProjectFromUrl,
-    loadAvailableProjects
-  } = useProjectManager((message) => {
-    // Handle project messages
-    addMessage(message);
-  });
 
   // 🤖 Assistant management
   const {
@@ -90,7 +82,8 @@ export const ChatContainer: React.FC = () => {
     handleAssistantIntroduction,
     setShowAssistantManager,
     clearAssistantFromUrl,
-    loadAvailableAssistants
+    loadAvailableAssistants,
+    deactivateAssistant
   } = useAssistantManager((message) => {
     // Handle assistant messages
     addMessage(message);
@@ -100,9 +93,10 @@ export const ChatContainer: React.FC = () => {
   const {
     currentConversationId,
     conversationTitle,
+    conversationProjectId, // Get the conversation's original project/folder
+    conversationAssistantId, // Get the conversation's assigned assistant
     isSavingConversation,
     lastAutoSaveMessageCount,
-    autoSaveFailedAt,
 
     conversationRefreshTrigger,
     sidebarUpdateFunction,
@@ -129,7 +123,7 @@ export const ChatContainer: React.FC = () => {
     }
   );
   
-  // 💬 Chat state management
+  // 💬 Chat state management - FIXED: Remove project interference
   const {
     messages,
     isLoading,
@@ -150,8 +144,8 @@ export const ChatContainer: React.FC = () => {
     selectedModelId,
     selectedAssistantId,
     selectedAssistant,
-    selectedProjectId,
-    selectedProject,
+    selectedProjectId: currentConversationId ? conversationProjectId : folderForNewChat, // Use folder context only for new chats
+    selectedProject: null, // Remove project display from active chat
     currentConversationId
   });
   
@@ -185,30 +179,38 @@ export const ChatContainer: React.FC = () => {
     console.log('🎯 Opening assistant manager from selector card (unified sidebar closed)');
   }, [setShowAssistantManager, isStreaming]);
 
-  // 🚫 Streaming-aware project selection wrapper
-  const handleProjectSelectWithStreamingCheck = useCallback((projectId: number | null) => {
-    // 🚫 Prevent project switching while streaming
-    if (isStreaming) {
-      console.log('🚫 Cannot switch projects while streaming is active');
-      return;
-    }
+  // 🔧 FIXED: Folder navigation handler (organizational only)
+  const handleFolderNavigate = useCallback((folderId: number | null, folderData: any) => {
+    if (isStreaming) return;
     
-    handleProjectSelect(projectId);
-  }, [handleProjectSelect, isStreaming]);
-
-  const handleChangeProjectClickWithStreamingCheck = useCallback(() => {
-    // 🚫 Prevent opening project manager while streaming
-    if (isStreaming) {
-      console.log('🚫 Cannot open project manager while streaming is active');
-      return;
-    }
+    setViewingFolder(folderId, folderData);
+    console.log('📁 Folder navigation (organizational only):', {
+      folderId,
+      folderName: folderData?.name,
+      note: 'This does NOT affect any active chat session'
+    });
+  }, [isStreaming, setViewingFolder]);
+  
+  // 🆕 NEW: Handle new chat creation in folder
+  const handleNewChatInFolder = useCallback((folderId: number | null, folderData: any) => {
+    if (isStreaming) return;
     
-    // Open unified sidebar in projects mode
-    setSidebarMode('projects');
-    setShowUnifiedSidebar(true);
-    setShowAssistantManager(false);
-    console.log('🎯 Opening unified sidebar in projects mode from selector card');
-  }, [isStreaming]);
+    // Set folder context for new chat creation
+    setFolderForNewChat(folderId, folderData);
+    
+    console.log('🆕 Setting folder context for new chat:', {
+      folderId,
+      folderName: folderData?.name,
+      defaultAssistant: folderData?.default_assistant_name,
+      defaultAssistantId: folderData?.default_assistant_id
+    });
+    
+    // Auto-activate folder's default assistant if available
+    if (folderData?.default_assistant_id && folderData.default_assistant_id !== selectedAssistantId) {
+      console.log('🤖 Auto-activating folder default assistant:', folderData.default_assistant_name);
+      handleAssistantSelect(folderData.default_assistant_id);
+    }
+  }, [isStreaming, setFolderForNewChat, selectedAssistantId, handleAssistantSelect]);
   
   // ⚡ Update messages as content streams in
   useEffect(() => {
@@ -226,55 +228,67 @@ export const ChatContainer: React.FC = () => {
   const [previousConversationId, setPreviousConversationId] = useState<number | null>(null);
   const [conversationJustLoaded, setConversationJustLoaded] = useState(false);
 
-  // 💾 Auto-save logic - ENHANCED with race condition prevention
+  // 💾 FIXED: Auto-save with folder context for new chats only
   useEffect(() => {
-    const shouldTriggerAutoSave = shouldAutoSave(
-      messages,
-      DEFAULT_AUTO_SAVE_CONFIG.triggerAfterMessages
-    );
-
     // 🚫 Don't auto-save during conversation loading to prevent race conditions
-    if (isLoadingConversation || conversationJustLoaded) {
-      console.log('🚫 Skipping auto-save during conversation loading to prevent race conditions');
+    if (isLoadingConversation || conversationJustLoaded || isStreaming) {
       return;
     }
 
-    if (shouldTriggerAutoSave && !isStreaming) {
-      // 🧠 Smart detection: Only trigger auto-save for genuine new messages
-      const currentMessageCount = messages.length;
-      const hasNewMessages = currentMessageCount > previousMessageCount;
-      const conversationChanged = currentConversationId !== previousConversationId;
-
-      if (hasNewMessages && !conversationChanged) {
-        console.log('💾 Auto-save triggered: new messages detected', {
-          currentCount: currentMessageCount,
-          previousCount: previousMessageCount,
-          conversationId: currentConversationId
-        });
-
-                 handleAutoSaveConversation(messages, {
-           selectedConfigId: selectedConfigId || undefined,
-           selectedModelId: selectedModelId || undefined,
-           projectId: selectedProjectId || undefined
-         });
-      }
-
-      // Update tracking variables for next comparison
-      setPreviousMessageCount(currentMessageCount);
-      setPreviousConversationId(currentConversationId);
+    // 🚫 Skip if no messages
+    if (messages.length === 0) {
+      return;
     }
+
+    // 🧠 Only count user messages for auto-save detection
+    const userMessages = messages.filter(msg => msg.role === 'user');
+    const currentUserMessageCount = userMessages.length;
+    const previousUserMessageCount = messages.slice(0, previousMessageCount).filter(msg => msg.role === 'user').length;
+    
+    const hasNewUserMessages = currentUserMessageCount > previousUserMessageCount;
+    const conversationChanged = currentConversationId !== previousConversationId;
+
+    if (hasNewUserMessages && !conversationChanged) {
+      console.log('💾 Auto-save triggered: new user messages detected', {
+        currentUserCount: currentUserMessageCount,
+        previousUserCount: previousUserMessageCount,
+        totalMessages: messages.length,
+        conversationId: currentConversationId,
+        folderForNewChat: folderForNewChat
+      });
+
+      handleAutoSaveConversation(messages, {
+        selectedConfigId: selectedConfigId || undefined,
+        selectedModelId: selectedModelId || undefined,
+        // 🔧 FIXED: Use folder context only for NEW chats, never change existing chat folder
+        projectId: currentConversationId ? (conversationProjectId || undefined) : folderForNewChat || undefined
+      });
+      
+      // Clear folder context after successful auto-save of new chat
+      if (!currentConversationId && hasNewChatFolderContext()) {
+        console.log('🧹 Clearing folder context after new chat auto-save');
+        clearNewChatFolderContext();
+      }
+    }
+
+    // Update tracking variables for next comparison
+    setPreviousMessageCount(messages.length);
+    setPreviousConversationId(currentConversationId);
   }, [
     messages,
     isStreaming,
     handleAutoSaveConversation,
     selectedConfigId,
     selectedModelId,
-    selectedProjectId,
+    folderForNewChat,
     currentConversationId,
     previousMessageCount,
     previousConversationId,
     isLoadingConversation,
-    conversationJustLoaded
+    conversationJustLoaded,
+    conversationProjectId,
+    hasNewChatFolderContext,
+    clearNewChatFolderContext
   ]);
 
   // 💾 Conversation loading with streaming check
@@ -295,6 +309,15 @@ export const ChatContainer: React.FC = () => {
       // Set tracking state for the loaded conversation
       setPreviousMessageCount(loadedMessages.length);
       setPreviousConversationId(conversationId);
+
+      // Auto-select the conversation's assigned assistant
+      if (conversationAssistantId && conversationAssistantId !== selectedAssistantId) {
+        console.log('🤖 Auto-selecting conversation assistant:', conversationAssistantId);
+        handleAssistantSelect(conversationAssistantId);
+      } else if (!conversationAssistantId && selectedAssistantId) {
+        console.log('🤖 Deactivating assistant for conversation without assigned assistant');
+        deactivateAssistant();
+      }
       
       console.log('✅ Conversation loaded successfully with', loadedMessages.length, 'messages');
       
@@ -304,7 +327,7 @@ export const ChatContainer: React.FC = () => {
     } finally {
       setIsLoadingConversation(false);
     }
-  }, [isStreaming, handleLoadConversation, setError]);
+  }, [isStreaming, handleLoadConversation, setError, conversationAssistantId, selectedAssistantId, handleAssistantSelect, deactivateAssistant]);
 
   // 💾 Save current conversation
   const handleSaveCurrentConversation = useCallback(async () => {
@@ -314,17 +337,25 @@ export const ChatContainer: React.FC = () => {
     }
 
     try {
-             await handleSaveConversation(messages, {
-         selectedConfigId: selectedConfigId || undefined,
-         selectedModelId: selectedModelId || undefined,
-         projectId: selectedProjectId || undefined
-       });
+      await handleSaveConversation(messages, {
+        selectedConfigId: selectedConfigId || undefined,
+        selectedModelId: selectedModelId || undefined,
+        // 🔧 FIXED: Use folder context only for NEW chats, never change existing chat folder
+        projectId: currentConversationId ? (conversationProjectId || undefined) : folderForNewChat || undefined
+      });
+      
+      // Clear folder context after successful manual save of new chat
+      if (!currentConversationId && hasNewChatFolderContext()) {
+        console.log('🧹 Clearing folder context after new chat manual save');
+        clearNewChatFolderContext();
+      }
+      
       console.log('✅ Conversation saved manually');
     } catch (error) {
       console.error('❌ Failed to save conversation:', error);
       setError(error instanceof Error ? error.message : 'Failed to save conversation');
     }
-  }, [messages, handleSaveConversation, selectedConfigId, selectedModelId, selectedProjectId, setError]);
+  }, [messages, handleSaveConversation, selectedConfigId, selectedModelId, folderForNewChat, currentConversationId, conversationProjectId, setError, hasNewChatFolderContext, clearNewChatFolderContext]);
 
   // ✉️ Enhanced message sending with auto-save integration
   const handleSendMessage = useCallback(async (
@@ -349,31 +380,11 @@ export const ChatContainer: React.FC = () => {
     await loadAvailableAssistants();
   }, [loadAvailableAssistants]);
 
-  // 📂 Project selection helpers
-  const handleProjectUpdated = useCallback(async (projectId: number) => {
-    try {
-      // Load the updated project
-      const updatedProject = await projectService.getProject(projectId);
-      
-             // Generate a new introduction message for the updated project
-       const introMessage = handleProjectIntroduction(updatedProject, selectedProject);
-      addMessage(introMessage);
-      
-      console.log('✅ Added re-introduction message for updated project');
-      
-      // Refresh the available projects
-      await loadAvailableProjects();
-      
-    } catch (error) {
-      console.error('❌ Failed to generate introduction for updated project:', error);
-    }
-  }, [loadAvailableProjects, handleProjectIntroduction, selectedProject, addMessage]);
-
   // 🤖 Assistant updated handler  
   const handleAssistantUpdated = useCallback(async (assistantId: number) => {
     try {
-             // Load the updated assistant data
-       const updatedAssistant = await assistantService.getAssistant(assistantId);
+      // Load the updated assistant data
+      const updatedAssistant = await assistantService.getAssistant(assistantId);
       
       // Create assistant summary for introduction
       const assistantSummary = {
@@ -416,7 +427,13 @@ export const ChatContainer: React.FC = () => {
     setPreviousMessageCount(0);
     setPreviousConversationId(null);
     setConversationJustLoaded(false);
-  }, [handleNewConversation, isStreaming]);
+
+    // Clear any active assistant when starting a new conversation (unless we have folder context)
+    if (selectedAssistantId && !hasNewChatFolderContext()) {
+      console.log('🤖 Deactivating assistant for new conversation');
+      deactivateAssistant();
+    }
+  }, [handleNewConversation, isStreaming, selectedAssistantId, deactivateAssistant, hasNewChatFolderContext]);
   
   // 🔧 FIX: Reset the "just loaded" flag after a short delay to allow normal auto-save
   useEffect(() => {
@@ -469,7 +486,7 @@ export const ChatContainer: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isStreaming, setShowAssistantManager]);
+  }, [isStreaming, setShowAssistantManager, setSidebarMode, toggleSidebar]);
   
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 overflow-hidden">
@@ -515,10 +532,12 @@ export const ChatContainer: React.FC = () => {
           setSidebarFunctions(updateFn, addFn);
         }}
         isStreaming={isStreaming}
-        selectedProjectId={selectedProjectId}
-        onProjectSelect={handleProjectSelectWithStreamingCheck}
-        onProjectChange={handleProjectChange}
-        onProjectUpdated={handleProjectUpdated}
+        onFolderNavigate={handleFolderNavigate}
+        onNewChatInFolder={handleNewChatInFolder}
+        onProjectChange={async () => {}} // No-op since we removed project context from active chat
+        onProjectUpdated={() => {}} // No-op since we removed project context from active chat
+        viewingFolderId={viewingFolderId}
+        viewingFolderName={viewingFolder?.name || ''}
       />
 
       {/* 🤖 Assistant Manager */}
@@ -552,7 +571,7 @@ export const ChatContainer: React.FC = () => {
       <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${
         showUnifiedSidebar ? 'ml-80' : 'ml-0'
       }`}>
-        {/* 🎛️ Header */}
+        {/* 🎛️ Header - FIXED: No folder display in active chat */}
         <ChatHeader
           unifiedModelsData={unifiedModelsData}
           selectedModelId={selectedModelId}
@@ -564,7 +583,7 @@ export const ChatContainer: React.FC = () => {
           groupedModels={groupedModels}
           onModelChange={handleModelChange}
           selectedAssistant={selectedAssistant}
-          selectedProject={selectedProject}
+          selectedProject={null} // 🔧 FIXED: Remove project display from active chat
           onOpenProjectManager={() => {
             // Open unified sidebar in projects mode
             setSidebarMode('projects');
@@ -626,13 +645,6 @@ export const ChatContainer: React.FC = () => {
               isLoading={isLoading}
               isStreaming={isStreaming}
               className="flex-1"
-            />
-            
-            {/* 📂 Project selector */}
-            <ProjectSelectorCard
-              selectedProject={selectedProject}
-              onChangeClick={handleChangeProjectClickWithStreamingCheck}
-              isStreaming={isStreaming}
             />
             
             {/* 🤖 Assistant selector */}

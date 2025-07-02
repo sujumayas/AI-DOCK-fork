@@ -37,6 +37,8 @@ class ConversationResponse(BaseModel):
     user_id: int
     assistant_id: Optional[int]
     assistant_name: Optional[str]
+    project_id: Optional[int]  # Add project_id field
+    project: Optional[dict]    # Add project object field
     created_at: str
     updated_at: str
     is_active: bool

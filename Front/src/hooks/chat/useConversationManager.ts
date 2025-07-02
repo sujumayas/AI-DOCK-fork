@@ -12,11 +12,12 @@ export interface ConversationManagerState {
   // Conversation data
   currentConversationId: number | null;
   conversationTitle: string | null;
+  conversationProjectId: number | null; // Track conversation's original folder/project
+  conversationAssistantId: number | null; // Track conversation's assigned assistant
   
   // Save state
   isSavingConversation: boolean;
   lastAutoSaveMessageCount: number;
-  autoSaveFailedAt: number | null;
   
   // Sidebar integration
   conversationRefreshTrigger: number;
@@ -51,40 +52,29 @@ export const useConversationManager = (
   // 💾 Conversation state
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [conversationTitle, setConversationTitle] = useState<string | null>(null);
+  const [conversationProjectId, setConversationProjectId] = useState<number | null>(null); // Track conversation's original folder
+  const [conversationAssistantId, setConversationAssistantId] = useState<number | null>(null); // Track conversation's assigned assistant
   const [isSavingConversation, setIsSavingConversation] = useState(false);
   const [lastAutoSaveMessageCount, setLastAutoSaveMessageCount] = useState(0);
-  const [autoSaveFailedAt, setAutoSaveFailedAt] = useState<number | null>(null);
   
   // 💾 Sidebar integration state
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
   const [sidebarUpdateFunction, setSidebarUpdateFunction] = useState<((id: number, count: number, backendData?: Partial<any>) => void) | null>(null);
   const [sidebarAddConversationFunction, setSidebarAddConversationFunction] = useState<((conv: any) => void) | null>(null);
   
-  // 💾 Auto-save conversation with enhanced race condition prevention
+  // 💾 Simplified auto-save conversation - saves immediately after first user message
   const handleAutoSaveConversation = useCallback(async (
     messages: ChatMessage[], 
     config?: { selectedConfigId?: number; selectedModelId?: string; projectId?: number }
   ) => {
-    // Early validation
-    if (messages.length < DEFAULT_AUTO_SAVE_CONFIG.triggerAfterMessages) {
+    // Only save after actual user messages, not system messages
+    if (!shouldAutoSave(messages)) {
       return;
     }
 
     // 🚫 Prevent concurrent auto-saves
     if (isSavingConversation) {
       console.log('🚫 Auto-save already in progress, skipping');
-      return;
-    }
-
-    // 🚫 Check if conversation is busy with other operations
-    if (currentConversationId && conversationUpdateService.isConversationBusy(currentConversationId)) {
-      console.log('🚫 Conversation is busy with other operations, skipping auto-save');
-      return;
-    }
-
-    // 🚫 Prevent duplicate saves at the same message count
-    if (autoSaveFailedAt === messages.length) {
-      console.log('🚫 Auto-save previously failed at this message count, skipping');
       return;
     }
 
@@ -103,17 +93,24 @@ export const useConversationManager = (
       console.log('💾 Auto-saving conversation with', messages.length, 'messages (last saved:', actualLastSavedCount, ')');
       
       // Use enhanced smart save with state tracking
+      // For existing conversations, use the conversation's original project, not the current selection
+      const saveConfig = {
+        ...config,
+        projectId: currentConversationId ? conversationProjectId : config?.projectId // Preserve original folder for existing conversations
+      };
+      
       const result = await conversationUpdateService.smartSaveConversation(
         messages,
         currentConversationId,
         actualLastSavedCount,
-        config
+        saveConfig
       );
       
       // Update state based on the save result
       if (result.isNewConversation) {
-        // New conversation was created
+        // New conversation was created - remember the folder it was created in
         setCurrentConversationId(result.conversationId);
+        setConversationProjectId(saveConfig?.projectId || null); // Set conversation's folder
         
         // Get conversation details to set title
         try {
@@ -131,10 +128,10 @@ export const useConversationManager = (
               last_message_at: conversation.last_message_at || new Date().toISOString()
             };
             sidebarAddConversationFunction(conversationSummary);
-          } else {
-            // Fallback to refresh trigger
-            setConversationRefreshTrigger(prev => prev + 1);
           }
+          
+          // Always increment refresh trigger for other components (like project conversation lists)
+          setConversationRefreshTrigger(prev => prev + 1);
         } catch (error) {
           console.error('❌ Failed to get conversation details after save:', error);
         }
@@ -163,18 +160,15 @@ export const useConversationManager = (
       }
       
       setLastAutoSaveMessageCount(messages.length);
-      setAutoSaveFailedAt(null); // Clear failure tracking on success
       
       console.log('✅ Conversation auto-saved:', result.conversationId, result.isNewConversation ? '(new)' : '(updated)');
       
     } catch (error) {
       console.error('❌ Failed to auto-save conversation:', error);
-      setAutoSaveFailedAt(messages.length); // Track failure at this message count
-      console.warn('🚫 Auto-save blocked for message count:', messages.length);
     } finally {
       setIsSavingConversation(false);
     }
-  }, [currentConversationId, lastAutoSaveMessageCount, isSavingConversation, autoSaveFailedAt, sidebarAddConversationFunction, sidebarUpdateFunction]);
+  }, [currentConversationId, lastAutoSaveMessageCount, isSavingConversation, sidebarAddConversationFunction, sidebarUpdateFunction]);
   
   // 💾 Manually save conversation with enhanced error handling
   const handleSaveConversation = useCallback(async (
@@ -201,17 +195,24 @@ export const useConversationManager = (
         : lastAutoSaveMessageCount;
       
       // Use enhanced smart save with state tracking
+      // For existing conversations, use the conversation's original project, not the current selection
+      const saveConfig = {
+        ...config,
+        projectId: currentConversationId ? conversationProjectId : config?.projectId // Preserve original folder for existing conversations
+      };
+      
       const result = await conversationUpdateService.smartSaveConversation(
         messages,
         currentConversationId,
         actualLastSavedCount,
-        config
+        saveConfig
       );
       
       // Update state based on the save result
       if (result.isNewConversation) {
-        // New conversation was created
+        // New conversation was created - remember the folder it was created in
         setCurrentConversationId(result.conversationId);
+        setConversationProjectId(saveConfig?.projectId || null); // Set conversation's folder
         
         // Get conversation details to set title
         try {
@@ -229,9 +230,10 @@ export const useConversationManager = (
               last_message_at: conversation.last_message_at || new Date().toISOString()
             };
             sidebarAddConversationFunction(conversationSummary);
-          } else {
-            setConversationRefreshTrigger(prev => prev + 1);
           }
+          
+          // Always increment refresh trigger for other components (like project conversation lists)
+          setConversationRefreshTrigger(prev => prev + 1);
         } catch (error) {
           console.error('❌ Failed to get conversation details after save:', error);
         }
@@ -260,7 +262,6 @@ export const useConversationManager = (
       }
       
       setLastAutoSaveMessageCount(messages.length);
-      setAutoSaveFailedAt(null); // Clear failure tracking
       
       console.log('✅ Conversation saved:', result.conversationId, result.isNewConversation ? '(new)' : '(updated)');
       
@@ -288,7 +289,22 @@ export const useConversationManager = (
       // 🔧 ENHANCED: Initialize state tracking for the loaded conversation
       setCurrentConversationId(conversationId);
       setLastAutoSaveMessageCount(chatMessages.length);
-      setAutoSaveFailedAt(null);
+      
+      // Get conversation details to determine its original project/folder
+      try {
+        const conversationDetails = await conversationService.getConversation(conversationId);
+        // Backend now includes project_id and assistant_id in conversation response
+        setConversationProjectId(conversationDetails.project_id || null);
+        setConversationAssistantId(conversationDetails.assistant_id || null);
+        console.log('🎯 Loaded conversation:', {
+          project_id: conversationDetails.project_id,
+          assistant_id: conversationDetails.assistant_id
+        });
+      } catch (error) {
+        console.warn('Could not determine conversation details:', error);
+        setConversationProjectId(null);
+        setConversationAssistantId(null);
+      }
       
       // Initialize state in the update service
       conversationUpdateService.initializeConversationState(conversationId, chatMessages.length);
@@ -332,8 +348,8 @@ export const useConversationManager = (
     
     setCurrentConversationId(null);
     setConversationTitle(null);
+    setConversationProjectId(null); // Clear conversation's project assignment
     setLastAutoSaveMessageCount(0);
-    setAutoSaveFailedAt(null);
     
     if (onConversationClear) {
       onConversationClear();
@@ -371,9 +387,10 @@ export const useConversationManager = (
     // State
     currentConversationId,
     conversationTitle,
+    conversationProjectId,
+    conversationAssistantId,
     isSavingConversation,
     lastAutoSaveMessageCount,
-    autoSaveFailedAt,
     conversationRefreshTrigger,
     sidebarUpdateFunction,
     sidebarAddConversationFunction,

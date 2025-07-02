@@ -62,10 +62,8 @@ class ProjectService:
             
             # Set defaults for optional fields
             project_data.setdefault('description', '')
-            project_data.setdefault('system_prompt', '')
-            project_data.setdefault('model_preferences', {})
             project_data.setdefault('color', '#3B82F6')
-            project_data.setdefault('icon', '💼')
+            project_data.setdefault('icon', '📁')
             project_data.setdefault('is_active', True)
             project_data.setdefault('is_archived', False)
             project_data.setdefault('is_favorited', False)
@@ -74,8 +72,7 @@ class ProjectService:
             project = Project(
                 name=project_data['name'],
                 description=project_data['description'],
-                system_prompt=project_data['system_prompt'],
-                model_preferences=project_data['model_preferences'],
+                default_assistant_id=project_data.get('default_assistant_id'),
                 color=project_data['color'],
                 icon=project_data['icon'],
                 user_id=user_id,
@@ -214,7 +211,7 @@ class ProjectService:
             project_data: Dictionary with updated project information
             user_id: ID of the user updating the project
             
-        Returns:
+                Returns:
             Updated Project object if successful, None otherwise
         """
         try:
@@ -222,16 +219,14 @@ class ProjectService:
             project = await self.get_project_by_id(project_id, user_id)
             if not project:
                 return None
-            
+
             # Update fields that are provided
             if 'name' in project_data:
                 project.name = project_data['name']
             if 'description' in project_data:
                 project.description = project_data['description']
-            if 'system_prompt' in project_data:
-                project.update_system_prompt(project_data['system_prompt'])
-            if 'model_preferences' in project_data:
-                project.model_preferences = project_data['model_preferences']
+            if 'default_assistant_id' in project_data:
+                project.default_assistant_id = project_data['default_assistant_id']
             if 'color' in project_data:
                 project.color = project_data['color']
             if 'icon' in project_data:
@@ -242,11 +237,11 @@ class ProjectService:
             # Validate updated project data
             if not project.is_valid():
                 raise ValueError("Invalid project data after update")
-            
+
             project.updated_at = datetime.utcnow()
             await self.db.commit()
             await self.db.refresh(project)
-            
+
             logger.info(f"Updated project {project_id} for user {user_id}")
             return project
             
@@ -399,7 +394,22 @@ class ProjectService:
             List of conversations in the project
         """
         try:
-            project = await self.get_project_by_id(project_id, user_id)
+            # Get the project with conversations loaded properly
+            query = select(Project).options(
+                selectinload(Project.conversations).selectinload(Conversation.assistant),
+                selectinload(Project.conversations).selectinload(Conversation.projects),
+                selectinload(Project.conversations).selectinload(Conversation.user)
+            ).where(
+                and_(
+                    Project.id == project_id,
+                    Project.user_id == user_id,
+                    Project.is_active == True
+                )
+            )
+            
+            result = await self.db.execute(query)
+            project = result.scalar_one_or_none()
+            
             if not project:
                 return []
             
@@ -539,8 +549,8 @@ class ProjectService:
                 'is_favorited': project.is_favorited,
                 'is_archived': project.is_archived,
                 'days_since_created': (datetime.utcnow() - project.created_at).days if project.created_at else 0,
-                'has_system_prompt': bool(project.system_prompt),
-                'has_custom_preferences': bool(project.model_preferences)
+                'has_default_assistant': bool(project.default_assistant_id),
+                'default_assistant_name': project.default_assistant.name if project.default_assistant else None
             }
             
             # Calculate activity metrics

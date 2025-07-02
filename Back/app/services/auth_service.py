@@ -30,12 +30,16 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import logging
 
 # Import our models, schemas, and utilities
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, UserInfo, TokenPayload
 from app.core.security import verify_password, create_access_token, create_refresh_token
 from app.core.database import AsyncSessionLocal
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -283,6 +287,11 @@ async def update_last_login(db: AsyncSession, user: User) -> None:
     - Security (detect unusual login patterns)
     - User experience (show "Welcome back!" messages)
     
+    🔧 FIXED: Proper async transaction handling
+    - Use add() to explicitly track changes
+    - Better error handling and logging
+    - Explicit transaction management
+    
     Args:
         db: Database session
         user: User object to update
@@ -291,13 +300,23 @@ async def update_last_login(db: AsyncSession, user: User) -> None:
         # Update the last_login_at field
         user.last_login_at = datetime.utcnow()
         
+        # Add the user to the session to track changes
+        db.add(user)
+        
         # Commit the change to the database
         await db.commit()
+        
+        # Refresh to ensure we have the latest data
+        await db.refresh(user)
+        
+        logger.info(f"✅ Updated last login for user {user.id}")
         
     except Exception as e:
         # If update fails, rollback and log error
         await db.rollback()
-        print(f"Error updating last login for user {user.id}: {e}")
+        logger.error(f"❌ Error updating last login for user {user.id}: {e}")
+        # Re-raise to let caller handle the error appropriately
+        raise e
 
 
 def create_user_info(user: User) -> UserInfo:

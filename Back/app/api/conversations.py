@@ -37,7 +37,9 @@ async def create_conversation(
             user_id=current_user.id,
             title=conversation_data.title,
             llm_config_id=conversation_data.llm_config_id,
-            model_used=conversation_data.model_used
+            model_used=conversation_data.model_used,
+            project_id=conversation_data.project_id,
+            assistant_id=conversation_data.assistant_id
         )
         
         return await conversation_service.get_conversation(
@@ -69,7 +71,9 @@ async def save_conversation_from_messages(
             messages=messages,
             llm_config_id=conversation_data.llm_config_id,
             model_used=conversation_data.model_used,
-            title=conversation_data.title
+            title=conversation_data.title,
+            project_id=conversation_data.project_id,
+            assistant_id=conversation_data.assistant_id
         )
         
         return await conversation_service.get_conversation(

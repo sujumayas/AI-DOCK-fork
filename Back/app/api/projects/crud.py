@@ -74,6 +74,9 @@ class ProjectSummary(BaseModel):
     is_archived: bool
     conversation_count: int
     last_accessed_at: Optional[str]
+    default_assistant_id: Optional[int]
+    default_assistant_name: Optional[str]
+    has_default_assistant: bool
 
 class ProjectListResponse(BaseModel):
     """Response model for project listings."""
@@ -113,6 +116,18 @@ def create_project_summary(project) -> ProjectSummary:
 
 async def create_project_summary_async(project, db: AsyncSession) -> ProjectSummary:
     """Create a ProjectSummary from a Project model using async methods."""
+    # Load assistant name if there's a default assistant
+    default_assistant_name = None
+    if project.default_assistant_id:
+        try:
+            from sqlalchemy import select
+            from ...models.assistant import Assistant
+            assistant_query = select(Assistant.name).where(Assistant.id == project.default_assistant_id)
+            assistant_result = await db.execute(assistant_query)
+            default_assistant_name = assistant_result.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(f"Failed to load assistant name for ID {project.default_assistant_id}: {str(e)}")
+    
     return ProjectSummary(
         id=project.id,
         name=project.name,
@@ -122,7 +137,10 @@ async def create_project_summary_async(project, db: AsyncSession) -> ProjectSumm
         is_favorited=project.is_favorited,
         is_archived=project.is_archived,
         conversation_count=await project.get_conversation_count_async(db),
-        last_accessed_at=project.last_accessed_at.isoformat() if project.last_accessed_at else None
+        last_accessed_at=project.last_accessed_at.isoformat() if project.last_accessed_at else None,
+        default_assistant_id=project.default_assistant_id,
+        default_assistant_name=default_assistant_name,
+        has_default_assistant=bool(project.default_assistant_id)
     )
 
 # =============================================================================
@@ -150,7 +168,26 @@ async def create_project(
         project = await service.create_project(project_dict, current_user.id)
         
         logger.info(f"Created project '{project.name}' for user {current_user.id}")
-        return await create_project_response_async(project, db, include_sensitive=True)
+        
+        # Create response manually to avoid relationship access issues
+        return ProjectResponse(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            default_assistant_id=project.default_assistant_id,
+            default_assistant_name=None,  # Will be loaded if needed
+            has_default_assistant=bool(project.default_assistant_id),
+            color=project.color,
+            icon=project.icon,
+            user_id=project.user_id,
+            is_active=project.is_active,
+            is_archived=project.is_archived,
+            is_favorited=project.is_favorited,
+            conversation_count=0,  # New project has no conversations
+            created_at=project.created_at.isoformat() if project.created_at else "",
+            updated_at=project.updated_at.isoformat() if project.updated_at else "",
+            last_accessed_at=project.last_accessed_at.isoformat() if project.last_accessed_at else None
+        )
         
     except ValueError as e:
         logger.warning(f"Validation error creating project: {str(e)}")
@@ -238,7 +275,25 @@ async def get_project(
                 detail="Project not found"
             )
         
-        return await create_project_response_async(project, db, include_sensitive=True)
+        # Create response manually to avoid relationship access issues
+        return ProjectResponse(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            default_assistant_id=project.default_assistant_id,
+            default_assistant_name=None,  # Will be loaded if needed
+            has_default_assistant=bool(project.default_assistant_id),
+            color=project.color,
+            icon=project.icon,
+            user_id=project.user_id,
+            is_active=project.is_active,
+            is_archived=project.is_archived,
+            is_favorited=project.is_favorited,
+            conversation_count=await project.get_conversation_count_async(db),
+            created_at=project.created_at.isoformat() if project.created_at else "",
+            updated_at=project.updated_at.isoformat() if project.updated_at else "",
+            last_accessed_at=project.last_accessed_at.isoformat() if project.last_accessed_at else None
+        )
         
     except HTTPException:
         raise
@@ -285,7 +340,38 @@ async def update_project(
             )
         
         logger.info(f"Updated project {project_id} for user {current_user.id}")
-        return await create_project_response_async(project, db, include_sensitive=True)
+        
+        # Load assistant name if there's a default assistant
+        default_assistant_name = None
+        if project.default_assistant_id:
+            try:
+                from sqlalchemy import select
+                from ...models.assistant import Assistant
+                assistant_query = select(Assistant.name).where(Assistant.id == project.default_assistant_id)
+                assistant_result = await db.execute(assistant_query)
+                default_assistant_name = assistant_result.scalar_one_or_none()
+            except Exception as e:
+                logger.warning(f"Failed to load assistant name for ID {project.default_assistant_id}: {str(e)}")
+        
+        # Create response manually to avoid relationship access issues
+        return ProjectResponse(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            default_assistant_id=project.default_assistant_id,
+            default_assistant_name=default_assistant_name,
+            has_default_assistant=bool(project.default_assistant_id),
+            color=project.color,
+            icon=project.icon,
+            user_id=project.user_id,
+            is_active=project.is_active,
+            is_archived=project.is_archived,
+            is_favorited=project.is_favorited,
+            conversation_count=await project.get_conversation_count_async(db),
+            created_at=project.created_at.isoformat() if project.created_at else "",
+            updated_at=project.updated_at.isoformat() if project.updated_at else "",
+            last_accessed_at=project.last_accessed_at.isoformat() if project.last_accessed_at else None
+        )
         
     except HTTPException:
         raise
