@@ -23,11 +23,27 @@ export class ModelHelpers {
       'gpt-3.5-turbo-16k': 'GPT-3.5 Turbo 16K',
       'gpt-3.5-turbo-0613': 'GPT-3.5 Turbo (June 2023)',
       
-      // Claude Models
+      // Claude 4 Models (Latest Generation) - Prioritize aliases
+      'claude-opus-4-0': 'Claude Opus 4 (Latest)',
+      'claude-sonnet-4-0': 'Claude Sonnet 4 (Latest)',
+      'claude-opus-4-20250514': 'Claude Opus 4',
+      'claude-sonnet-4-20250514': 'Claude Sonnet 4',
+      
+      // Claude 3.7 Models - Prioritize aliases
+      'claude-3-7-sonnet-latest': 'Claude Sonnet 3.7 (Latest)',
+      'claude-3-7-sonnet-20250219': 'Claude Sonnet 3.7',
+      
+      // Claude 3.5 Models - Prioritize aliases
+      'claude-3-5-sonnet-latest': 'Claude 3.5 Sonnet (Latest)',
+      'claude-3-5-haiku-latest': 'Claude 3.5 Haiku (Latest)',
+      'claude-3-5-sonnet-20241022': 'Claude 3.5 Sonnet v2',
+      'claude-3-5-sonnet-20240620': 'Claude 3.5 Sonnet',
+      'claude-3-5-haiku-20241022': 'Claude 3.5 Haiku',
+      
+      // Claude 3 Models
       'claude-3-opus-20240229': 'Claude 3 Opus',
       'claude-3-sonnet-20240229': 'Claude 3 Sonnet',
-      'claude-3-haiku-20240307': 'Claude 3 Haiku',
-      'claude-3-5-sonnet-20240620': 'Claude 3.5 Sonnet'
+      'claude-3-haiku-20240307': 'Claude 3 Haiku'
     };
     
     return displayNames[modelId] || modelId;
@@ -42,9 +58,28 @@ export class ModelHelpers {
       'gpt-4-turbo': 'Latest GPT-4 with improved performance and lower cost',
       'gpt-4': 'Most capable model, best for complex tasks',
       'gpt-3.5-turbo': 'Fast and efficient, great for most conversations',
-      'claude-3-opus-20240229': 'Most powerful Claude model for complex tasks',
+      
+      // Claude 4 Models - Prioritize aliases
+      'claude-opus-4-0': 'Most capable model with automatic updates to latest version',
+      'claude-sonnet-4-0': 'High-performance model with automatic updates to latest version',
+      'claude-opus-4-20250514': 'Most capable and intelligent model yet. Sets new standards in complex reasoning and advanced coding',
+      'claude-sonnet-4-20250514': 'High-performance model with exceptional reasoning and efficiency',
+      
+      // Claude 3.7 Models - Prioritize aliases
+      'claude-3-7-sonnet-latest': 'Latest 3.7 model with extended thinking and automatic updates',
+      'claude-3-7-sonnet-20250219': 'High-performance model with early extended thinking capabilities',
+      
+      // Claude 3.5 Models - Prioritize aliases
+      'claude-3-5-sonnet-latest': 'Latest 3.5 Sonnet with automatic updates to newest version',
+      'claude-3-5-haiku-latest': 'Latest fast model with automatic updates - blazing speed',
+      'claude-3-5-sonnet-20241022': 'Advanced reasoning and analysis with enhanced capabilities',
+      'claude-3-5-sonnet-20240620': 'High level of intelligence and capability',
+      'claude-3-5-haiku-20241022': 'Intelligence at blazing speeds - fastest Claude model',
+      
+      // Claude 3 Models
+      'claude-3-opus-20240229': 'Powerful model for complex tasks with top-level intelligence',
       'claude-3-sonnet-20240229': 'Balanced performance and speed',
-      'claude-3-haiku-20240307': 'Fastest Claude model for quick responses'
+      'claude-3-haiku-20240307': 'Fast and compact model for near-instant responsiveness'
     };
     
     return descriptions[modelId] || 'Advanced language model';
@@ -55,30 +90,62 @@ export class ModelHelpers {
    * 💰 Help users understand cost implications
    */
   getModelCostTier(modelId: string): 'low' | 'medium' | 'high' {
-    if (modelId.includes('gpt-4') || modelId.includes('opus')) {
+    // High cost models (premium capabilities) - $15/MTok input or higher
+    if (modelId.includes('claude-opus-4') || 
+        modelId.includes('claude-3-opus') ||
+        (modelId.includes('gpt-4') && !modelId.includes('mini'))) {
       return 'high';
-    } else if (modelId.includes('turbo') || modelId.includes('sonnet')) {
+    } 
+    // Medium cost models (balanced performance) - $3/MTok input range
+    else if (modelId.includes('claude-sonnet-4') ||
+             modelId.includes('claude-3-7-sonnet') ||
+             modelId.includes('claude-3-5-sonnet') ||
+             modelId.includes('claude-3-sonnet') ||
+             modelId.includes('turbo') ||
+             modelId.includes('gpt-4o-mini')) {
       return 'medium';
-    } else {
+    } 
+    // Low cost models (efficient/basic) - under $1/MTok input
+    else if (modelId.includes('claude-3-5-haiku') ||
+             modelId.includes('claude-3-haiku') ||
+             modelId.includes('gpt-3.5')) {
       return 'low';
+    }
+    else {
+      return 'medium'; // Default fallback
     }
   }
   
   /**
-   * List model capabilities
-   * 🔧 Show what each model is good at
+   * Get model capabilities
+   * 🛠️ What the model can do
    */
   getModelCapabilities(modelId: string): string[] {
     const capabilities: Record<string, string[]> = {
-      'gpt-4-turbo': ['reasoning', 'analysis', 'coding', 'creative-writing'],
-      'gpt-4': ['reasoning', 'analysis', 'coding', 'creative-writing'],
-      'gpt-3.5-turbo': ['conversation', 'writing', 'basic-coding'],
-      'claude-3-opus-20240229': ['reasoning', 'analysis', 'coding', 'research'],
-      'claude-3-sonnet-20240229': ['conversation', 'writing', 'analysis'],
-      'claude-3-haiku-20240307': ['conversation', 'quick-responses']
+      // Claude 4 Models - Prioritize aliases
+      'claude-opus-4-0': ['text', 'vision', 'extended-thinking', 'coding', 'reasoning', '200k-context', 'auto-updates'],
+      'claude-sonnet-4-0': ['text', 'vision', 'extended-thinking', 'coding', 'reasoning', '200k-context', 'auto-updates'],
+      'claude-opus-4-20250514': ['text', 'vision', 'extended-thinking', 'coding', 'reasoning', '200k-context'],
+      'claude-sonnet-4-20250514': ['text', 'vision', 'extended-thinking', 'coding', 'reasoning', '200k-context'],
+      
+      // Claude 3.7 Models - Prioritize aliases
+      'claude-3-7-sonnet-latest': ['text', 'vision', 'extended-thinking', 'coding', 'reasoning', '200k-context', 'auto-updates'],
+      'claude-3-7-sonnet-20250219': ['text', 'vision', 'extended-thinking', 'coding', 'reasoning', '200k-context'],
+      
+      // Claude 3.5 Models - Prioritize aliases
+      'claude-3-5-sonnet-latest': ['text', 'vision', 'coding', 'reasoning', '200k-context', 'auto-updates'],
+      'claude-3-5-haiku-latest': ['text', 'vision', 'coding', 'fast-response', '200k-context', 'auto-updates'],
+      'claude-3-5-sonnet-20241022': ['text', 'vision', 'coding', 'reasoning', '200k-context'],
+      'claude-3-5-sonnet-20240620': ['text', 'vision', 'coding', 'reasoning', '200k-context'],
+      'claude-3-5-haiku-20241022': ['text', 'vision', 'coding', 'fast-response', '200k-context'],
+      
+      // Claude 3 Models
+      'claude-3-opus-20240229': ['text', 'vision', 'coding', 'reasoning', '200k-context'],
+      'claude-3-sonnet-20240229': ['text', 'vision', 'coding', 'reasoning', '200k-context'],
+      'claude-3-haiku-20240307': ['text', 'vision', 'coding', 'fast-response', '200k-context']
     };
     
-    return capabilities[modelId] || ['conversation'];
+    return capabilities[modelId] || ['text', 'general'];
   }
   
   /**
@@ -86,11 +153,25 @@ export class ModelHelpers {
    * ⭐ Highlight the best models for most users
    */
   isModelRecommended(modelId: string): boolean {
-    // Mark certain models as recommended for different use cases
+    // Mark the best models as recommended - prioritize -latest aliases
     const recommended = [
+      // Claude 4 models (latest and greatest - use aliases first)
+      'claude-opus-4-0',             // Latest Claude Opus 4 (alias)
+      'claude-sonnet-4-0',           // Latest Claude Sonnet 4 (alias)
+      'claude-opus-4-20250514',      // Specific version fallback
+      'claude-sonnet-4-20250514',    // Specific version fallback
+      
+      // Claude 3.7 (latest with extended thinking)
+      'claude-3-7-sonnet-latest',    // Latest Claude 3.7 Sonnet (alias)
+      'claude-3-7-sonnet-20250219',  // Specific version fallback
+      
+      // Claude 3.5 (current best - use aliases)
+      'claude-3-5-sonnet-latest',    // Latest Claude 3.5 Sonnet (alias)
+      'claude-3-5-haiku-latest',     // Latest Claude 3.5 Haiku (alias)
+      
+      // GPT models
       'gpt-4-turbo',
-      'gpt-3.5-turbo', 
-      'claude-3-sonnet-20240229'
+      'gpt-4o'
     ];
     
     return recommended.includes(modelId);

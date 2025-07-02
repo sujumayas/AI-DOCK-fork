@@ -43,14 +43,22 @@ export const sortConfigsByModel = (configs: LLMConfigurationSummary[]): LLMConfi
       const model = config.default_model.toLowerCase();
       
       // OpenAI model preferences
-      if (model.includes('gpt-4')) return 1;
-      if (model.includes('gpt-3.5')) return 2;
+      if (model.includes('gpt-4o')) return 1;
+      if (model.includes('gpt-4') && model.includes('turbo')) return 2;
+      if (model.includes('gpt-4')) return 3;
+      if (model.includes('gpt-3.5')) return 4;
       
-      // Anthropic model preferences  
-      if (model.includes('claude-3') && model.includes('opus')) return 1;
-      if (model.includes('claude-3') && model.includes('sonnet')) return 2;
-      if (model.includes('claude-3') && model.includes('haiku')) return 3;
-      if (model.includes('claude-2')) return 4;
+      // Anthropic model preferences (Claude 4 models are highest priority)
+      if (model.includes('claude-opus-4')) return 1;
+      if (model.includes('claude-sonnet-4')) return 2;
+      if (model.includes('claude-3-7-sonnet')) return 3;
+      if (model.includes('claude-3-5-sonnet')) return 4;
+      if (model.includes('claude-3-opus')) return 5;
+      if (model.includes('claude-3-5-haiku')) return 6;
+      if (model.includes('claude-3-sonnet')) return 7;
+      if (model.includes('claude-3-haiku')) return 8;
+      if (model.includes('claude-instant')) return 9;
+      if (model.includes('claude-2')) return 10;
       
       return 10; // Other models
     };

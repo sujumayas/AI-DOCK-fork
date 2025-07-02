@@ -103,21 +103,13 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     return null;
   }
 
-  // Get cost tier icon and color
+  // Get cost tier icon and color - REMOVED FOR CLEANER UI
   const getCostTierDisplay = (costTier: string) => {
-    switch (costTier) {
-      case 'high':
-        return { icon: '💎', color: 'text-amber-400', label: 'Premium' };
-      case 'medium':
-        return { icon: '⚡', color: 'text-yellow-400', label: 'Standard' };
-      case 'low':
-        return { icon: '🟢', color: 'text-green-400', label: 'Economy' };
-      default:
-        return { icon: '🔹', color: 'text-blue-400', label: 'Unknown' };
-    }
+    // Simplified - no cost tier labels shown
+    return null;
   };
 
-  const costDisplay = currentModelInfo ? getCostTierDisplay(currentModelInfo.cost_tier) : null;
+  const costDisplay = null; // Removed cost tier display
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -151,14 +143,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               </div>
               <div className="flex items-center space-x-1 text-xs">
                 <span className="text-white/70">{currentModelInfo.provider}</span>
-                {costDisplay && (
-                  <>
-                    <span className="text-white/40">•</span>
-                    <span className={`${costDisplay.color}`}>
-                      {costDisplay.icon} {costDisplay.label}
-                    </span>
-                  </>
-                )}
+                {/* Cost tier display removed for cleaner UI */}
               </div>
             </>
           ) : (
@@ -212,7 +197,6 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 {/* Models */}
                 {models.map((model) => {
                   const isSelected = selectedModelId === model.id;
-                  const modelCostDisplay = getCostTierDisplay(model.cost_tier);
                   
                   return (
                     <button
@@ -256,18 +240,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                           <span className={`${isSelected ? 'text-blue-200/80' : 'text-white/80'}`}>
                             {provider}
                           </span>
-                          <span className={`flex items-center space-x-1 ${modelCostDisplay.color}`}>
-                            <span>{modelCostDisplay.icon}</span>
-                            <span>{modelCostDisplay.label}</span>
-                          </span>
-                          {model.relevance_score && (
-                            <>
-                              <span className="text-white/50">•</span>
-                              <span className={`${isSelected ? 'text-blue-200/80' : 'text-white/80'}`}>
-                                {model.relevance_score}/100
-                              </span>
-                            </>
-                          )}
+                          {/* Cost tier and relevance score removed for cleaner UI */}
                         </div>
                       </div>
                     </button>

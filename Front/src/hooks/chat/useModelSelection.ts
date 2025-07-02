@@ -8,47 +8,32 @@ import { ChatServiceError } from '../../types/chat';
 import { useAuth } from '../useAuth';
 
 // Filter function for classic models
-function filterClassicModels(models: UnifiedModelInfo[]): UnifiedModelInfo[] {
+const filterClassicModels = (models: UnifiedModelInfo[]): UnifiedModelInfo[] => {
   const allowedIds = [
-    // GPT-4o models
-    'gpt-4o',
-    'gpt-4o-mini',
-    'gpt-4o-mini-2024-07-18',
-    'gpt-4o-2024-05-13',
-    'gpt-4o-2024-08-06',
-    'gpt-4o-2024-11-20',
+    // Claude 4 Models (latest generation) - ALIASES ONLY
+    'claude-opus-4-0',           // Most capable, auto-updates
+    'claude-sonnet-4-0',         // High performance, auto-updates
     
-    // GPT-4 Turbo models
+    // Claude 3.7 Models (extended thinking) - ALIAS ONLY
+    'claude-3-7-sonnet-latest',  // Extended thinking, auto-updates
+    
+    // Claude 3.5 Models - ONLY HAIKU (removing Sonnet from essentials)
+    'claude-3-5-haiku-latest',   // Fast responses, auto-updates
+    
+    // OpenAI Models (keeping current selection)
+    'gpt-4o',
     'gpt-4-turbo',
-    'gpt-4-turbo-preview',
-    'gpt-4-turbo-2024-04-09',
+    'gpt-4',
     'gpt-4-0125-preview',
     'gpt-4-1106-preview',
     
-    // GPT-4 classic models
-    'gpt-4',
-    'gpt-4-0613',
-    'gpt-4-0314',
-    'gpt-4-32k',
-    'gpt-4-32k-0613',
-    'gpt-4-32k-0314',
-    
-    // GPT-3.5 models
-    'gpt-3.5-turbo',
-    'gpt-3.5-turbo-16k',
-    'gpt-3.5-turbo-0125',
-    'gpt-3.5-turbo-1106',
-    'gpt-3.5-turbo-0613',
-    'gpt-3.5-turbo-0301',
-    'gpt-3.5-turbo-16k-0613',
-    
-    // ChatGPT models
-    'chatgpt-4o-latest',
+    // Google Models
+    'gemini-1.5-pro',
+    'gemini-1.5-flash'
   ];
-  return models.filter((model: UnifiedModelInfo) => 
-    allowedIds.includes(model.id) || allowedIds.includes(model.display_name)
-  );
-}
+  
+  return models.filter(model => allowedIds.includes(model.id));
+};
 
 export interface ModelSelectionState {
   // Model data
@@ -125,13 +110,23 @@ export const useModelSelection = (): ModelSelectionReturn => {
       
       // Auto-select default model if none selected or current selection is invalid
       if (!selectedModelId || !unifiedData.models.find(m => m.id === selectedModelId)) {
-        const defaultModelId = unifiedData.default_model_id || unifiedData.models[0]?.id;
-        const defaultConfigId = unifiedData.default_config_id || unifiedData.models[0]?.config_id;
+        // Use our custom default model logic to prioritize aliases
+        const defaultModel = getDefaultModel(unifiedData.models);
         
-        if (defaultModelId && defaultConfigId) {
-          setSelectedModelId(defaultModelId);
-          setSelectedConfigId(defaultConfigId);
-          console.log('🎯 Auto-selected default model:', defaultModelId, 'from config:', defaultConfigId);
+        if (defaultModel) {
+          setSelectedModelId(defaultModel.id);
+          setSelectedConfigId(defaultModel.config_id);
+          console.log('🎯 Auto-selected default model:', defaultModel.id, 'from config:', defaultModel.config_id);
+        } else {
+          // Fallback to backend's suggestion if our logic fails
+          const defaultModelId = unifiedData.default_model_id || unifiedData.models[0]?.id;
+          const defaultConfigId = unifiedData.default_config_id || unifiedData.models[0]?.config_id;
+          
+          if (defaultModelId && defaultConfigId) {
+            setSelectedModelId(defaultModelId);
+            setSelectedConfigId(defaultConfigId);
+            console.log('🎯 Fallback to backend default model:', defaultModelId, 'from config:', defaultConfigId);
+          }
         }
       }
       
@@ -250,6 +245,29 @@ export const useModelSelection = (): ModelSelectionReturn => {
     });
     return providerGroups;
   }, [unifiedModelsData, showAllModels]);
+  
+  const getDefaultModel = useCallback((models: UnifiedModelInfo[]): UnifiedModelInfo | null => {
+    if (!models || models.length === 0) return null;
+    
+    // Priority order for default model selection
+    const priorityModels = [
+      'claude-opus-4-0',           // Latest Claude Opus 4 (auto-updates)
+      'claude-sonnet-4-0',         // Latest Claude Sonnet 4 (auto-updates)
+      'claude-3-7-sonnet-latest',  // Extended thinking (auto-updates)
+      'gpt-4o',                    // OpenAI flagship
+      'gpt-4-turbo',              // OpenAI turbo
+      'claude-3-5-haiku-latest'    // Fast Claude model (auto-updates)
+    ];
+    
+    // Find first available priority model
+    for (const modelId of priorityModels) {
+      const found = models.find(m => m.id === modelId);
+      if (found) return found;
+    }
+    
+    // Fallback to first model in list
+    return models[0];
+  }, []);
   
   return {
     // State

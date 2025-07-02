@@ -224,57 +224,18 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </span>
             </div>
             
-            {/* Model details */}
+            {/* Model details - simplified without scores and cost tiers */}
             <div className="flex items-center gap-1">
-              <span className="text-green-300 text-xs" title={`Relevance Score: ${currentModelInfo.relevance_score || 'N/A'}/100`}>
-                🧠 {currentModelInfo.relevance_score || 'N/A'}/100
-              </span>
               {currentModelInfo.is_recommended && (
                 <span className="text-yellow-300 text-xs" title="Recommended model">
                   ⭐
                 </span>
               )}
-              <span className={`text-xs px-1 rounded ${
-                currentModelInfo.cost_tier === 'high' ? 'bg-red-500/20 text-red-200' :
-                currentModelInfo.cost_tier === 'medium' ? 'bg-yellow-500/20 text-yellow-200' :
-                'bg-green-500/20 text-green-200'
-              }`} title="Cost tier">
-                {currentModelInfo.cost_tier}
-              </span>
+              {/* Relevance score and cost tier removed for cleaner UI */}
             </div>
             
             {/* Filtering status */}
-            {unifiedModelsData && (
-              <div className="flex items-center gap-1">
-                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                  showAllModels
-                    ? 'bg-orange-500/20 text-orange-200'
-                    : 'bg-blue-500/20 text-blue-200'
-                }`} title={
-                  showAllModels
-                    ? `All models shown: ${unifiedModelsData.total_models} models from ${unifiedModelsData.providers.length} providers`
-                    : `Smart filtered: ${unifiedModelsData.total_models} recommended models${unifiedModelsData.original_total_models ? ` of ${unifiedModelsData.original_total_models} total` : ''}`
-                }>
-                  {showAllModels ? '🔍' : '✨'} {unifiedModelsData.total_models}{unifiedModelsData.original_total_models ? `/${unifiedModelsData.original_total_models}` : ''}
-                </span>
-                
-                <span className={`text-xs ${
-                  showAllModels ? 'text-orange-300' : 'text-green-300'
-                }`}>
-                  {showAllModels ? 'Complete' : 'Filtered'}
-                </span>
-                
-                {unifiedModelsData.cached ? (
-                  <span className="text-green-300 text-xs" title="Models loaded from cache">
-                    📋 Cached
-                  </span>
-                ) : (
-                  <span className="text-blue-300 text-xs" title="Models fetched live from API">
-                    🔥 Live
-                  </span>
-                )}
-              </div>
-            )}
+
             
             {/* Conversation status */}
             {currentConversationId && conversationTitle && (

@@ -159,16 +159,20 @@ export function getModelTooltip(config: LLMConfigurationSummary): string {
 export function sortConfigsByModel(configs: LLMConfigurationSummary[]): LLMConfigurationSummary[] {
   // Define priority order for popular models
   const modelPriority: Record<string, number> = {
-    'GPT-4': 1,
-    'GPT-4 Turbo': 2,
-    'Claude 3.5 Sonnet': 3,
-    'Claude 3 Opus': 4,
-    'GPT-3.5 Turbo': 5,
-    'Claude 3 Sonnet': 6,
-    'Claude 3 Haiku': 7,
-    'Gemini Pro': 8,
-    'Gemini 1.5 Pro': 9,
-    'Mistral Large': 10,
+    'Claude Opus 4': 1,
+    'Claude Sonnet 4': 2,
+    'GPT-4': 3,
+    'GPT-4 Turbo': 4,
+    'Claude Sonnet 3.7': 5,
+    'Claude 3.5 Sonnet': 6,
+    'Claude 3 Opus': 7,
+    'Claude 3.5 Haiku': 8,
+    'Claude 3 Sonnet': 9,
+    'Claude 3 Haiku': 10,
+    'Gemini Pro': 11,
+    'Gemini 1.5 Pro': 12,
+    'Mistral Large': 13,
+    'GPT-3.5 Turbo': 15, // Demoted to lower priority
   };
   
   return [...configs].sort((a, b) => {

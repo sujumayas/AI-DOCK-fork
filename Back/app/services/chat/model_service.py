@@ -32,12 +32,28 @@ def get_model_display_name(model_id: str) -> str:
         'gpt-3.5-turbo-0613': 'GPT-3.5 Turbo (June 2023)',
         'chatgpt-4o-latest': 'ChatGPT-4o Latest',
         
-        # Claude Models
+        # Claude 4 Models (latest generation)
+        'claude-opus-4-0': 'Claude Opus 4',
+        'claude-sonnet-4-0': 'Claude Sonnet 4',
+        'claude-opus-4-20250514': 'Claude Opus 4',
+        'claude-sonnet-4-20250514': 'Claude Sonnet 4',
+        
+        # Claude 3.7 Models (extended thinking)
+        'claude-3-7-sonnet-latest': 'Claude 3.7 Sonnet',
+        'claude-3-7-sonnet-20250219': 'Claude 3.7 Sonnet',
+        
+        # Claude 3.5 Models with aliases
+        'claude-3-5-sonnet-latest': 'Claude 3.5 Sonnet',
+        'claude-3-5-haiku-latest': 'Claude 3.5 Haiku',
+        'claude-3-5-sonnet-20241022': 'Claude 3.5 Sonnet',
+        'claude-3-5-sonnet-20240620': 'Claude 3.5 Sonnet',
+        'claude-3-5-haiku-20241022': 'Claude 3.5 Haiku',
+        
+        # Claude 3 Models (previous generation)
         'claude-3-opus-20240229': 'Claude 3 Opus',
         'claude-3-sonnet-20240229': 'Claude 3 Sonnet',
         'claude-3-haiku-20240307': 'Claude 3 Haiku',
-        'claude-3-5-sonnet-20240620': 'Claude 3.5 Sonnet',
-        'claude-3-5-haiku-20241022': 'Claude 3.5 Haiku',
+        'claude-instant-1.2': 'Claude Instant',
         
         # Google Models
         'gemini-pro': 'Gemini Pro',
@@ -52,10 +68,13 @@ def get_model_cost_tier(model_id: str) -> str:
     """Determine cost tier for a model."""
     model_lower = model_id.lower()
     
-    if any(term in model_lower for term in ['gpt-4o', 'gpt-4', 'opus', 'gemini-pro']):
+    # High cost tier - Premium models ($15+ per MTok)
+    if any(term in model_lower for term in ['claude-opus-4', 'claude-3-7-sonnet', 'gpt-4o', 'gpt-4', 'claude-3-opus', 'gemini-pro']):
         return 'high'
-    elif any(term in model_lower for term in ['turbo', 'sonnet', 'flash', 'mini']):
+    # Medium cost tier - Standard models ($1-8 per MTok)  
+    elif any(term in model_lower for term in ['claude-sonnet-4', 'claude-3-5-sonnet', 'claude-3-sonnet', 'turbo', 'flash', 'mini']):
         return 'medium'
+    # Low cost tier - Economy models (<$1 per MTok)
     else:
         return 'low'
 
@@ -64,32 +83,81 @@ def get_model_capabilities(model_id: str) -> List[str]:
     model_lower = model_id.lower()
     capabilities = []
     
-    # Base capabilities
-    if any(term in model_lower for term in ['gpt-4', 'claude-3', 'gemini']):
-        capabilities.extend(['reasoning', 'analysis'])
+    # Claude 4 Models - Most advanced capabilities
+    if 'claude-opus-4' in model_lower:
+        capabilities.extend(['reasoning', 'analysis', 'coding', 'creative-writing', 'vision', '200k-context'])
+    elif 'claude-sonnet-4' in model_lower:
+        capabilities.extend(['reasoning', 'coding', 'analysis', 'vision', '200k-context'])
     
-    if any(term in model_lower for term in ['gpt-4', 'claude', 'turbo']):
-        capabilities.append('coding')
+    # Claude 3.7 Models - Extended thinking
+    elif 'claude-3-7-sonnet' in model_lower:
+        capabilities.extend(['reasoning', 'analysis', 'coding', 'extended-thinking', '200k-context'])
     
-    if any(term in model_lower for term in ['gpt', 'claude', 'gemini']):
-        capabilities.append('creative-writing')
+    # Claude 3.5 Models
+    elif 'claude-3-5-sonnet' in model_lower:
+        capabilities.extend(['reasoning', 'coding', 'analysis', 'vision'])
+    elif 'claude-3-5-haiku' in model_lower:
+        capabilities.extend(['fast-response', 'coding', 'conversation'])
     
-    if 'vision' in model_lower:
-        capabilities.append('vision')
+    # Claude 3 Models (previous generation)
+    elif 'claude-3-opus' in model_lower:
+        capabilities.extend(['reasoning', 'analysis', 'research', 'writing'])
+    elif 'claude-3-sonnet' in model_lower:
+        capabilities.extend(['conversation', 'writing', 'analysis'])
+    elif 'claude-3-haiku' in model_lower:
+        capabilities.extend(['conversation', 'fast-response'])
+    elif 'claude-instant' in model_lower:
+        capabilities.extend(['conversation', 'fast-response'])
     
-    if any(term in model_lower for term in ['flash', 'haiku', 'mini']):
-        capabilities.append('fast-response')
+    # GPT Models  
+    elif 'gpt-4o' in model_lower:
+        capabilities.extend(['reasoning', 'multimodal', 'coding', 'analysis'])
+    elif 'gpt-4' in model_lower:
+        capabilities.extend(['reasoning', 'analysis', 'coding', 'creative-writing'])
+    elif 'gpt-3.5-turbo' in model_lower:
+        capabilities.extend(['conversation', 'writing', 'basic-coding'])
     
-    return capabilities if capabilities else ['conversation']
+    # Gemini Models
+    elif 'gemini-1.5-pro' in model_lower:
+        capabilities.extend(['reasoning', 'multimodal', 'coding'])
+    elif 'gemini-1.5-flash' in model_lower:
+        capabilities.extend(['fast-response', 'multimodal'])
+    elif 'gemini-pro' in model_lower:
+        capabilities.extend(['reasoning', 'conversation'])
+    
+    # Special capabilities for alias models
+    if '-latest' in model_lower or '-0' in model_lower:
+        capabilities.append('auto-updates')
+    
+    # Default fallback
+    if not capabilities:
+        capabilities = ['conversation']
+    
+    return capabilities
 
 def is_model_recommended(model_id: str) -> bool:
     """Determine if a model should be recommended."""
     recommended_models = [
+        # Latest Claude 4 models (highest priority - use aliases only)
+        'claude-opus-4-0',
+        'claude-sonnet-4-0', 
+        
+        # Claude 3.7 with extended thinking (use alias only)
+        'claude-3-7-sonnet-latest',
+        
+        # Claude 3.5 latest aliases (only Haiku, removing Sonnet from essentials)
+        'claude-3-5-haiku-latest',
+        
+        # OpenAI models (keeping existing recommendations)
         'gpt-4o',
         'gpt-4-turbo', 
         'gpt-3.5-turbo',
-        'claude-3-5-sonnet-20240620',
+        
+        # Claude 3 models (previous generation - keep best specific versions)
+        'claude-3-opus-20240229',
         'claude-3-sonnet-20240229',
+        
+        # Google models
         'gemini-1.5-pro',
         'gemini-1.5-flash'
     ]
@@ -101,25 +169,54 @@ def get_model_relevance_score(model_id: str) -> int:
     model_lower = model_id.lower()
     score = 50  # Base score
     
-    # Latest/flagship models get highest scores
-    if 'gpt-4o' in model_lower:
-        score = 95
-    elif 'claude-3-5' in model_lower:
-        score = 90
+    # Latest/flagship models get highest scores - PRIORITIZE ALIASES
+    if 'claude-opus-4' in model_lower:
+        if '-0' in model_lower:  # claude-opus-4-0 (alias)
+            score = 100  # Highest priority - alias
+        else:  # claude-opus-4-20250514 (specific version)
+            score = 75   # Lower priority - specific version
+    elif 'claude-sonnet-4' in model_lower:
+        if '-0' in model_lower:  # claude-sonnet-4-0 (alias)
+            score = 98   # Very high priority - alias
+        else:  # claude-sonnet-4-20250514 (specific version)
+            score = 73   # Lower priority - specific version
+    elif 'claude-3-7-sonnet' in model_lower:
+        if '-latest' in model_lower:  # claude-3-7-sonnet-latest (alias)
+            score = 96   # Extended thinking capabilities - alias
+        else:  # claude-3-7-sonnet-20250219 (specific version)
+            score = 71   # Lower priority - specific version
+    elif 'claude-3-5-sonnet' in model_lower:
+        if '-latest' in model_lower:  # claude-3-5-sonnet-latest (alias)
+            score = 92   # Current generation best - alias
+        else:  # claude-3-5-sonnet-20241022, etc. (specific versions)
+            score = 68   # Lower priority - specific versions
+    elif 'claude-3-5-haiku' in model_lower:
+        if '-latest' in model_lower:  # claude-3-5-haiku-latest (alias)
+            score = 88   # Fast and efficient - alias
+        else:  # claude-3-5-haiku-20241022 (specific version)
+            score = 64   # Lower priority - specific version
+    elif 'gpt-4o' in model_lower:
+        score = 95   # OpenAI flagship
     elif 'gpt-4-turbo' in model_lower:
         score = 85
     elif 'gpt-4' in model_lower and 'turbo' not in model_lower:
         score = 80
-    elif 'claude-3' in model_lower:
+    elif 'claude-3-opus' in model_lower:
+        score = 82   # Previous gen flagship
+    elif 'claude-3-sonnet' in model_lower:
         score = 75
+    elif 'claude-3-haiku' in model_lower:
+        score = 70
     elif 'gemini-1.5' in model_lower:
         score = 70
     elif 'gpt-3.5-turbo' in model_lower:
         score = 65
     
+    # NO additional boost for aliases here since it's handled above
+    
     # Adjust for specific variants
     if 'mini' in model_lower:
-        score += 5  # Mini models are efficient
+        score += 3  # Mini models are efficient
     elif '32k' in model_lower:
         score -= 10  # Older large context models
     elif any(date in model_lower for date in ['0613', '0314']):
@@ -182,17 +279,31 @@ def extract_base_model_name(model_id: str) -> str:
     elif 'chatgpt' in model_lower:
         return 'chatgpt'
     
-    # Claude models
+    # Claude 4 models
+    elif 'claude-opus-4' in model_lower:
+        return 'claude-opus-4'
+    elif 'claude-sonnet-4' in model_lower:
+        return 'claude-sonnet-4'
+    
+    # Claude 3.7 models  
+    elif 'claude-3-7-sonnet' in model_lower:
+        return 'claude-3.7-sonnet'
+    
+    # Claude 3.5 models
     elif 'claude-3-5-sonnet' in model_lower:
         return 'claude-3.5-sonnet'
     elif 'claude-3-5-haiku' in model_lower:
         return 'claude-3.5-haiku'
+    
+    # Claude 3 models
     elif 'claude-3-opus' in model_lower:
         return 'claude-3-opus'
     elif 'claude-3-sonnet' in model_lower:
         return 'claude-3-sonnet'
     elif 'claude-3-haiku' in model_lower:
         return 'claude-3-haiku'
+    elif 'claude-instant' in model_lower:
+        return 'claude-instant'
     
     # Gemini models
     elif 'gemini-1.5-pro' in model_lower:

@@ -195,7 +195,7 @@ export function shouldShowSaveButton(
 export function getModelTooltipText(model: any): string {
   if (!model) return '';
   
-  return `${model.provider} • ${model.cost_tier} cost • Score: ${model.relevance_score || 'N/A'}/100`;
+  return `${model.provider} model`;
 }
 
 /**

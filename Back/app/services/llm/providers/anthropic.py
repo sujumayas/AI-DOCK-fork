@@ -544,10 +544,29 @@ class AnthropicProvider(BaseLLMProvider):
             List of known Claude model identifiers
         """
         return [
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229", 
-            "claude-3-haiku-20240307",
-            "claude-3-5-sonnet-20240620"
+            # Claude 4 models (latest generation)
+            "claude-opus-4-20250514",      # Most capable and intelligent model yet
+            "claude-sonnet-4-20250514",    # High-performance model with exceptional reasoning
+            
+            # Claude 3.7 models
+            "claude-3-7-sonnet-20250219",  # High-performance with extended thinking
+            
+            # Claude 3.5 models (current generation)
+            "claude-3-5-sonnet-20241022",  # Latest Claude 3.5 Sonnet v2
+            "claude-3-5-sonnet-20240620",  # Claude 3.5 Sonnet
+            "claude-3-5-haiku-20241022",   # Claude 3.5 Haiku
+            
+            # Claude 3 models (previous generation)
+            "claude-3-opus-20240229",      # Claude 3 Opus
+            "claude-3-sonnet-20240229",    # Claude 3 Sonnet
+            "claude-3-haiku-20240307",     # Claude 3 Haiku
+            
+            # Model aliases (for convenience)
+            "claude-opus-4-0",             # Latest Claude Opus 4
+            "claude-sonnet-4-0",           # Latest Claude Sonnet 4
+            "claude-3-7-sonnet-latest",    # Latest Claude 3.7 Sonnet
+            "claude-3-5-sonnet-latest",    # Latest Claude 3.5 Sonnet
+            "claude-3-5-haiku-latest"      # Latest Claude 3.5 Haiku
         ]
 
 

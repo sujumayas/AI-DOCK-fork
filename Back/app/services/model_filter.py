@@ -40,14 +40,32 @@ class OpenAIModelFilter:
         
         # 🎯 Model priority patterns (higher score = more important)
         self.priority_patterns = [
+            # GPT Models
             (r'^gpt-4o(?:-preview)?(?:-\d{4}-\d{2}-\d{2})?$', 100),  # GPT-4o (latest)
             (r'^gpt-4-turbo(?:-preview)?(?:-\d{4}-\d{2}-\d{2})?$', 95),  # GPT-4 Turbo
             (r'^gpt-4(?!-32k)(?:-\d{4}-\d{2}-\d{2})?$', 90),  # GPT-4 (but not 32k variant)
             (r'^gpt-3\.5-turbo(?:-16k)?(?:-\d{4}-\d{2}-\d{2})?$', 85),  # GPT-3.5 Turbo
-            (r'^claude-3-5-sonnet', 88),  # Claude 3.5 Sonnet
-            (r'^claude-3-opus', 87),      # Claude 3 Opus
-            (r'^claude-3-sonnet', 85),    # Claude 3 Sonnet
-            (r'^claude-3-haiku', 80),     # Claude 3 Haiku
+            
+            # Claude 4 Models - PRIORITIZE ALIASES OVER SPECIFIC VERSIONS
+            (r'^claude-opus-4-0$', 100),          # Claude Opus 4 (latest alias) - ESSENTIAL
+            (r'^claude-sonnet-4-0$', 98),         # Claude Sonnet 4 (latest alias) - ESSENTIAL
+            (r'^claude-opus-4-\d{8}$', 75),       # Claude Opus 4 (specific versions) - NOT ESSENTIAL
+            (r'^claude-sonnet-4-\d{8}$', 73),     # Claude Sonnet 4 (specific versions) - NOT ESSENTIAL
+            
+            # Claude 3.7 Models - PRIORITIZE ALIAS
+            (r'^claude-3-7-sonnet-latest$', 96),  # Claude 3.7 Sonnet (latest alias) - ESSENTIAL
+            (r'^claude-3-7-sonnet-\d{8}$', 71),   # Claude 3.7 Sonnet (specific versions) - NOT ESSENTIAL
+            
+            # Claude 3.5 Models - PRIORITIZE ALIASES
+            (r'^claude-3-5-sonnet-latest$', 92),  # Claude 3.5 Sonnet (latest alias) - ESSENTIAL
+            (r'^claude-3-5-haiku-latest$', 88),   # Claude 3.5 Haiku (latest alias) - ESSENTIAL
+            (r'^claude-3-5-sonnet', 68),          # Claude 3.5 Sonnet (specific versions) - NOT ESSENTIAL
+            (r'^claude-3-5-haiku', 64),           # Claude 3.5 Haiku (specific versions) - NOT ESSENTIAL
+            
+            # Claude 3 Models (previous generation - keep specific versions for these)
+            (r'^claude-3-opus', 87),              # Claude 3 Opus
+            (r'^claude-3-sonnet', 85),            # Claude 3 Sonnet
+            (r'^claude-3-haiku', 80),             # Claude 3 Haiku
         ]
         
         # 🚫 Deprecated model patterns (should be filtered out)
