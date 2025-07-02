@@ -73,44 +73,62 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
         
         {/* Header with mode toggle */}
         <div className="flex items-center justify-between p-4 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center space-x-1 bg-white/10 backdrop-blur-sm rounded-xl p-1 border border-white/20">
+          <div className="flex items-center space-x-0.5 bg-white/10 backdrop-blur-sm rounded-xl p-1 border border-white/20">
             <button
               onClick={() => onModeChange('conversations')}
-              className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
+              className={`group flex items-center space-x-1 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer select-none hover:px-3 hover:space-x-2 ${
                 mode === 'conversations'
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105 px-3 space-x-2'
                   : 'text-blue-100 hover:text-white hover:bg-white/10'
               }`}
               disabled={isStreaming}
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>Chats</span>
+              <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className={`transition-all duration-300 whitespace-nowrap ${
+                mode === 'conversations' 
+                  ? 'opacity-100 max-w-none' 
+                  : 'opacity-0 max-w-0 group-hover:opacity-100 group-hover:max-w-none overflow-hidden'
+              }`}>
+                Chats
+              </span>
             </button>
             
             <button
               onClick={() => onModeChange('projects')}
-              className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
+              className={`group flex items-center space-x-1 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer select-none hover:px-3 hover:space-x-2 ${
                 mode === 'projects'
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105 px-3 space-x-2'
                   : 'text-blue-100 hover:text-white hover:bg-white/10'
               }`}
               disabled={isStreaming}
             >
-              <Folder className="w-4 h-4" />
-              <span>Folders</span>
+              <Folder className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className={`transition-all duration-300 whitespace-nowrap ${
+                mode === 'projects' 
+                  ? 'opacity-100 max-w-none' 
+                  : 'opacity-0 max-w-0 group-hover:opacity-100 group-hover:max-w-none overflow-hidden'
+              }`}>
+                Folders
+              </span>
             </button>
             
             <button
               onClick={() => onModeChange('assistants')}
-              className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
+              className={`group flex items-center space-x-1 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer select-none hover:px-3 hover:space-x-2 ${
                 mode === 'assistants'
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105 px-3 space-x-2'
                   : 'text-blue-100 hover:text-white hover:bg-white/10'
               }`}
               disabled={isStreaming}
             >
-              <Bot className="w-4 h-4" />
-              <span>Assistants</span>
+              <Bot className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className={`transition-all duration-300 whitespace-nowrap ${
+                mode === 'assistants' 
+                  ? 'opacity-100 max-w-none' 
+                  : 'opacity-0 max-w-0 group-hover:opacity-100 group-hover:max-w-none overflow-hidden'
+              }`}>
+                Assistants
+              </span>
             </button>
           </div>
           
