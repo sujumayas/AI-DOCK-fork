@@ -1,10 +1,10 @@
 // 🎛️ Unified Sidebar State Management Hook
-// Manages the new left-side sidebar that toggles between conversations and projects/folders
+// Manages the new left-side sidebar that toggles between conversations, projects/folders, and assistants
 // Replaces the old separate conversation and project sidebar states
 
 import { useState, useCallback } from 'react';
 
-export type SidebarMode = 'conversations' | 'projects';
+export type SidebarMode = 'conversations' | 'projects' | 'assistants';
 
 export interface SidebarState {
   isOpen: boolean;
@@ -44,7 +44,18 @@ export const useSidebarState = (
   }, [isOpen]);
 
   const toggleMode = useCallback(() => {
-    setMode(prev => prev === 'conversations' ? 'projects' : 'conversations');
+    setMode(prev => {
+      switch (prev) {
+        case 'conversations':
+          return 'projects';
+        case 'projects':
+          return 'assistants';
+        case 'assistants':
+          return 'conversations';
+        default:
+          return 'conversations';
+      }
+    });
     // Ensure sidebar is open when toggling modes
     if (!isOpen) {
       setIsOpen(true);

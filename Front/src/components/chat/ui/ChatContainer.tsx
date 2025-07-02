@@ -7,7 +7,7 @@ import { Settings, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { MessageList } from '../MessageList';
 import { MessageInput } from '../MessageInput';
 import { UnifiedSidebar } from './UnifiedSidebar';
-import { EmbeddedAssistantManager } from '../EmbeddedAssistantManager';
+
 import { AssistantSelectorCard } from '../AssistantSelectorCard';
 import { AssistantSuggestions } from '../AssistantSuggestions';
 import { ChatHeader } from './ChatHeader';
@@ -169,15 +169,15 @@ export const ChatContainer: React.FC = () => {
   const handleChangeAssistantClickWithStreamingCheck = useCallback(() => {
     // 🚫 Prevent opening assistant manager while streaming
     if (isStreaming) {
-      console.log('🚫 Cannot open assistant manager while streaming is active');
+      console.log('🚫 Cannot switch assistants while streaming is active');
       return;
     }
     
-    // Close unified sidebar and open assistant manager
-    setShowUnifiedSidebar(false);
-    setShowAssistantManager(true);
-    console.log('🎯 Opening assistant manager from selector card (unified sidebar closed)');
-  }, [setShowAssistantManager, isStreaming]);
+    // Open unified sidebar in assistants mode
+    setSidebarMode('assistants');
+    setShowUnifiedSidebar(true);
+    console.log('🎯 Opening unified sidebar in assistants mode from selector card');
+  }, [setSidebarMode, setShowUnifiedSidebar, isStreaming]);
 
   // 🔧 FIXED: Folder navigation handler (organizational only)
   const handleFolderNavigate = useCallback((folderId: number | null, folderData: any) => {
@@ -470,7 +470,6 @@ export const ChatContainer: React.FC = () => {
         event.preventDefault();
         setSidebarMode('conversations');
         toggleSidebar();
-        setShowAssistantManager(false);
         console.log('⌨️ Toggled conversations via keyboard shortcut');
       }
       
@@ -479,14 +478,21 @@ export const ChatContainer: React.FC = () => {
         event.preventDefault();
         setSidebarMode('projects');
         toggleSidebar();
-        setShowAssistantManager(false);
         console.log('⌨️ Toggled projects via keyboard shortcut');
+      }
+      
+      // Ctrl/Cmd + A for assistants
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        setSidebarMode('assistants');
+        toggleSidebar();
+        console.log('⌨️ Toggled assistants via keyboard shortcut');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isStreaming, setShowAssistantManager, setSidebarMode, toggleSidebar]);
+  }, [isStreaming, setSidebarMode, toggleSidebar]);
   
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 overflow-hidden">
@@ -494,12 +500,7 @@ export const ChatContainer: React.FC = () => {
       {/* 📁 Unified Sidebar Toggle */}
       <button
         onClick={() => {
-          const newState = !showUnifiedSidebar;
-          // Close assistant manager when opening unified sidebar
-          if (newState) {
-            setShowAssistantManager(false);
-          }
-          setShowUnifiedSidebar(newState);
+          setShowUnifiedSidebar(!showUnifiedSidebar);
         }}
         disabled={isStreaming}
         className={`fixed top-1/2 translate-y-12 z-50 transition-all duration-300 ${
@@ -538,34 +539,18 @@ export const ChatContainer: React.FC = () => {
         onProjectUpdated={() => {}} // No-op since we removed project context from active chat
         viewingFolderId={viewingFolderId}
         viewingFolderName={viewingFolder?.name || ''}
+        onSelectAssistant={handleAssistantSelectWithStreamingCheck}
+        onCreateNewAssistant={() => {
+          // Switch to assistants mode and trigger creation (not needed since there's a create button in the sidebar)
+          setSidebarMode('assistants');
+          setShowUnifiedSidebar(true);
+        }}
+        currentAssistantId={selectedAssistantId || undefined}
+        onAssistantChange={handleAssistantManagerChange}
+        onAssistantUpdated={handleAssistantUpdated}
       />
 
-      {/* 🤖 Assistant Manager */}
-      {showAssistantManager && (
-        <div className="fixed inset-y-0 right-0 w-96 z-40 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-600 shadow-xl transform transition-all duration-300 ease-in-out translate-x-0">
-          <div className="h-full overflow-y-auto">
-            
-            <EmbeddedAssistantManager
-              selectedAssistantId={selectedAssistantId}
-              onAssistantSelect={handleAssistantSelectWithStreamingCheck}
-              onAssistantChange={handleAssistantManagerChange}
-              onAssistantUpdated={handleAssistantUpdated}
-              isStreaming={isStreaming}
-              className="h-full border-0 rounded-none bg-transparent"
-            />
-          </div>
-        </div>
-      )}
-      
-      {/* 🎭 Backdrop */}
-      {showAssistantManager && (
-        <div 
-          className="fixed inset-0 z-30 bg-black/50 transition-opacity duration-300"
-          onClick={() => {
-            setShowAssistantManager(false);
-          }}
-        />
-      )}
+
       
       {/* Main chat interface with sidebar-aware spacing */}
       <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${
@@ -588,7 +573,6 @@ export const ChatContainer: React.FC = () => {
             // Open unified sidebar in projects mode
             setSidebarMode('projects');
             setShowUnifiedSidebar(true);
-            setShowAssistantManager(false);
           }}
           messages={messages}
           currentConversationId={currentConversationId}

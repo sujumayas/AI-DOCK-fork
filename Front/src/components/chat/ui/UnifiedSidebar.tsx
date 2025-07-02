@@ -1,14 +1,15 @@
 // 📁 Unified Sidebar Component - Modern Glassmorphism Design
-// Toggles between Conversations and Project Folders with complete separation
+// Toggles between Conversations, Project Folders, and Assistants with complete separation
 // Folders are purely organizational and don't interfere with active chats
 
 import React from 'react';
-import { MessageSquare, Folder, X } from 'lucide-react';
+import { MessageSquare, Folder, Bot, X } from 'lucide-react';
 import { ConversationSidebar } from '../ConversationSidebar';
 import { ProjectFoldersSidebar } from './ProjectFoldersSidebar';
+import { AssistantSidebar } from './AssistantSidebar';
 import { ProjectSummary } from '../../../types/project';
 
-type SidebarMode = 'conversations' | 'projects';
+type SidebarMode = 'conversations' | 'projects' | 'assistants';
 
 interface UnifiedSidebarProps {
   mode: SidebarMode;
@@ -31,6 +32,13 @@ interface UnifiedSidebarProps {
   onProjectUpdated: (projectId: number) => void;
   viewingFolderId: number | null;
   viewingFolderName: string;
+  
+  // 🤖 Assistant props
+  onSelectAssistant?: (assistantId: number | null) => void;
+  onCreateNewAssistant?: () => void;
+  currentAssistantId?: number;
+  onAssistantChange?: () => void;
+  onAssistantUpdated?: (assistantId: number) => void;
 }
 
 export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
@@ -49,7 +57,12 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
   onProjectChange,
   onProjectUpdated,
   viewingFolderId,
-  viewingFolderName
+  viewingFolderName,
+  onSelectAssistant,
+  onCreateNewAssistant,
+  currentAssistantId,
+  onAssistantChange,
+  onAssistantUpdated
 }) => {
   if (!isOpen) return null;
 
@@ -86,6 +99,19 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
               <Folder className="w-4 h-4" />
               <span>Folders</span>
             </button>
+            
+            <button
+              onClick={() => onModeChange('assistants')}
+              className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
+                mode === 'assistants'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg font-semibold transform scale-105'
+                  : 'text-blue-100 hover:text-white hover:bg-white/10'
+              }`}
+              disabled={isStreaming}
+            >
+              <Bot className="w-4 h-4" />
+              <span>Assistants</span>
+            </button>
           </div>
           
           <button
@@ -110,7 +136,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
               isStreaming={isStreaming}
               embedded={true}
             />
-          ) : (
+          ) : mode === 'projects' ? (
             <ProjectFoldersSidebar
               onFolderNavigate={onFolderNavigate}
               onNewChatInFolder={onNewChatInFolder}
@@ -124,6 +150,19 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
               viewingFolderId={viewingFolderId}
               viewingFolderName={viewingFolderName}
             />
+          ) : (
+            <AssistantSidebar
+              isOpen={true}
+              onClose={() => {}} // Don't close on internal actions
+              onSelectAssistant={onSelectAssistant || (() => {})}
+              onCreateNew={onCreateNewAssistant || (() => {})}
+              currentAssistantId={currentAssistantId}
+              refreshTrigger={refreshTrigger}
+              isStreaming={isStreaming}
+              embedded={true}
+              onAssistantChange={onAssistantChange}
+              onAssistantUpdated={onAssistantUpdated}
+            />
           )}
         </div>
         
@@ -135,7 +174,9 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
               <p className="text-sm text-amber-100 font-medium">AI is responding...</p>
             </div>
             <p className="text-xs text-amber-200 mt-1">
-              {mode === 'conversations' ? 'Chat switching disabled while streaming' : 'Folder switching disabled while streaming'}
+              {mode === 'conversations' ? 'Chat switching disabled while streaming' : 
+               mode === 'projects' ? 'Folder switching disabled while streaming' : 
+               'Assistant switching disabled while streaming'}
             </p>
           </div>
         )}

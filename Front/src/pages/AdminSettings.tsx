@@ -252,7 +252,8 @@ const AdminSettings: React.FC = () => {
    * Render admin header with user info and navigation
    */
   const renderHeader = useCallback(() => (
-    <div className="bg-white/5 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
+<div className="bg-blue-900/40 backdrop-blur-lg border-b border-white/10 sticky top-0 z-50">
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           {/* Left side - Title and admin info */}
