@@ -1,583 +1,135 @@
 INRE-DOCK-2/
-├── Back/                                     # 🔄 MAJOR REFACTORING COMPLETED: chat.py (2,038 lines) → modular structure
-                                              # 🔄 MAJOR REFACTORING COMPLETED: assistants.py (1,037 lines) → modular structure
-│   ├── ai_dock_env/
-│   ├── alembic/
-│   │   ├── env.py
-│   │   ├── README
-│   │   ├── script.py.mako
-│   │   └── versions/
-│   ├── alembic.ini
+├── Back/                                    # FastAPI backend
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   ├── admin/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── departments.py
-│   │   │   │   ├── llm_configs.py
-│   │   │   │   ├── quotas.py
-│   │   │   │   ├── roles.py
-│   │   │   │   ├── usage_analytics.py
-│   │   │   │   └── users.py
-│   │   │   ├── assistants.py.backup        # 📁 BACKUP: Original 1,037-line monolithic file
-│   │   │   ├── assistants/                  # 🆕 NEW: Modular assistants API structure
-│   │   │   │   ├── __init__.py              #   - Main router aggregation
-│   │   │   │   ├── base.py                  #   - Shared dependencies and utilities (180 lines)
-│   │   │   │   ├── crud.py                  #   - CRUD operations (280 lines)
-│   │   │   │   ├── conversations.py         #   - Conversation management (140 lines)
-│   │   │   │   ├── statistics.py            #   - Analytics endpoints (60 lines)
-│   │   │   │   ├── search.py                #   - Search functionality (70 lines)
-│   │   │   │   ├── bulk_operations.py       #   - Bulk operations (120 lines)
-│   │   │   │   └── health.py                #   - Health check and info (100 lines)
-│   │   │   ├── auth.py
-│   │   │   ├── chat_assistant_integrated.py
-│   │   │   ├── chat_streaming.py
-│   │   │   ├── chat.py                    # 🔄 REFACTORED: Now imports from modular /chat/ structure
-│   │   │   ├── chat_original_backup.py    # 📁 BACKUP: Original 2,038-line monolithic file  
-│   │   │   ├── chat/                      # 🆕 NEW: Modular chat API structure
-│   │   │   │   ├── __init__.py              #   - Main router aggregation
-│   │   │   │   ├── main.py                  #   - Core chat functionality (350 lines)
-│   │   │   │   ├── configurations.py        #   - LLM configuration management (120 lines)
-│   │   │   │   ├── models.py                #   - Model discovery and management (400 lines)
-│   │   │   │   └── health.py                #   - Service monitoring (40 lines)
-│   │   │   ├── conversations.py
-│   │   │   ├── files_original_backup.py    # 📁 BACKUP: Original 1,046-line monolithic file  
-│   │   │   ├── files/                      # 🆕 NEW: Modular files API structure
-│   │   │   │   ├── __init__.py              #   - Main router aggregation
-│   │   │   │   ├── dependencies.py          #   - Shared dependencies (40 lines)
-│   │   │   │   ├── upload.py                #   - File upload operations (150 lines)
-│   │   │   │   ├── retrieval.py             #   - Download and metadata (120 lines)
-│   │   │   │   ├── listing.py               #   - List and search operations (180 lines)
-│   │   │   │   ├── deletion.py              #   - Delete operations (120 lines)
-│   │   │   │   ├── statistics.py            #   - Statistics and monitoring (140 lines)
-│   │   │   │   └── utilities.py             #   - Content preview utilities (90 lines)
-│   │   │   └── manager/
-│   │   │       ├── __init__.py
-│   │   │       ├── quotas.py
-│   │   │       └── users.py
-│   │   ├── core/
-│   │   │   ├── __init__.py
-│   │   │   ├── config.py
-│   │   │   ├── database.py
-│   │   │   └── security.py
-│   │   ├── main.py
-│   │   ├── middleware/
-│   │   │   ├── __init__.py
-│   │   │   └── security.py
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── assistant.py
-│   │   │   ├── chat_conversation.py
-│   │   │   ├── chat.py
-│   │   │   ├── conversation.py
-│   │   │   ├── department.py
-│   │   │   ├── file_upload.py
-│   │   │   ├── folder.py
-│   │   │   ├── llm_config.py
-│   │   │   ├── quota.py
-│   │   │   ├── role.py
-│   │   │   ├── usage_log.py
-│   │   │   └── user.py
-│   │   ├── schemas/
-│   │   │   ├── __init__.py
-│   │   │   ├── admin.py
-│   │   │   ├── assistant.py
-│   │   │   ├── auth.py
-│   │   │   ├── chat.py
-│   │   │   ├── chat_api/                  # 🆕 NEW: Modular chat API schemas
-│   │   │   │   ├── __init__.py              #   - Schema exports
-│   │   │   │   ├── requests.py              #   - Request validation schemas (80 lines)
-│   │   │   │   ├── responses.py             #   - Response formatting schemas (150 lines)
-│   │   │   │   └── models.py                #   - Model-specific schemas (40 lines)
-│   │   │   ├── conversation.py
-│   │   │   ├── department.py
-│   │   │   ├── file_upload.py
-│   │   │   ├── llm_config.py
-│   │   │   ├── quota.py
-│   │   │   └── role.py
-│   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   ├── admin_service.py
-│   │   │   ├── assistant_service.py
-│   │   │   ├── auth_service.py
-│   │   │   ├── chat/                      # 🆕 NEW: Modular chat business logic services
-│   │   │   │   ├── __init__.py              #   - Service exports
-│   │   │   │   ├── file_service.py          #   - File attachment processing (250 lines)
-│   │   │   │   ├── assistant_service.py     #   - Assistant integration logic (200 lines)
-│   │   │   │   └── model_service.py         #   - Model processing and filtering (250 lines)
-│   │   │   ├── conversation_service.py
-│   │   │   ├── file_processor.py
-│   │   │   ├── file_service.py             # 🔄 REFACTORED: Now orchestrator for atomic services
-│   │   │   ├── file_services/              # 🆕 NEW: Modular file processing services (1,360 lines → 8 atomic services)
-│   │   │   │   ├── __init__.py                #   - Clean service exports and instantiation helpers
-│   │   │   │   ├── validation_service.py      #   - File validation and safety checks (~300 lines)
-│   │   │   │   ├── extraction_service.py      #   - Multi-format text extraction (~400 lines)
-│   │   │   │   ├── storage_service.py         #   - Database storage operations (~200 lines)
-│   │   │   │   ├── retrieval_service.py       #   - Access control and retrieval (~150 lines)
-│   │   │   │   ├── deletion_service.py        #   - Soft and hard deletion operations (~120 lines)
-│   │   │   │   ├── analytics_service.py       #   - Statistics and usage analytics (~100 lines)
-│   │   │   │   ├── health_service.py          #   - System health monitoring (~80 lines)
-│   │   │   │   └── utility_service.py         #   - Configuration and utility functions (~110 lines)
-│   │   │   ├── file_processing/
-│   │   │   ├── llm/
-│   │   │   ├── llm_service_with_quotas.py
-│   │   │   ├── llm_service.py
-│   │   │   ├── manager_service.py
-│   │   │   ├── mock_llm_provider.py
-│   │   │   ├── model_filter.py
-│   │   │   ├── quota_service.py
-│   │   │   └── usage_service.py
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── quick_start.sh
-│   ├── README.md
-│   ├── REFACTORING_SUMMARY.md        # 📈 Complete documentation of chat.py modular refactoring
-│   ├── removed/
-│   ├── requirements.txt
-│   ├── scripts/
-│   │   ├── create_admin_user.py
-│   │   ├── explore_database.py
-│   │   └── view_all_data.py
-│   └── uploads/
-│       └── 2025/
-│           └── 06/
-│               └── 23/
-│                   ├── user_1_00e13996_myfile.txt
-│                   ├── user_1_0e4d9123_myfile.txt
-│                   ├── user_1_18beb797_myfile.txt
-│                   ├── user_1_9051c2a7_myfile.txt
-│                   ├── user_1_bc58a163_myfile.txt
-│                   └── user_1_cd0001d0_myfile.txt
-├── development_checklist.md
-├── Front/
-│   ├── index.html
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── postcss.config.js
-│   ├── public/
-│   │   └── favicon.svg
-│   ├── REFACTORING_PLAN.md
+│   │   ├── main.py                         # FastAPI app entry point
+│   │   ├── api/                            # HTTP endpoints
+│   │   │   ├── auth.py                     # Login/logout/tokens
+│   │   │   ├── chat.py                     # Chat completion
+│   │   │   ├── chat_streaming.py           # Streaming responses
+│   │   │   ├── conversations.py            # Chat history
+│   │   │   ├── admin/                      # Admin endpoints
+│   │   │   │   ├── users.py               # User CRUD
+│   │   │   │   ├── departments.py         # Department management
+│   │   │   │   ├── quotas.py              # Usage limits
+│   │   │   │   ├── llm_configs.py         # LLM settings
+│   │   │   │   └── usage_analytics.py     # Analytics
+│   │   │   ├── assistants/                 # Assistant endpoints
+│   │   │   │   ├── base.py                # CRUD operations
+│   │   │   │   ├── conversations.py       # Assistant conversations
+│   │   │   │   └── bulk_operations.py     # Bulk actions
+│   │   │   ├── files/                      # File endpoints
+│   │   │   │   ├── upload.py              # File upload
+│   │   │   │   ├── retrieval.py           # Download/metadata
+│   │   │   │   ├── listing.py             # List/search files
+│   │   │   │   └── deletion.py            # Delete operations
+│   │   │   └── manager/                    # Manager dashboard
+│   │   │       ├── users.py               # User management
+│   │   │       └── quotas.py              # Quota oversight
+│   │   ├── core/                           # Infrastructure
+│   │   │   ├── config.py                  # Environment settings
+│   │   │   ├── database.py                # DB connection
+│   │   │   └── security.py                # JWT auth
+│   │   ├── models/                         # Database models
+│   │   │   ├── user.py                    # User accounts
+│   │   │   ├── role.py                    # User roles
+│   │   │   ├── department.py              # Departments
+│   │   │   ├── conversation.py            # Chat history
+│   │   │   ├── chat.py                    # Chat messages
+│   │   │   ├── assistant.py               # AI assistants
+│   │   │   ├── file_upload.py             # File metadata
+│   │   │   ├── llm_config.py              # LLM settings
+│   │   │   ├── quota.py                   # Usage limits
+│   │   │   └── usage_log.py               # Analytics data
+│   │   ├── schemas/                        # Pydantic validation
+│   │   │   ├── auth.py                    # Login/token schemas
+│   │   │   ├── chat.py                    # Chat request/response
+│   │   │   ├── admin.py                   # Admin operations
+│   │   │   ├── assistant.py               # Assistant schemas
+│   │   │   ├── conversation.py            # Chat history
+│   │   │   └── file_upload.py             # File schemas
+│   │   ├── services/                       # Business logic
+│   │   │   ├── auth_service.py            # Authentication
+│   │   │   ├── llm_service.py             # LLM integration
+│   │   │   ├── conversation_service.py    # Chat history
+│   │   │   ├── file_service.py            # File processing
+│   │   │   ├── admin_service.py           # Admin operations
+│   │   │   ├── quota_service.py           # Usage limits
+│   │   │   ├── assistant_service.py       # AI assistants
+│   │   │   ├── llm/                       # LLM providers
+│   │   │   │   ├── providers/             # OpenAI, Anthropic
+│   │   │   │   ├── handlers/              # Request handling
+│   │   │   │   └── core/                  # Cost calculation
+│   │   │   └── file_processing/           # File utilities
+│   │   │       ├── processors/            # PDF, Word, etc.
+│   │   │       └── exceptions/            # Error handling
+│   │   └── middleware/
+│   │       └── security.py                # CSP headers
+│   ├── alembic/                           # Database migrations
+│   ├── scripts/                           # Utility scripts
+│   ├── requirements.txt                   # Python dependencies
+│   └── uploads/                           # File storage
+├── Front/                                  # React frontend
 │   ├── src/
-│   │   ├── App.tsx
-│   │   ├── components/
-│   │   │   ├── admin/
-│   │   │   │   ├── components/
-│   │   │   │   │   ├── DepartmentModals.tsx        # 🔄 REFACTORED: (870 lines → 120 lines) Now orchestrator for modular department architecture
-│   │   │   │   │   ├── DepartmentModals.original.tsx # 📁 BACKUP: Original 870-line monolithic file
-│   │   │   │   │   ├── department/                # 🆕 NEW: Modular department components (870 lines → 12 atomic components)
-│   │   │   │   │   │   ├── modals/                    #   - Modal components
-│   │   │   │   │   │   │   ├── DepartmentDetailsModal.tsx      #     - Complex department information display (~200 lines)
-│   │   │   │   │   │   │   ├── DepartmentFormModal.tsx         #     - Reusable create/edit form modal (~150 lines)
-│   │   │   │   │   │   │   ├── DeleteConfirmationModal.tsx     #     - Reusable delete confirmation (~80 lines)
-│   │   │   │   │   │   │   └── BulkDeleteModal.tsx             #     - Bulk delete confirmation (~70 lines)
-│   │   │   │   │   │   ├── components/                #   - Display components
-│   │   │   │   │   │   │   ├── DepartmentStatsGrid.tsx         #     - Quick stats overview cards (~80 lines)
-│   │   │   │   │   │   │   ├── BudgetAnalysisCard.tsx          #     - Budget utilization display (~100 lines)
-│   │   │   │   │   │   │   ├── UsageStatisticsCard.tsx         #     - Usage metrics display (~80 lines)
-│   │   │   │   │   │   │   └── DepartmentUsersList.tsx         #     - User list with loading states (~120 lines)
-│   │   │   │   │   │   ├── hooks/                     #   - Custom hooks
-│   │   │   │   │   │   │   ├── useDepartmentForm.ts            #     - Form state management hook (~120 lines)
-│   │   │   │   │   │   │   └── useDepartmentUsers.ts           #     - User loading logic hook (~80 lines)
-│   │   │   │   │   │   ├── utils/                     #   - Utility functions
-│   │   │   │   │   │   │   ├── departmentFormatters.ts         #     - Pure formatting functions (~60 lines)
-│   │   │   │   │   │   │   └── departmentValidation.ts         #     - Form validation logic (~80 lines)
-│   │   │   │   │   │   └── index.ts                   #   - Clean exports for all components
-│   │   │   │   │   ├── DepartmentStatsCards.tsx
-│   │   │   │   │   ├── DepartmentTable.tsx
-│   │   │   │   │   └── DepartmentToolbar.tsx
-│   │   │   │   ├── DepartmentManagement.tsx
-│   │   │   │   ├── LLMConfiguration.tsx
-│   │   │   │   ├── LLMCreateModal.tsx
-│   │   │   │   ├── LLMDeleteModal.tsx
-│   │   │   │   ├── LLMEditModal.tsx
-│   │   │   │   ├── LLMSimpleCreateModal.tsx
-│   │   │   │   ├── QuotaCreateModal.tsx
-│   │   │   │   ├── QuotaEditModal.tsx
-│   │   │   │   ├── QuotaManagement.tsx        # 🔄 REFACTORED: (997 lines → 230 lines) Now orchestrator for modular quota architecture
-│   │   │   │   ├── quota/                   # 🆕 NEW: Modular quota components (997 lines → 4 atomic components)
-│   │   │   │   │   ├── QuotaSummaryCards.tsx    #   - Statistics overview cards (~100 lines)
-│   │   │   │   │   ├── QuotaFilters.tsx         #   - Filter controls component (~250 lines)
-│   │   │   │   │   ├── QuotaPagination.tsx      #   - Pagination controls (~150 lines)
-│   │   │   │   │   ├── QuotaBulkActions.tsx     #   - Bulk operations bar (~120 lines)
-│   │   │   │   │   └── index.ts                 #   - Clean component exports
-│   │   │   │   ├── QuotaTable.tsx
-│   │   │   │   ├── RecentActivity.tsx
-│   │   │   │   ├── TopUsersTable.tsx
-│   │   │   │   ├── UsageCharts.tsx
-│   │   │   │   ├── UsageDashboard.tsx
-│   │   │   │   ├── UsageDashboardOverview.tsx
-│   │   │   │   ├── user/
-│   │   │   │   │   ├── index.ts
-│   │   │   │   │   └── UserSearch.tsx
-│   │   │   │   ├── UserCreateModal.tsx
-│   │   │   │   ├── UserEditModal.tsx
-│   │   │   │   └── UserManagement.tsx
-│   │   │   ├── assistant/
-│   │   │   │   ├── AssistantBadge.tsx
-│   │   │   │   ├── AssistantCard.tsx
-│   │   │   │   ├── AssistantDiagnostic.tsx
-│   │   │   │   ├── AssistantDivider.tsx
-│   │   │   │   ├── CreateAssistantModal.tsx
-│   │   │   │   ├── EditAssistantModal.tsx
-│   │   │   │   └── index.ts
-│   │   │   ├── chat/
-│   │   │   │   ├── AssistantInfoTooltip.tsx
-│   │   │   │   ├── AssistantQuickSwitcher.tsx
-│   │   │   │   ├── AssistantSelectorCard.tsx
-│   │   │   │   ├── AssistantSuggestions.tsx
-│   │   │   │   ├── conversation/
-│   │   │   │   │   ├── ConversationExample.tsx
-│   │   │   │   │   ├── ConversationItem.tsx
-│   │   │   │   │   ├── ConversationList.tsx
-│   │   │   │   │   ├── index.ts
-│   │   │   │   │   ├── README.md
-│   │   │   │   │   └── SaveConversationModal.tsx
-│   │   │   │   ├── ConversationSidebar.tsx
-│   │   │   │   ├── EmbeddedAssistantManager.tsx
-│   │   │   │   ├── FileAttachment.tsx
-│   │   │   │   ├── FileUpload.tsx
-│   │   │   │   ├── FloatingAssistantButton.tsx
-│   │   │   │   ├── MessageInput.tsx
-│   │   │   │   ├── MessageList.tsx
-│   │   │   │   ├── QuotaErrorDisplay.tsx
-│   │   │   │   └── ui/                      # 🆕 NEW: Modular chat UI components (1,496 lines → 6 atomic components)
-│   │   │   │       ├── ChatContainer.tsx        #   - Main orchestration component (~300 lines)
-│   │   │   │       ├── ChatHeader.tsx           #   - Header with controls (~200 lines)
-│   │   │   │       ├── ModelSelector.tsx        #   - Model selection dropdown (~80 lines)
-│   │   │   │       ├── StatusIndicators.tsx     #   - Connection status display (~40 lines)
-│   │   │   │       ├── ErrorDisplay.tsx         #   - Comprehensive error handling (~80 lines)
-│   │   │   │       └── index.ts                 #   - Clean component exports (~10 lines)
-│   │   │   ├── ProtectedRoute.tsx
-│   │   │   └── ui/
-│   │   │       └── CodeBlock.tsx
+│   │   ├── main.tsx                       # React entry point
+│   │   ├── App.tsx                        # Router setup
+│   │   ├── pages/                         # Route components
+│   │   │   ├── Login.tsx                  # Authentication
+│   │   │   ├── Dashboard.tsx              # Main dashboard
+│   │   │   ├── ChatInterface.tsx          # Chat page
+│   │   │   ├── AdminSettings.tsx          # Admin panel
+│   │   │   └── ManagerDashboard.tsx       # Manager view
+│   │   ├── components/                    # UI components
+│   │   │   ├── ProtectedRoute.tsx         # Auth wrapper
+│   │   │   ├── ui/                        # Base UI components
+│   │   │   │   ├── ChatContainer.tsx      # Chat layout
+│   │   │   │   ├── MessageList.tsx        # Message display
+│   │   │   │   ├── MessageInput.tsx       # Message input
+│   │   │   │   └── ErrorDisplay.tsx       # Error handling
+│   │   │   ├── chat/                      # Chat components
+│   │   │   │   ├── conversation/          # Conversation management
+│   │   │   │   ├── AssistantSelector.tsx  # AI selection
+│   │   │   │   └── FileUploadArea.tsx     # File uploads
+│   │   │   ├── admin/                     # Admin components
+│   │   │   │   ├── UserManagement.tsx     # User CRUD
+│   │   │   │   ├── DepartmentManagement.tsx # Department admin
+│   │   │   │   ├── QuotaManagement.tsx    # Usage limits
+│   │   │   │   └── LLMConfiguration.tsx   # LLM settings
+│   │   │   └── assistant/                 # Assistant components
+│   │   │       ├── AssistantCard.tsx      # Assistant display
+│   │   │       └── edit-modal/            # Editing interface
+│   │   ├── services/                      # API integration
+│   │   │   ├── authService.ts             # Authentication
+│   │   │   ├── chatService.ts             # Chat API
+│   │   │   ├── conversationService.ts     # Chat history
+│   │   │   ├── conversationUpdateService.ts # Smart persistence
+│   │   │   ├── adminService.ts            # Admin operations
+│   │   │   ├── assistantService.ts        # AI assistants
+│   │   │   ├── fileService.ts             # File operations
+│   │   │   └── chat/                      # Chat services
+│   │   │       ├── streaming.ts           # SSE handling
+│   │   │       └── core.ts                # Chat utilities
+│   │   ├── hooks/                         # Custom React hooks
+│   │   │   ├── useAuth.ts                 # Authentication state
+│   │   │   ├── useAutoScroll.ts           # Chat auto-scroll
+│   │   │   └── chat/                      # Chat hooks
+│   │   │       ├── useChatState.ts        # Message state
+│   │   │       ├── useStreamingChat.ts    # Streaming
+│   │   │       └── useConversationManager.ts # Persistence
+│   │   ├── types/                         # TypeScript interfaces
+│   │   │   ├── auth.ts                    # User/login types
+│   │   │   ├── chat.ts                    # Chat message types
+│   │   │   ├── conversation.ts            # Chat history types
+│   │   │   ├── admin.ts                   # Admin types
+│   │   │   └── assistant.ts               # Assistant types
 │   │   ├── contexts/
-│   │   │   └── AuthContext.tsx
-│   │   ├── hooks/
-│   │   │   ├── chat/                        # 🆕 NEW: Modular chat state management hooks
-│   │   │   │   ├── useChatState.ts              #   - Core chat state management (~190 lines)
-│   │   │   │   ├── useModelSelection.ts         #   - Model selection and filtering (~180 lines)
-│   │   │   │   ├── useAssistantManager.ts       #   - Assistant management logic (~170 lines)
-│   │   │   │   ├── useConversationManager.ts    #   - Conversation save/load logic (~200 lines)
-│   │   │   │   ├── useResponsiveLayout.ts       #   - Mobile/desktop layout management (~60 lines)
-│   │   │   │   └── index.ts                     #   - Clean hook exports (~30 lines)
-│   │   │   ├── quota/                       # 🆕 NEW: Modular quota state management hooks
-│   │   │   │   ├── useQuotaTable.ts             #   - Table state and operations (~200 lines)
-│   │   │   │   ├── useQuotaModals.ts            #   - Modal state management (~100 lines)
-│   │   │   │   ├── useQuotaReferenceData.ts     #   - Department/LLM config data (~80 lines)
-│   │   │   │   └── index.ts                     #   - Clean hook exports
-│   │   │   ├── useAuth.ts
-│   │   │   └── useAutoScroll.ts
-│   │   ├── index.css
-│   │   ├── main.tsx
-│   │   ├── pages/
-│   │   │   ├── AdminSettings.tsx
-│   │   │   ├── AssistantDiagnosticPage.tsx
-│   │   │   ├── ChatInterface.tsx            # 🔄 REFACTORED: (1,496 lines → 80 lines) Now entry point for modular architecture
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── ManagerDashboard.tsx
-│   │   │   └── UserSettings.tsx
-│   │   ├── services/
-│   │   │   ├── adminService.ts
-│   │   │   ├── assistant/                    # 🆕 NEW: Modular assistant services (914 lines → 9 atomic services)
-│   │   │   │   ├── core/                        #   - Core infrastructure services
-│   │   │   │   │   ├── assistantApiClient.ts        #     - HTTP client with auth headers (~100 lines)
-│   │   │   │   │   ├── assistantCrudService.ts       #     - Basic CRUD operations (~150 lines)
-│   │   │   │   │   └── assistantErrorHandler.ts     #     - Centralized error handling (~80 lines)
-│   │   │   │   ├── features/                    #   - Feature-specific services
-│   │   │   │   │   ├── assistantListService.ts      #     - List management, pagination, search (~200 lines)
-│   │   │   │   │   ├── assistantConversationService.ts #   - Assistant-conversation integration (~150 lines)
-│   │   │   │   │   ├── assistantBulkService.ts       #     - Bulk operations (~180 lines)
-│   │   │   │   │   ├── assistantStatsService.ts      #     - Statistics and analytics (~200 lines)
-│   │   │   │   │   ├── assistantUtilityService.ts    #     - Convenience methods (clone, activate) (~300 lines)
-│   │   │   │   │   └── assistantImportExportService.ts #   - Data import/export (~250 lines)
-│   │   │   │   └── index.ts                     #   - Main facade combining all services (~200 lines)
-│   │   │   ├── assistantService.ts              # 🔄 REFACTORED: (914 lines → 30 lines) Now entry point for modular architecture
-│   │   │   ├── authService.ts
-│   │   │   ├── chat/                        # 🆕 NEW: Modular chat services (1,088 lines → 10 atomic services)
-│   │   │   │   ├── __init__.py              #   - Clean service exports
-│   │   │   │   ├── core.ts                  #   - Basic chat operations (120 lines)
-│   │   │   │   ├── streaming.ts             #   - Streaming functionality (280 lines)
-│   │   │   │   ├── configuration.ts         #   - LLM config management (80 lines)
-│   │   │   │   ├── models.ts                #   - Model fetching/processing (250 lines)
-│   │   │   │   ├── modelHelpers.ts          #   - Display utilities (180 lines)
-│   │   │   │   ├── cost.ts                  #   - Cost estimation (60 lines)
-│   │   │   │   ├── health.ts                #   - Health monitoring (40 lines)
-│   │   │   │   ├── errors.ts                #   - Error handling utilities (50 lines)
-│   │   │   │   ├── chatService.ts           #   - Main orchestrator (200 lines)
-│   │   │   │   └── index.ts                 #   - Clean exports (30 lines)
-│   │   │   ├── chatService.ts               # 🔄 REFACTORED: (1,088 lines → 30 lines) Now entry point for modular architecture
-│   │   │   ├── conversationService.ts
-│   │   │   ├── conversationUpdateService.ts  # 🆕 NEW: Enhanced message persistence for existing conversations
-│   │   │   ├── coreAuthService.ts
-│   │   │   ├── departmentService.ts
-│   │   │   ├── fileService.ts
-│   │   │   ├── llmConfigService.ts
-│   │   │   ├── managerService.ts
-│   │   │   ├── profileService.ts
-│   │   │   ├── quota/                       # 🆕 NEW: Modular quota business logic
-│   │   │   │   └── quotaOperations.ts           #   - Business logic for quota operations (~300 lines)
-│   │   │   ├── quotaService.ts
-│   │   │   ├── roleService.ts
-│   │   │   └── usageAnalyticsService.ts
-│   │   ├── styles/
-│   │   │   └── thinking-animations.css
-│   │   ├── types/
-│   │   │   ├── admin/
-│   │   │   │   └── index.ts
-│   │   │   ├── admin.ts
-│   │   │   ├── assistant.ts
-│   │   │   ├── auth.ts
-│   │   │   ├── chat.ts
-│   │   │   ├── conversation.ts
-│   │   │   ├── file/
-│   │   │   │   ├── constants.ts
-│   │   │   │   ├── core.ts
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── pdf.ts
-│   │   │   │   ├── utilities.ts
-│   │   │   │   ├── validation.ts
-│   │   │   │   └── word.ts
-│   │   │   ├── index.ts
-│   │   │   ├── manager.ts
-│   │   │   ├── quota.ts
-│   │   │   └── usage.ts
-│   │   ├── utils/
-│   │   │   ├── chatHelpers.ts               # 🆕 NEW: Pure chat utility functions (~150 lines)
-│   │   │   ├── llmUtils.ts
-│   │   │   ├── modelNameUtils.ts
-│   │   │   ├── streamingAuth.ts
-│   │   │   ├── streamingStateManager.ts
-│   │   │   └── tokenManager.ts
-│   ├── STEP-7-IMPLEMENTATION-SUMMARY.md
-│   ├── tailwind.config.js
-│   ├── tsconfig.json
-│   ├── tsconfig.node.json
-│   └── vite.config.ts
-├── Helpers/
-│   ├── assistant_prompt.md
-│   ├── backlog.md
-│   ├── file-upload-prompts/
-│   │   ├── 01-backend-file-storage.md
-│   │   ├── 02-frontend-upload-ui.md
-│   │   ├── 03-text-file-processing.md
-│   │   ├── 04-pdf-support.md
-│   │   ├── 05-word-document-support.md
-│   │   ├── 06-file-management-optimization.md
-│   │   └── README.md
-│   ├── folder_structure.txt
-│   ├── project_details.md
-│   ├── project_integration_guide.md
-│   └── refactoring/
-│       ├── backend_example.md
-│       ├── example_refactor.md
-│       ├── progress_tracker.md
-│       ├── quick_start.md
-│       └── refactor_prompt.md
-├── nuclear_reset.sh
-├── package-lock.json
-├── package.json
-├── PRE_PUSH_CHECKLIST.md
-├── REFACTORING_MIGRATION_GUIDE.md          # 📈 Complete documentation of ChatInterface.tsx modular refactoring
-├── test_usage_logging.py
-└── USAGE_LOGGING_FIX_SUMMARY.md
-
-# 🎯 MAJOR FRONTEND REFACTORING COMPLETED:
-# 
-# **ChatInterface.tsx Modular Refactoring Summary:**
-# 
-# BEFORE: ChatInterface.tsx (1,496 lines) - Monolithic component
-# 
-# AFTER: Modular Architecture (12 focused files, ~1,780 total lines)
-# ├── Entry Point: pages/ChatInterface.tsx (80 lines)
-# ├── Orchestration: components/chat/ui/ChatContainer.tsx (300 lines)  
-# ├── UI Components: 5 atomic components (440 lines total)
-# ├── Custom Hooks: 5 state management hooks (830 lines total)
-# ├── Utilities: Pure helper functions (150 lines)
-# └── Clean Exports: Index files for easy imports
-# 
-# **Key Benefits Achieved:**
-# ✅ Single Responsibility Principle - Each module has one clear purpose
-# ✅ Reusability - Components and hooks can be reused across the app
-# ✅ Testability - Small, focused units are easier to test
-# ✅ Maintainability - Changes are isolated to specific modules
-# ✅ Performance - Better memoization and re-render optimization
-# ✅ 100% Functionality Preserved - No breaking changes
-# 
-# **Architecture Patterns Applied:**
-# - Container-Component Pattern for UI separation
-# - Custom Hooks for business logic extraction
-# - Pure Functions for utility operations
-# - TypeScript interfaces for type safety
-# - Module exports for clean imports
-# 
-# This refactoring demonstrates enterprise-level React architecture
-# suitable for large, maintainable applications.
-# 
-# 🎯 ASSISTANT SERVICE REFACTORING COMPLETED:
-# 
-# **assistantService.ts Modular Refactoring Summary:**
-# 
-# BEFORE: assistantService.ts (914 lines) - Monolithic service class
-# 
-# AFTER: Modular Architecture (10 focused files, ~1,610 total lines)
-# ├── Entry Point: services/assistantService.ts (30 lines)
-# ├── Main Facade: services/assistant/index.ts (200 lines)
-# ├── Core Services: 3 infrastructure services (330 lines total)
-# │   ├── API Client: HTTP client with auth (100 lines)
-# │   ├── CRUD Service: Basic operations (150 lines)
-# │   └── Error Handler: Centralized error handling (80 lines)
-# └── Feature Services: 6 specialized services (1,080 lines total)
-#     ├── List Service: Pagination, search, filtering (200 lines)
-#     ├── Conversation Service: Assistant-conversation bridge (150 lines)
-#     ├── Bulk Service: Multi-assistant operations (180 lines)
-#     ├── Stats Service: Analytics and metrics (200 lines)
-#     ├── Utility Service: Convenience methods (300 lines)
-#     └── Import/Export Service: Data exchange (250 lines)
-# 
-# **Key Benefits Achieved:**
-# ✅ Single Responsibility Principle - Each service handles one domain
-# ✅ Atomic Components - Smallest possible reusable units
-# ✅ Testability - Individual services can be tested in isolation
-# ✅ Maintainability - Changes isolated to specific functionality
-# ✅ Dependency Injection - Services can use each other compositionally
-# ✅ Backward Compatibility - Existing imports continue to work
-# ✅ 100% Functionality Preserved - No breaking changes
-# 
-# **Architecture Patterns Applied:**
-# - Facade Pattern for unified interface
-# - Service Layer Pattern for business logic separation
-# - Repository Pattern for data access abstraction
-# - Error Handling Pattern for consistent error management
-# - API Client Pattern for HTTP operations
-# - Utility Pattern for helper operations
-# 
-# **Before & After Comparison:**
-# 
-# **Original Monolithic Structure:**
-# - ❌ 914 lines in single file
-# - ❌ Multiple responsibilities mixed together
-# - ❌ Difficult to test individual features
-# - ❌ Hard to maintain and extend
-# - ❌ Tight coupling between features
-# 
-# **New Modular Structure:**
-# - ✅ 10 focused services with clear boundaries
-# - ✅ Single responsibility per service
-# - ✅ Easy to test, mock, and maintain
-# - ✅ Loose coupling with dependency injection
-# - ✅ Backward compatible with existing code
-# - ✅ Tree-shakeable for optimal bundle size
-# 
-# **Integration Benefits:**
-# - Existing code: `import { assistantService } from './services/assistantService'`
-# - New granular: `import { assistantCrudService } from './services/assistantService'`
-# - Direct access: `import { assistantCrudService } from './services/assistant/core/assistantCrudService'`
-# 
-# This refactoring demonstrates how to transform large monolithic
-# service classes into maintainable, testable, and scalable
-# modular architecture while preserving all functionality.
-# 
-# 🎯 QUOTA MANAGEMENT REFACTORING COMPLETED:
-# 
-# **QuotaManagement.tsx Modular Refactoring Summary:**
-# 
-# BEFORE: QuotaManagement.tsx (997 lines) - Monolithic component
-# 
-# AFTER: Modular Architecture (8 focused files, ~1,050 total lines)
-# ├── Entry Point: components/admin/QuotaManagement.tsx (230 lines)
-# ├── Custom Hooks: 3 state management hooks (380 lines total)
-# ├── UI Components: 4 atomic components (620 lines total)
-# ├── Business Logic: Quota operations service (300 lines)
-# └── Clean Exports: Index files for easy imports
-# 
-# **Key Benefits Achieved:**
-# ✅ Single Responsibility Principle - Each component handles one concern
-# ✅ Reusability - Components can be reused across admin interfaces
-# ✅ Testability - Small, focused units are easier to test
-# ✅ Maintainability - Changes are isolated to specific modules
-# ✅ Business Logic Separation - Operations separated from UI
-# ✅ 100% Functionality Preserved - No breaking changes
-# 
-# **Architecture Patterns Applied:**
-# - Container-Component Pattern for UI separation
-# - Custom Hooks for state management extraction
-# - Service Layer for business logic operations
-# - TypeScript interfaces for type safety
-# - Module exports for clean imports
-# 
-# 🎯 DEPARTMENT MODALS REFACTORING COMPLETED:
-# 
-# **DepartmentModals.tsx Modular Refactoring Summary:**
-# 
-# BEFORE: DepartmentModals.tsx (870 lines) - Monolithic modal component
-# 
-# AFTER: Modular Architecture (12 focused files, ~1,150 total lines)
-# ├── Entry Point: components/admin/components/DepartmentModals.tsx (120 lines)
-# ├── Modal Components: 4 specialized modal dialogs (500 lines total)
-# │   ├── DepartmentDetailsModal: Complex information display (~200 lines)
-# │   ├── DepartmentFormModal: Reusable create/edit form (~150 lines)
-# │   ├── DeleteConfirmationModal: Single delete confirmation (~80 lines)
-# │   └── BulkDeleteModal: Bulk delete confirmation (~70 lines)
-# ├── Display Components: 4 atomic UI components (380 lines total)
-# │   ├── DepartmentStatsGrid: Overview statistics cards (~80 lines)
-# │   ├── BudgetAnalysisCard: Budget utilization display (~100 lines)
-# │   ├── UsageStatisticsCard: Usage metrics display (~80 lines)
-# │   └── DepartmentUsersList: User list with loading states (~120 lines)
-# ├── Custom Hooks: 2 state management hooks (200 lines total)
-# │   ├── useDepartmentForm: Form state and validation (~120 lines)
-# │   └── useDepartmentUsers: User loading logic (~80 lines)
-# ├── Utilities: 2 pure function modules (140 lines total)
-# │   ├── departmentFormatters: Currency, date, number formatting (~60 lines)
-# │   └── departmentValidation: Form validation logic (~80 lines)
-# └── Clean Exports: Index files for easy imports
-# 
-# **Key Benefits Achieved:**
-# ✅ Single Responsibility Principle - Each component does ONE thing well
-# ✅ Atomic Components - Smallest possible reusable units
-# ✅ Dependency Injection - Remove tight coupling
-# ✅ Interface Segregation - Clean, minimal interfaces
-# ✅ Testability - Small, focused units are easier to test
-# ✅ Maintainability - Changes are isolated to specific modules
-# ✅ Performance - Better memoization and re-render optimization
-# ✅ 100% Functionality Preserved - No breaking changes
-# 
-# **Architecture Patterns Applied:**
-# - Container-Component Pattern for UI separation
-# - Custom Hooks for business logic extraction
-# - Pure Functions for utility operations
-# - Modal Component Pattern for dialog management
-# - Service Layer integration for API calls
-# - TypeScript interfaces for type safety
-# - Module exports for clean imports
-# 
-# **Before & After Comparison:**
-# 
-# **Original Monolithic Structure:**
-# ❌ 870 lines in single file
-# ❌ Multiple modal responsibilities mixed together
-# ❌ Form logic, validation, and UI tightly coupled
-# ❌ Hard-coded utility functions within component
-# ❌ Difficult to test individual modal features
-# ❌ Complex state management in single component
-# 
-# **New Modular Structure:**
-# ✅ 12 focused components with clear boundaries
-# ✅ Single responsibility per component
-# ✅ Reusable form modal for create/edit operations
-# ✅ Atomic display components for stats and user lists
-# ✅ Custom hooks for state management extraction
-# ✅ Pure utility functions for formatting and validation
-# ✅ Easy to test, mock, and maintain
-# ✅ Backward compatible with existing DepartmentManagement.tsx
-# 
-# **Integration Benefits:**
-# - Existing import continues to work: `import DepartmentModals from './components/DepartmentModals'`
-# - Direct component access: `import { DepartmentDetailsModal } from './components/department'`
-# - Hook reusability: `import { useDepartmentForm } from './components/department'`
-# - Utility functions: `import { formatCurrency } from './components/department'`
-# 
-# This refactoring demonstrates how to transform large, complex
-# modal components into clean, atomic, reusable components while
-# maintaining full functionality and improving maintainability.
+│   │   │   └── AuthContext.tsx            # Global auth state
+│   │   └── utils/                         # Helper functions
+│   ├── package.json                       # Frontend dependencies
+│   └── vite.config.ts                     # Build configuration
+├── Helpers/                               # Documentation
+│   ├── project_integration_guide.md       # Architecture guide
+│   ├── folder_structure.txt               # This file
+│   └── refactoring/                       # Refactoring docs
+├── CLAUDE.md                              # AI navigation guide
+├── README_AI.md files                     # Directory-specific guides
+└── package.json                           # Root dependencies

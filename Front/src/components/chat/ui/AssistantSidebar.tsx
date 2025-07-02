@@ -100,11 +100,6 @@ export const AssistantSidebar: React.FC<AssistantSidebarProps> = ({
     }
   }, [searchQuery]);
 
-  // Debug dropdown state changes
-  useEffect(() => {
-    console.log('📄 Dropdown state changed:', { dropdownOpen, selectedForDelete });
-  }, [dropdownOpen, selectedForDelete]);
-
   // Calculate dropdown position when dropdown opens
   const calculateDropdownPosition = useCallback((buttonElement: HTMLButtonElement) => {
     const rect = buttonElement.getBoundingClientRect();
@@ -232,6 +227,7 @@ export const AssistantSidebar: React.FC<AssistantSidebarProps> = ({
       setEditingAssistant(fullAssistant);
       setShowEditModal(true);
       setDropdownOpen(null);
+      setDropdownPosition(null);
       
     } catch (error: any) {
       console.error('❌ Failed to load assistant for editing:', error);
@@ -255,6 +251,7 @@ export const AssistantSidebar: React.FC<AssistantSidebarProps> = ({
       setAssistants(prev => prev.map(updateAssistant));
       setSearchResults(prev => prev.map(updateAssistant));
       setDropdownOpen(null);
+      setDropdownPosition(null);
       
       if (onAssistantUpdated) {
         onAssistantUpdated(assistantId);
@@ -444,6 +441,82 @@ export const AssistantSidebar: React.FC<AssistantSidebarProps> = ({
         </div>
         <div className="py-1">
           {assistants.map(renderAssistantItem)}
+        </div>
+      </div>
+    );
+  };
+
+  // Render dropdown menu outside scrollable container
+  const renderDropdownMenu = () => {
+    if (!dropdownOpen || !dropdownPosition) return null;
+
+    const selectedAssistant = assistants.find(a => a.id === dropdownOpen);
+    if (!selectedAssistant) return null;
+
+    return (
+      <div 
+        className="fixed w-48 bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl border border-gray-200 z-[9999]"
+        style={{ 
+          top: `${dropdownPosition.top}px`,
+          right: `${dropdownPosition.right}px`,
+          minHeight: '80px',
+          pointerEvents: 'auto'
+        }}
+      >
+        <div className="py-2">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🔧 Edit button clicked for assistant:', selectedAssistant.id);
+              handleEditAssistant(selectedAssistant);
+              setDropdownOpen(null);
+              setDropdownPosition(null);
+            }}
+            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            <Edit3 className="w-4 h-4 mr-2" />
+            Edit Assistant
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🔧 Toggle active button clicked for assistant:', selectedAssistant.id);
+              handleToggleActive(selectedAssistant.id, selectedAssistant.is_active);
+            }}
+            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            {selectedAssistant.is_active ? (
+              <>
+                <EyeOff className="w-4 h-4 mr-2" />
+                Deactivate
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4 mr-2" />
+                Activate
+              </>
+            )}
+          </button>
+          
+          <div className="border-t border-gray-200 my-1"></div>
+          
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🗑️ Delete button clicked for assistant:', selectedAssistant.id);
+              setSelectedForDelete(selectedAssistant.id);
+              setDropdownOpen(null);
+              setDropdownPosition(null);
+            }}
+            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Assistant
+          </button>
         </div>
       </div>
     );
@@ -652,58 +725,6 @@ export const AssistantSidebar: React.FC<AssistantSidebarProps> = ({
       )}
     </>
   );
-
-  // Render dropdown menu outside scrollable container
-  const renderDropdownMenu = () => {
-    if (!dropdownOpen || !dropdownPosition) return null;
-
-    const selectedAssistant = assistants.find(a => a.id === dropdownOpen);
-    if (!selectedAssistant) return null;
-
-    return (
-      <div 
-        className="fixed w-48 bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl border border-gray-200 z-[9999]"
-        style={{ 
-          top: `${dropdownPosition.top}px`,
-          right: `${dropdownPosition.right}px`,
-          minHeight: '80px',
-          pointerEvents: 'auto'
-        }}
-      >
-        <div className="py-2">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('🔧 Edit button clicked for assistant:', selectedAssistant.id);
-              handleEditAssistant(selectedAssistant);
-              setDropdownOpen(null);
-              setDropdownPosition(null);
-            }}
-            className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
-          >
-            <Edit3 className="w-4 h-4 mr-2" />
-            Edit Assistant
-          </button>
-          
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('🗑️ Delete button clicked for assistant:', selectedAssistant.id);
-              setSelectedForDelete(selectedAssistant.id);
-              setDropdownOpen(null);
-              setDropdownPosition(null);
-            }}
-            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Assistant
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   // Embedded mode - render content without fixed positioning
   if (embedded) {

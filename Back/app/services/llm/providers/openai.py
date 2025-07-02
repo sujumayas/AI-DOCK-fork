@@ -243,6 +243,33 @@ class OpenAIProvider(BaseLLMProvider):
                     error_details={"network_error": str(e)}
                 )
     
+    def _estimate_usage_from_content(self, content: str, payload: Dict[str, Any]) -> Dict[str, int]:
+        """
+        Estimate token usage from accumulated content during streaming.
+        
+        Since OpenAI doesn't provide usage data in streaming responses,
+        we need to estimate it for cost calculation.
+        
+        Args:
+            content: The accumulated response content
+            payload: The original request payload
+            
+        Returns:
+            Dictionary with estimated token counts
+        """
+        # Estimate input tokens from original messages
+        input_chars = sum(len(str(msg.get("content", ""))) for msg in payload.get("messages", []))
+        estimated_input_tokens = max(1, input_chars // 4)  # ~4 chars per token
+        
+        # Estimate output tokens from response content
+        estimated_output_tokens = max(1, len(content) // 4)
+        
+        return {
+            "input_tokens": estimated_input_tokens,
+            "output_tokens": estimated_output_tokens,
+            "total_tokens": estimated_input_tokens + estimated_output_tokens
+        }
+
     # =============================================================================
     # STREAMING SUPPORT FOR OPENAI
     # =============================================================================
@@ -281,6 +308,7 @@ class OpenAIProvider(BaseLLMProvider):
         
         start_time = time.time()
         
+        # Create streaming request using async context manager for proper cleanup
         async with self._get_http_client() as client:
             try:
                 self.logger.info(f"Starting OpenAI streaming request: model={payload['model']}")

@@ -12,7 +12,7 @@ from ..models import ChatResponse
 from ..core.cost_calculator import get_cost_calculator
 from ..core.response_formatter import get_response_formatter
 from ..usage_logger import get_usage_logger
-from ..exceptions import LLMServiceError
+from ..exceptions import LLMServiceError, LLMProviderError
 
 
 class StreamingHandler(BaseRequestHandler):
@@ -204,28 +204,64 @@ class StreamingHandler(BaseRequestHandler):
     
     async def _stream_from_provider(self, provider, request) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Delegate streaming to provider-specific implementation.
+        Stream response from provider, handling different streaming capabilities.
         
         Args:
-            provider: LLM provider instance
-            request: Chat request object
+            provider: The LLM provider instance
+            request: The chat request
             
         Yields:
-            Dict[str, Any]: Raw chunk data from provider
+            Dict[str, Any]: Streaming chunks
         """
-        # Check if provider supports native streaming
+        self.logger.info(f"🌊 Attempting to stream from provider: {provider.provider_name}")
+        self.logger.debug(f"Provider type: {type(provider)}")
+        self.logger.debug(f"Provider methods: {[m for m in dir(provider) if 'stream' in m.lower()]}")
+        
+        # Prioritize native streaming, fallback to simulated streaming
         if hasattr(provider, 'stream_chat_request'):
+            self.logger.info(f"Using native streaming for {provider.provider_name}")
             async for chunk in provider.stream_chat_request(request):
                 yield chunk
         elif hasattr(provider, 'simulate_streaming_response'):
-            # Provider has simulation method
-            async for chunk in provider.simulate_streaming_response(request):
-                yield chunk
+            self.logger.info(f"Using simulated streaming for {provider.provider_name}")
+            
+            try:
+                streaming_result = provider.simulate_streaming_response(request)
+                
+                # Validate the streaming result
+                if streaming_result is None:
+                    raise LLMProviderError(
+                        "Provider streaming method returned None instead of async generator",
+                        provider.provider_name
+                    )
+                
+                # Check if it's actually an async generator
+                import inspect
+                if not inspect.isasyncgen(streaming_result) and not hasattr(streaming_result, '__aiter__'):
+                    raise LLMProviderError(
+                        f"Provider streaming method returned {type(streaming_result).__name__} instead of async generator",
+                        provider.provider_name
+                    )
+                
+                # Stream the chunks
+                async for chunk in streaming_result:
+                    # Check if chunk contains an error
+                    if chunk.get("error"):
+                        raise LLMProviderError(
+                            chunk.get("error", "Unknown provider error"),
+                            provider.provider_name
+                        )
+                    yield chunk
+                    
+            except Exception as e:
+                self.logger.error(f"Simulated streaming failed for {provider.provider_name}: {e}")
+                raise
         else:
-            # Fallback: get full response and simulate streaming
+            # Last resort: handler-level fallback streaming
+            self.logger.info(f"Using handler fallback streaming for {provider.provider_name}")
             response = await provider.send_chat_request(request)
             content = response.content
-            chunk_size = 10  # Characters per chunk
+            chunk_size = 10
             
             for i in range(0, len(content), chunk_size):
                 chunk_content = content[i:i + chunk_size]
@@ -241,8 +277,8 @@ class StreamingHandler(BaseRequestHandler):
                     "response_time_ms": response.response_time_ms if is_final else None
                 }
                 
-                # Small delay to simulate streaming
-                await asyncio.sleep(0.05)
+                if not is_final:
+                    await asyncio.sleep(0.05)
     
     def _create_final_response(
         self,

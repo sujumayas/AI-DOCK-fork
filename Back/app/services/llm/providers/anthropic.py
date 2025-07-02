@@ -3,7 +3,9 @@
 
 import httpx
 import time
-from typing import Dict, Any, Optional
+import json
+import asyncio
+from typing import Dict, Any, Optional, AsyncGenerator
 
 from app.models.llm_config import LLMProvider
 from ..exceptions import LLMProviderError, LLMConfigurationError, LLMQuotaExceededError
@@ -16,7 +18,7 @@ class AnthropicProvider(BaseLLMProvider):
     Anthropic (Claude) provider implementation.
     
     Handles communication with Anthropic's API (Claude models).
-    Note: Claude's API format is different from OpenAI's!
+    Now supports native streaming using Anthropic's SSE API!
     """
     
     @property
@@ -30,7 +32,7 @@ class AnthropicProvider(BaseLLMProvider):
         Anthropic API format is different from OpenAI:
         POST https://api.anthropic.com/v1/messages
         {
-            "model": "claude-3-opus-20240229",/Users/blas/Desktop/INRE/INRE-DOCK-2/Back/app/services/llm/provider_factory.py
+            "model": "claude-3-opus-20240229",
             "max_tokens": 1000,
             "messages": [{"role": "user", "content": "Hello!"}]
         }
@@ -86,8 +88,16 @@ class AnthropicProvider(BaseLLMProvider):
             try:
                 self.logger.info(f"Sending Anthropic request: model={payload['model']}")
                 
+                # Fix URL construction to handle trailing slashes properly
+                endpoint_base = self.config.api_endpoint.rstrip('/')
+                url = f"{endpoint_base}/v1/messages"
+                
+                # Add debug logging for the URL and headers
+                self.logger.debug(f"Making POST request to: {url}")
+                self.logger.debug(f"Request headers: {client.headers}")
+                
                 response = await client.post(
-                    f"{self.config.api_endpoint}/v1/messages",
+                    url,
                     json=payload
                 )
                 
@@ -96,24 +106,52 @@ class AnthropicProvider(BaseLLMProvider):
                 if response.status_code == 200:
                     return await self._process_claude_success_response(response, response_time_ms)
                 else:
+                    # This always raises an exception, so execution never continues past here
                     await self._handle_claude_error_response(response)
+                    # This should never be reached, but adding explicit raise for safety
+                    raise LLMProviderError(
+                        f"Unexpected response status: {response.status_code}",
+                        provider=self.provider_name,
+                        status_code=response.status_code
+                    )
                     
             except httpx.TimeoutException:
+                self.logger.error(f"Anthropic API request timeout for URL: {url}")
                 raise LLMProviderError(
                     "Request timed out",
                     provider=self.provider_name,
                     error_details={"timeout": True}
                 )
             except httpx.RequestError as e:
-                raise LLMProviderError(
-                    f"Network error: {str(e)}",
-                    provider=self.provider_name,
-                    error_details={"network_error": str(e)}
-                )
+                self.logger.error(f"Anthropic API request error for URL: {url}, Error: {str(e)}")
+                self.logger.error(f"Error type: {type(e).__name__}")
+                # More specific error handling for DNS resolution
+                if "nodename nor servname" in str(e) or "Name or service not known" in str(e):
+                    raise LLMProviderError(
+                        f"DNS resolution failed for {self.config.api_endpoint}. Please check your network connection.",
+                        provider=self.provider_name,
+                        error_details={"dns_error": str(e)}
+                    )
+                else:
+                    raise LLMProviderError(
+                        f"Network error: {str(e)}",
+                        provider=self.provider_name,
+                        error_details={"network_error": str(e)}
+                    )
     
     async def _process_claude_success_response(self, response: httpx.Response, response_time_ms: int) -> ChatResponse:
         """Process successful Anthropic API response."""
-        data = response.json()
+        try:
+            data = response.json()
+            self.logger.info(f"Anthropic API response data: {data}")
+        except Exception as e:
+            self.logger.error(f"Failed to parse Anthropic response as JSON: {e}")
+            self.logger.error(f"Response text: {response.text}")
+            raise LLMProviderError(
+                f"Invalid JSON response from Anthropic API: {str(e)}",
+                provider=self.provider_name,
+                error_details={"response_text": response.text}
+            )
         
         # Claude response format:
         # {
@@ -125,11 +163,15 @@ class AnthropicProvider(BaseLLMProvider):
         # Extract content (Claude returns array of content blocks)
         content = ""
         if data.get("content"):
+            self.logger.info(f"Processing content blocks: {data.get('content')}")
             for block in data["content"]:
                 if block.get("type") == "text":
                     content += block.get("text", "")
+        else:
+            self.logger.warning(f"No content found in Anthropic response: {data}")
         
         model = data.get("model", "unknown")
+        self.logger.info(f"Extracted content length: {len(content)}, model: {model}")
         
         # Extract usage information
         usage = {}
@@ -139,11 +181,13 @@ class AnthropicProvider(BaseLLMProvider):
                 "output_tokens": data["usage"].get("output_tokens", 0),
                 "total_tokens": data["usage"].get("input_tokens", 0) + data["usage"].get("output_tokens", 0)
             }
+            self.logger.info(f"Usage data: {usage}")
         
         # Calculate cost
         cost = self._calculate_actual_cost(usage)
+        self.logger.info(f"Calculated cost: {cost}")
         
-        return ChatResponse(
+        chat_response = ChatResponse(
             content=content,
             model=model,
             provider=self.provider_name,
@@ -152,6 +196,9 @@ class AnthropicProvider(BaseLLMProvider):
             response_time_ms=response_time_ms,
             raw_response=data
         )
+        
+        self.logger.info(f"Created ChatResponse: content_length={len(chat_response.content)}, model={chat_response.model}")
+        return chat_response
     
     async def _handle_claude_error_response(self, response: httpx.Response) -> None:
         """Handle Anthropic API error responses."""
@@ -240,43 +287,254 @@ class AnthropicProvider(BaseLLMProvider):
         return known_models
     
     # =============================================================================
-    # SIMULATED STREAMING FOR ANTHROPIC
+    # NATIVE STREAMING FOR ANTHROPIC (NEW!)
     # =============================================================================
     
-    async def simulate_streaming_response(self, request: ChatRequest):
+    async def stream_chat_request(self, request: ChatRequest) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Simulate streaming for Anthropic by chunking a regular response.
+        Stream responses from Anthropic using their native streaming API.
         
-        Note: Anthropic doesn't have native streaming yet, so we simulate it
-        by getting the full response and then yielding it in chunks.
+        Anthropic supports real streaming via Server-Sent Events. We set stream=True
+        in the request and process the SSE chunks.
+        
+        Yields:
+            Dict[str, Any]: Streaming chunks with Anthropic content
+        """
+        self._validate_configuration()
+        
+        # Build Anthropic streaming request
+        max_tokens = (
+            request.max_tokens or 
+            (self.config.model_parameters or {}).get("max_tokens") or 
+            4000
+        )
+        
+        payload = {
+            "model": request.model or self.config.default_model,
+            "max_tokens": max_tokens,
+            "messages": [],
+            "stream": True  # Enable native streaming
+        }
+        
+        # Convert messages to Anthropic format
+        system_message = None
+        for msg in request.messages:
+            if msg.role == "system":
+                system_message = msg.content
+            else:
+                payload["messages"].append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+        
+        if system_message:
+            payload["system"] = system_message
+        
+        # Add optional parameters
+        if request.temperature is not None:
+            payload["temperature"] = request.temperature
+        elif self.config.model_parameters and "temperature" in self.config.model_parameters:
+            payload["temperature"] = self.config.model_parameters["temperature"]
+        
+        payload.update(request.extra_params)
+        
+        start_time = time.time()
+        
+        # Create streaming request using async context manager
+        async with self._get_http_client() as client:
+            try:
+                self.logger.info(f"🌊 Starting Anthropic native streaming: model={payload['model']}")
+                
+                endpoint_base = self.config.api_endpoint.rstrip('/')
+                url = f"{endpoint_base}/v1/messages"
+                
+                # Make streaming request
+                async with client.stream(
+                    "POST",
+                    url,
+                    json=payload
+                ) as response:
+                    
+                    if response.status_code != 200:
+                        await self._handle_claude_error_response(response)
+                    
+                    # Process Anthropic SSE streaming response
+                    accumulated_content = ""
+                    model_name = payload["model"]
+                    usage_data = {}
+                    chunk_count = 0
+                    
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                            
+                        # Parse SSE format: "event: type" and "data: json"
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                            continue
+                        elif line.startswith("data:"):
+                            data_str = line[5:].strip()
+                            
+                            try:
+                                # Parse JSON chunk
+                                chunk_data = json.loads(data_str)
+                                chunk_count += 1
+                                
+                                # Handle different Anthropic event types
+                                event_type = chunk_data.get("type", "")
+                                
+                                if event_type == "message_start":
+                                    # Extract model and initial usage
+                                    message = chunk_data.get("message", {})
+                                    model_name = message.get("model", model_name)
+                                    usage_data = message.get("usage", {})
+                                    
+                                elif event_type == "content_block_delta":
+                                    # Extract text content from delta
+                                    delta = chunk_data.get("delta", {})
+                                    if delta.get("type") == "text_delta":
+                                        text_content = delta.get("text", "")
+                                        if text_content:
+                                            accumulated_content += text_content
+                                            
+                                            # Yield content chunk
+                                            yield {
+                                                "content": text_content,
+                                                "is_final": False,
+                                                "model": model_name,
+                                                "provider": self.provider_name,
+                                                "chunk_count": chunk_count
+                                            }
+                                
+                                elif event_type == "message_delta":
+                                    # Update usage data with final counts
+                                    delta_usage = chunk_data.get("usage", {})
+                                    if delta_usage:
+                                        usage_data.update(delta_usage)
+                                
+                                elif event_type == "message_stop":
+                                    # End of stream - send final chunk with usage/cost
+                                    response_time_ms = int((time.time() - start_time) * 1000)
+                                    
+                                    # Calculate final usage
+                                    final_usage = {
+                                        "input_tokens": usage_data.get("input_tokens", 0),
+                                        "output_tokens": usage_data.get("output_tokens", 0),
+                                        "total_tokens": usage_data.get("input_tokens", 0) + usage_data.get("output_tokens", 0)
+                                    }
+                                    
+                                    # Calculate cost
+                                    cost = self._calculate_actual_cost(final_usage)
+                                    
+                                    # Final chunk
+                                    yield {
+                                        "content": "",
+                                        "is_final": True,
+                                        "model": model_name,
+                                        "provider": self.provider_name,
+                                        "usage": final_usage,
+                                        "cost": cost,
+                                        "response_time_ms": response_time_ms,
+                                        "total_content": accumulated_content,
+                                        "chunk_count": chunk_count
+                                    }
+                                    
+                                    self.logger.info(f"✅ Anthropic native streaming completed: {chunk_count} chunks, {len(accumulated_content)} chars")
+                                    return
+                                
+                                elif event_type == "ping":
+                                    # Keep-alive ping, ignore
+                                    continue
+                                
+                                elif event_type == "error":
+                                    # Handle streaming errors
+                                    error_info = chunk_data.get("error", {})
+                                    error_message = error_info.get("message", "Unknown streaming error")
+                                    raise LLMProviderError(
+                                        f"Anthropic streaming error: {error_message}",
+                                        provider=self.provider_name,
+                                        error_details={"streaming_error": error_info}
+                                    )
+                                
+                            except json.JSONDecodeError:
+                                # Skip malformed chunks
+                                self.logger.warning(f"Skipping malformed JSON chunk: {data_str[:100]}...")
+                                continue
+                            
+            except httpx.TimeoutException:
+                raise LLMProviderError(
+                    "Streaming request timed out",
+                    provider=self.provider_name,
+                    error_details={"timeout": True, "streaming": True}
+                )
+            except httpx.RequestError as e:
+                raise LLMProviderError(
+                    f"Streaming network error: {str(e)}",
+                    provider=self.provider_name,
+                    error_details={"network_error": str(e), "streaming": True}
+                )
+    
+    # =============================================================================
+    # SIMULATED STREAMING (FALLBACK ONLY - native streaming preferred)
+    # =============================================================================
+    
+    async def simulate_streaming_response(self, request: ChatRequest) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Fallback streaming implementation for Anthropic.
+        
+        This method only runs when native streaming fails. It gets the full response
+        and chunks it to simulate streaming behavior.
         
         Yields:
             Dict[str, Any]: Simulated streaming chunks
         """
-        # Get the full response first
-        full_response = await self.send_chat_request(request)
+        self.logger.info("🔄 Using fallback simulated streaming for Anthropic")
         
-        # Split content into chunks (simulate streaming)
-        content = full_response.content
-        chunk_size = 10  # Characters per chunk
-        
-        for i in range(0, len(content), chunk_size):
-            chunk_content = content[i:i + chunk_size]
-            is_final = (i + chunk_size) >= len(content)
+        try:
+            # Get complete response
+            response = await self.send_chat_request(request)
             
+            if not response or not response.content:
+                yield {
+                    "content": "",
+                    "is_final": True,
+                    "error": "No response content to stream",
+                    "model": request.model or self.config.default_model,
+                    "provider": self.provider_name
+                }
+                return
+
+            # Stream content in small chunks
+            content = response.content
+            chunk_size = 10
+            
+            for i in range(0, len(content), chunk_size):
+                chunk_content = content[i:i + chunk_size]
+                is_final = (i + chunk_size) >= len(content)
+                
+                yield {
+                    "content": chunk_content,
+                    "is_final": is_final,
+                    "model": response.model,
+                    "provider": self.provider_name,
+                    "usage": response.usage if is_final else None,
+                    "cost": response.cost if is_final else None,
+                    "response_time_ms": response.response_time_ms if is_final else None
+                }
+                
+                # Small delay to simulate streaming
+                if not is_final:
+                    await asyncio.sleep(0.05)
+            
+        except Exception as e:
+            self.logger.error(f"Fallback streaming failed: {e}")
             yield {
-                "content": chunk_content,
-                "is_final": is_final,
-                "model": full_response.model,
-                "provider": self.provider_name,
-                "usage": full_response.usage if is_final else None,
-                "cost": full_response.cost if is_final else None,
-                "response_time_ms": full_response.response_time_ms if is_final else None
+                "content": "",
+                "is_final": True,
+                "error": f"Streaming failed: {str(e)}",
+                "model": getattr(request, 'model', None) or getattr(self.config, 'default_model', 'unknown'),
+                "provider": self.provider_name
             }
-            
-            # Small delay to simulate network latency
-            import asyncio
-            await asyncio.sleep(0.05)  # 50ms delay between chunks
     
     def get_known_models(self) -> list:
         """

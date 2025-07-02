@@ -245,7 +245,7 @@ export interface StreamingState {
 }
 
 export interface StreamingError {
-  type: 'CONNECTION_ERROR' | 'TIMEOUT' | 'RATE_LIMIT' | 'QUOTA_EXCEEDED' | 'SERVER_ERROR';
+  type: 'CONNECTION_ERROR' | 'TIMEOUT' | 'RATE_LIMIT' | 'QUOTA_EXCEEDED' | 'CONFIGURATION_ERROR' | 'SERVER_ERROR' | 'PARSE_ERROR';
   message: string;
   shouldFallback: boolean;      // Whether to fallback to regular chat
   retryable: boolean;          // Whether this error can be retried

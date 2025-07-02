@@ -403,7 +403,8 @@ class LLMConfiguration(Base):
                 headers["OpenAI-Version"] = self.api_version
                 
         elif self.provider == LLMProvider.ANTHROPIC:
-            headers["Authorization"] = f"Bearer {self.get_decrypted_api_key()}"
+            # Anthropic uses x-api-key header instead of Authorization Bearer
+            headers["x-api-key"] = self.get_decrypted_api_key()
             headers["anthropic-version"] = self.api_version or "2023-06-01"
             
         elif self.provider == LLMProvider.GOOGLE:

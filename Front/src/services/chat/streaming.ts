@@ -219,13 +219,27 @@ export class StreamingChatService {
           let streamingError: StreamingError;
           
           if (parseError instanceof Error && parseError.message.includes('Backend error:')) {
-            // This is a backend error (like quota exceeded)
+            // This is a backend error (like quota exceeded or configuration error)
             const errorMessage = parseError.message.replace('Backend error: ', '');
             
+            // More specific error type detection
+            let errorType: StreamingError['type'] = 'SERVER_ERROR';
+            let shouldFallback = false;
+            
+            if (errorMessage.toLowerCase().includes('quota')) {
+              errorType = 'QUOTA_EXCEEDED';
+              shouldFallback = false; // Don't fallback for quota errors
+            } else if (errorMessage.toLowerCase().includes('configuration_error') || 
+                       errorMessage.toLowerCase().includes('api key') ||
+                       errorMessage.toLowerCase().includes('invalid')) {
+              errorType = 'CONFIGURATION_ERROR';
+              shouldFallback = false; // Don't fallback for configuration errors
+            }
+            
             streamingError = {
-              type: errorMessage.toLowerCase().includes('quota') ? 'QUOTA_EXCEEDED' : 'SERVER_ERROR',
+              type: errorType,
               message: errorMessage,
-              shouldFallback: false, // Don't fallback for quota errors
+              shouldFallback: shouldFallback,
               retryable: false
             };
           } else {

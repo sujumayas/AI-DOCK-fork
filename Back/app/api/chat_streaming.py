@@ -431,9 +431,15 @@ async def stream_chat_message_internal(
         
     except LLMConfigurationError as e:
         logger.error(f"Configuration error in streaming: {str(e)}")
+        # Preserve the specific configuration error message for actionable feedback
+        error_message = str(e)
+        if "api key" in error_message.lower() or "invalid" in error_message.lower():
+            detail = f"Configuration error: {error_message}. Please check your API key settings."
+        else:
+            detail = f"Configuration error: {error_message}. Please check your LLM configuration."
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Configuration error: {str(e)}"
+            detail=detail
         )
     except LLMDepartmentQuotaExceededError as e:
         logger.error(f"Department quota exceeded in streaming: {str(e)}")
@@ -760,6 +766,17 @@ async def stream_chat_generator(
         error_chunk = {
             "error": True,
             "error_type": "quota_exceeded",
+            "error_message": str(e),
+            "chunk_index": chunk_index
+        }
+        yield f"data: {json.dumps(error_chunk)}\n\n"
+        yield "data: [ERROR]\n\n"
+        
+    except LLMConfigurationError as e:
+        # 🔧 Configuration error during streaming (API keys, etc.)
+        error_chunk = {
+            "error": True,
+            "error_type": "configuration_error", 
             "error_message": str(e),
             "chunk_index": chunk_index
         }

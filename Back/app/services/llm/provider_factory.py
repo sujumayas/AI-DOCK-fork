@@ -6,7 +6,9 @@ import logging
 
 from app.models.llm_config import LLMConfiguration, LLMProvider
 from .exceptions import LLMServiceError
-from .providers import BaseLLMProvider, OpenAIProvider, AnthropicProvider
+from .providers.base import BaseLLMProvider
+from .providers.openai import OpenAIProvider
+from .providers.anthropic import AnthropicProvider
 
 
 class LLMProviderFactory:

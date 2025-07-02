@@ -9,6 +9,7 @@ from datetime import datetime
 from ..exceptions import (
     LLMServiceError, 
     LLMProviderError, 
+    LLMConfigurationError,
     LLMDepartmentQuotaExceededError,
     LLMUserNotFoundError
 )
@@ -148,6 +149,8 @@ class ErrorHandler:
             return "WARNING"  # Expected business logic
         elif isinstance(error, LLMUserNotFoundError):
             return "ERROR"    # Data integrity issue
+        elif isinstance(error, LLMConfigurationError):
+            return "ERROR"    # Configuration issue (API keys, etc.)
         elif isinstance(error, LLMProviderError):
             return "ERROR"    # External service issue
         elif isinstance(error, LLMServiceError):
@@ -165,6 +168,8 @@ class ErrorHandler:
             return "QUOTA"
         elif isinstance(error, LLMUserNotFoundError):
             return "AUTHENTICATION"
+        elif isinstance(error, LLMConfigurationError):
+            return "CONFIGURATION"
         elif isinstance(error, LLMProviderError):
             return "PROVIDER"
         elif isinstance(error, LLMServiceError):
@@ -211,6 +216,13 @@ class ErrorHandler:
             return "Your department has exceeded its usage quota. Please contact your administrator."
         elif isinstance(error, LLMUserNotFoundError):
             return "Authentication failed. Please log in again."
+        elif isinstance(error, LLMConfigurationError):
+            # Preserve the specific configuration error message for actionable feedback
+            error_message = str(error).lower()
+            if "api key" in error_message or "invalid" in error_message:
+                return f"Configuration error: {str(error)}. Please check your API key settings."
+            else:
+                return f"Configuration error: {str(error)}. Please check your LLM configuration."
         elif isinstance(error, LLMProviderError):
             return "The AI service is temporarily unavailable. Please try again later."
         elif isinstance(error, (ConnectionError, TimeoutError)):
