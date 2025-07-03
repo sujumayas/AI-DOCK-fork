@@ -394,6 +394,7 @@ async def stream_chat_message_internal(
                 # Get dynamic models to validate against
                 dynamic_models_data = await llm_service.get_dynamic_models(
                     config_id=stream_request.config_id,
+                    db=db,
                     use_cache=True
                 )
                 

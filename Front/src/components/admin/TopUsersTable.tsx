@@ -4,6 +4,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { TopUsersResponse, TopUserMetric } from '../../types/usage';
+import { formatCurrency, formatNumber } from '../../utils/formatUtils';
 
 /**
  * Top Users Table Component
@@ -69,14 +70,19 @@ const TopUsersTable: React.FC<TopUsersTableProps> = ({
    * 
    * Learning: Different metrics need different formatting for readability.
    * Costs use currency, tokens use number abbreviations, etc.
+   * FIXED: Clearer cost formatting that doesn't mix dollar and cent symbols.
    */
   const formatMetricValue = (metric: TopUserMetric, value: number): string => {
     switch (metric) {
       case 'total_cost':
         if (value >= 1) {
-          return `$${value.toFixed(2)}`;
-        } else {
+          return `${value.toFixed(2)}`;
+        } else if (value >= 0.01) {
+          // Show just cents for small amounts (no dollar sign)
           return `${(value * 100).toFixed(1)}¢`;
+        } else {
+          // For very small amounts, show as dollars with more precision
+          return `${value.toFixed(4)}`;
         }
       case 'total_tokens':
         if (value >= 1000000) {

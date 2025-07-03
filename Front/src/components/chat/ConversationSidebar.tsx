@@ -439,7 +439,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           )}
           
           {/* Metadata */}
-          <div className="flex items-center space-x-3 mt-2 text-xs text-blue-300">
+          <div className="flex items-center space-x-3 mt-2 text-[11px] text-blue-300">
             <div className="flex items-center">
               <MessageSquare className="w-3 h-3 mr-1" />
               {conversation.message_count} messages

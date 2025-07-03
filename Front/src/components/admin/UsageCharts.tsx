@@ -102,12 +102,27 @@ const UsageCharts: React.FC<UsageChartsProps> = ({
    * 
    * Learning: Financial data needs special handling for clarity.
    * We create separate views for cost analysis and budget tracking.
+   * FIXED: Show chart even when all costs are 0 to prevent disappearing.
    */
   const costBreakdownData = useMemo(() => {
     if (!summary?.providers) return [];
     
     const totalCost = summary.overview.total_cost_usd;
+    const hasAnyCost = summary.providers.some(provider => provider.cost.total_usd > 0);
     
+    // If no provider has cost, show all providers with equal distribution for visualization
+    if (!hasAnyCost && summary.providers.length > 0) {
+      return summary.providers.map((provider, index) => ({
+        name: provider.provider,
+        displayName: provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1),
+        cost: 0,
+        percentage: (100 / summary.providers.length).toFixed(1),
+        color: CHART_COLORS[index % CHART_COLORS.length],
+        isZeroCost: true
+      }));
+    }
+    
+    // Normal case: filter providers with actual cost
     return summary.providers
       .filter(provider => provider.cost.total_usd > 0)
       .map((provider, index) => ({
@@ -115,7 +130,8 @@ const UsageCharts: React.FC<UsageChartsProps> = ({
         displayName: provider.provider.charAt(0).toUpperCase() + provider.provider.slice(1),
         cost: provider.cost.total_usd,
         percentage: (provider.cost.total_usd / totalCost * 100).toFixed(1),
-        color: CHART_COLORS[index % CHART_COLORS.length]
+        color: CHART_COLORS[index % CHART_COLORS.length],
+        isZeroCost: false
       }))
       .sort((a, b) => b.cost - a.cost);
   }, [summary?.providers, summary?.overview.total_cost_usd]);
@@ -251,6 +267,11 @@ const UsageCharts: React.FC<UsageChartsProps> = ({
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Cost Distribution by Provider
+            {costBreakdownData.length > 0 && costBreakdownData[0]?.isZeroCost && (
+              <span className="ml-2 text-sm text-gray-500 font-normal">
+                (No costs in selected period)
+              </span>
+            )}
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -262,18 +283,39 @@ const UsageCharts: React.FC<UsageChartsProps> = ({
                 label={renderPieLabel}
                 outerRadius={80}
                 fill="#8884d8"
-                dataKey="cost"
+                dataKey={costBreakdownData.length > 0 && costBreakdownData[0]?.isZeroCost ? "percentage" : "cost"}
               >
                 {costBreakdownData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [`$${value.toFixed(4)}`, 'Cost']}
+                formatter={(value: any, name: string) => {
+                  if (costBreakdownData.length > 0 && costBreakdownData[0]?.isZeroCost) {
+                    return [`${value}%`, 'Distribution'];
+                  }
+                  return [`${Number(value).toFixed(4)}`, 'Cost'];
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
           <div className="mt-4 space-y-2">
+            {costBreakdownData.length === 0 ? (
+              <div className="text-center text-gray-500 text-sm py-4">
+                No provider data available
+              </div>
+            ) : costBreakdownData[0]?.isZeroCost ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">i</span>
+                  </div>
+                  <span className="text-blue-800 text-sm font-medium">
+                    No costs recorded in the selected period. Chart shows provider availability.
+                  </span>
+                </div>
+              </div>
+            ) : null}
             {costBreakdownData.map((provider, index) => (
               <div key={provider.name} className="flex items-center justify-between text-sm">
                 <div className="flex items-center space-x-2">
@@ -284,7 +326,9 @@ const UsageCharts: React.FC<UsageChartsProps> = ({
                   <span className="text-gray-700">{provider.displayName}</span>
                 </div>
                 <div className="text-right">
-                  <span className="font-medium">${provider.cost.toFixed(4)}</span>
+                  <span className="font-medium">
+                    {provider.isZeroCost ? 'Available' : `${provider.cost.toFixed(4)}`}
+                  </span>
                   <span className="text-gray-500 ml-2">({provider.percentage}%)</span>
                 </div>
               </div>

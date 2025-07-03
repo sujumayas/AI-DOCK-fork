@@ -23,6 +23,7 @@ import managerService from '../services/managerService';
 import { DepartmentDashboardData } from '../types/manager';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
+import { UnifiedTraversalButtons } from '../components/ui/UnifiedTraversalButtons';
 
 interface ManagerDashboardProps {
   className?: string;
@@ -213,7 +214,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ className = '' }) =
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="text-right">
+              {/* Integrated Navigation Buttons */}
+              <div className="ml-2 md:ml-4">
+                <UnifiedTraversalButtons 
+                  variant="inline" 
+                  size="md"
+                />
+              </div>
+              
+              <div className="text-right border-l border-white/20 pl-4">
                 <p className="text-white font-medium">
                   {currentUser && !isLoadingUser ? (
                     currentUser.full_name || currentUser.username
@@ -225,25 +234,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ className = '' }) =
                   {currentUser?.role?.name || 'Manager'}
                 </p>
               </div>
-              
-              {/* Back to Dashboard Button */}
-              <button
-                onClick={handleBackToDashboard}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-700 bg-white/90 rounded-lg hover:bg-white transition-all duration-200 shadow-lg"
-              >
-                <Home className="h-4 w-4" />
-                <span>Dashboard</span>
-              </button>
-              
-              {/* Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-white/20 rounded-lg hover:bg-white/30 transition-all duration-200 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-              </button>
             </div>
           </div>
         </div>

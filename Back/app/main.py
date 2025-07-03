@@ -193,6 +193,15 @@ app.include_router(
     tags=["Admin Usage Analytics"]
 )
 
+# Include admin pricing update endpoints
+# This adds all /admin/pricing/* endpoints to our application
+from .api.admin.pricing_update import router as admin_pricing_router
+app.include_router(
+    admin_pricing_router,
+    prefix="/admin",
+    tags=["Admin Pricing"]
+)
+
 # Include user usage analytics endpoints
 # This adds all /usage/* endpoints to our application
 from .api.usage_analytics import router as user_usage_router
@@ -320,6 +329,13 @@ def read_root():
                     "recent_logs": "/admin/usage/logs/recent",
                     "top_users": "/admin/usage/top-users",
                     "system_health": "/admin/usage/health"
+                },
+                "pricing_management": {
+                    "refresh_config": "/admin/pricing/refresh/{config_id}",
+                    "refresh_all": "/admin/pricing/refresh-all",
+                    "preview_update": "/admin/pricing/preview/{config_id}",
+                    "cache_stats": "/admin/pricing/cache-stats",
+                    "clear_cache": "/admin/pricing/clear-cache"
                 }
             },
             "chat": {

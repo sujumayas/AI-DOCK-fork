@@ -78,27 +78,39 @@ export interface PerformanceStats {
  */
 export interface UserUsageStats {
   user_id: number;
-  user_info: UserInfo;
-  period: TimePeriod;
-  requests: RequestStats;
-  tokens: DetailedTokenStats;
-  cost: CostStats;
-  performance: PerformanceStats;
-}
-
-export interface UserInfo {
-  id: number;
-  email: string;
-  username: string;
-  full_name: string;
-  department: string | null;
-  role: string;
-}
-
-export interface DetailedTokenStats {
-  total: number;
-  input: number;
-  output: number;
+  user_info: {
+    id: number;
+    email: string;
+    username: string;
+    full_name: string;
+    department: string | null;
+    role: string;
+  };
+  period: {
+    start_date: string;
+    end_date: string;
+  };
+  requests: {
+    total: number;
+    successful: number;
+    failed: number;
+    success_rate: number;
+  };
+  tokens: {
+    total: number;
+    input: number;
+    output: number;
+  };
+  cost: {
+    total_usd: number;
+    average_per_request: number;
+  };
+  performance: {
+    average_response_time_ms: number;
+    max_response_time_ms: number;
+  };
+  favorite_provider?: string | null;
+  last_activity?: string | null;
 }
 
 // =============================================================================

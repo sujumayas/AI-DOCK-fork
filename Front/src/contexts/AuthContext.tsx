@@ -9,6 +9,8 @@ interface User {
   last_name?: string;
   role?: string;
   department?: string;
+  is_admin?: boolean;
+  is_active?: boolean;
 }
 
 // Auth context interface - defines what the context provides

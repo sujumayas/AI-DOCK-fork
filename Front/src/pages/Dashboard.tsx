@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Shield, Bot, MessageSquare, Settings, LogOut, User, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { authService } from '../services/authService'
+import { UnifiedTraversalButtons } from '../components/ui/UnifiedTraversalButtons'
 
 // 🏠 Professional Dashboard - Intercorp Retail & InDigital XP Branded
 export const Dashboard: React.FC = () => {
@@ -72,38 +73,12 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-white font-medium">
-                  {currentUser && !isLoadingUser ? (
-                    currentUser.full_name || currentUser.username
-                  ) : (
-                    'Loading...'
-                  )}
-                </p>
-                <p className="text-blue-100 text-sm">
-                  {currentUser?.role?.name || 'User'}
-                </p>
-              </div>
-              
-              {/* 🛡️ Admin Panel Button - Only show for admin users */}
-              {currentUser?.is_admin && (
-                <button
-                  onClick={handleAdminPanel}
-                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-all duration-300 backdrop-blur-lg border border-purple-300/20 hover:scale-105 transform"
-                >
-                  <Settings className="h-4 w-4" />
-                  <span>Admin Panel</span>
-                </button>
-              )}
-              
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-white/20 rounded-lg hover:bg-white/30 transition-all duration-200 backdrop-blur-sm"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </button>
+            {/* Integrated Navigation Buttons */}
+            <div className="ml-2 md:ml-4">
+              <UnifiedTraversalButtons 
+                variant="inline" 
+                size="md"
+              />
             </div>
           </div>
         </div>

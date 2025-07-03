@@ -13,6 +13,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { RecentLogsResponse, UsageLogEntry, LogFilters } from '../../types/usage';
 import { formatConversationTimestamp } from '../../utils/chatHelpers';
+import { formatCurrency } from '../../utils/formatUtils';
 
 /**
  * Recent Activity Component
@@ -198,11 +199,19 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
    * 
    * Learning: Micro-costs need special formatting to be meaningful.
    * We show cents for very small amounts and dollars for larger ones.
+   * FIXED: Clearer cost formatting that avoids mixing dollar and cent symbols.
    */
   const formatCost = (cost: number | null): string => {
     if (cost === null || cost === 0) return 'Free';
-    if (cost < 0.01) return `${(cost * 100).toFixed(1)}¢`;
-    return `$${cost.toFixed(4)}`;
+    if (cost >= 1) {
+      return `${cost.toFixed(2)}`;
+    } else if (cost >= 0.01) {
+      // Show just cents for small amounts (clear it's currency)
+      return `${(cost * 100).toFixed(1)}¢`;
+    } else {
+      // For very small amounts, show as dollars with more precision
+      return `${cost.toFixed(4)}`;
+    }
   };
 
   /**
@@ -468,7 +477,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
                       
                       <div className="flex items-center space-x-4 text-sm text-gray-600">
                         <span>{log.usage.total_tokens.toLocaleString()} tokens</span>
-                        <span>{formatCost(log.usage.estimated_cost)}</span>
+                        <span>{formatCurrency(log.usage.estimated_cost)}</span>
                         {log.performance.response_time_ms && (
                           <span>{log.performance.response_time_ms}ms</span>
                         )}
@@ -533,7 +542,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
                             <div>Response: {log.performance.response_time_ms}ms</div>
                           )}
                           <div>Status: {log.performance.success ? 'Success' : 'Failed'}</div>
-                          <div>Cost: {formatCost(log.usage.estimated_cost)}</div>
+                          <div>Cost: {formatCurrency(log.usage.estimated_cost)}</div>
                         </div>
                       </div>
 

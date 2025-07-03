@@ -4,6 +4,7 @@ import { ArrowLeft, User, Mail, Lock, Shield, BarChart3, Save, Eye, EyeOff } fro
 import { useAuth } from '../contexts/AuthContext'
 import { authService } from '../services/authService'
 import { usageAnalyticsService } from '../services/usageAnalyticsService'
+import { UnifiedTraversalButtons } from '../components/ui/UnifiedTraversalButtons'
 import { UserUsageStats } from '../types/usage'
 
 // 👤 User Settings Page - Personal Profile Management
@@ -178,24 +179,15 @@ export const UserSettings: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBackToDashboard}
-                className="flex items-center space-x-2 px-4 py-2 text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300 backdrop-blur-lg hover:scale-105 transform"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back to Dashboard</span>
-              </button>
-              <div className="h-6 w-px bg-white/30"></div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">My Settings</h1>
             </div>
             
-            <div className="text-right">
-              <p className="text-white font-medium">
-                {currentUser?.full_name || currentUser?.username}
-              </p>
-              <p className="text-blue-100 text-sm">
-                {currentUser?.role?.name || 'User'}
-              </p>
+            {/* Integrated Navigation Buttons */}
+            <div className="ml-2 md:ml-4">
+              <UnifiedTraversalButtons 
+                variant="inline" 
+                size="md"
+              />
             </div>
           </div>
         </div>

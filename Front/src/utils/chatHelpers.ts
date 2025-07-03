@@ -162,7 +162,7 @@ export function getChatPlaceholderText(
   }
   
   if (currentModelInfo) {
-    return `Chatting with ${currentModelInfo.display_name} - streaming enabled...`;
+    return `Chatting with *${currentModelInfo.display_name}*`;
   }
   
   return "Type your message here...";

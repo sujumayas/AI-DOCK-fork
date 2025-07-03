@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import { authService } from '../services/authService';
+import { UnifiedTraversalButtons } from '../components/ui/UnifiedTraversalButtons';
 
 // Component imports
 import { UserManagement } from '../components/admin/UserManagement';
@@ -266,21 +267,19 @@ const AdminSettings: React.FC = () => {
             )}
           </div>
 
-          {/* Right side - dashboard link and logout */}
-          <div className="flex items-center space-x-6">
-            {/* Dashboard navigation button */}
-            <button
-              onClick={handleBackToDashboard}
-              title="Back to Dashboard"
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300 backdrop-blur-lg hover:scale-105 transform"
-            >
-              <Home className="w-4 h-4" />
-              <span>Dashboard</span>
-            </button>
+          {/* Right side - navigation buttons and logout */}
+          <div className="flex items-center space-x-4">
+            {/* Integrated Navigation Buttons */}
+            <div className="ml-2 md:ml-4">
+              <UnifiedTraversalButtons 
+                variant="inline" 
+                size="md"
+              />
+            </div>
             
             <button
               onClick={handleLogout}
-              className="text-blue-200 hover:text-white font-medium transition-colors"
+              className="text-blue-200 hover:text-white font-medium transition-colors ml-4 border-l border-white/20 pl-4"
             >
               Logout
             </button>
@@ -465,6 +464,8 @@ const AdminSettings: React.FC = () => {
   // Main admin interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950">
+
+      
       {renderHeader()}
       {renderTabs()}
       {renderTabContent()}

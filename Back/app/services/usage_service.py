@@ -117,11 +117,32 @@ class UsageService:
                 model = response_data.get("model", "unknown")
                 provider = response_data.get("provider", "unknown")
                 token_usage = response_data.get("token_usage", {})
-                cost = response_data.get("cost")
+                actual_cost = response_data.get("cost")  # LiteLLM calculated cost
                 error_type = response_data.get("error_type")
                 error_message = response_data.get("error_message")
                 http_status_code = response_data.get("http_status_code")
                 raw_metadata = response_data.get("raw_metadata", {})
+                
+                # Calculate estimated cost using config pricing for comparison
+                estimated_cost = None
+                if llm_config and token_usage.get("total_tokens", 0) > 0:
+                    try:
+                        input_tokens = token_usage.get("input_tokens", 0)
+                        output_tokens = token_usage.get("output_tokens", 0)
+                        
+                        config_input_cost = float(llm_config.cost_per_1k_input_tokens or 0)
+                        config_output_cost = float(llm_config.cost_per_1k_output_tokens or 0)
+                        config_request_cost = float(llm_config.cost_per_request or 0)
+                        
+                        if config_input_cost > 0 or config_output_cost > 0:
+                            estimated_cost = (
+                                (input_tokens / 1000 * config_input_cost) +
+                                (output_tokens / 1000 * config_output_cost) +
+                                config_request_cost
+                            )
+                    except Exception as cost_calc_error:
+                        self.logger.warning(f"Failed to calculate estimated cost: {str(cost_calc_error)}")
+                        estimated_cost = None
                 
                 # Parse performance data safely
                 request_started_at = None
@@ -168,9 +189,9 @@ class UsageService:
                     output_tokens=token_usage.get("output_tokens", 0),
                     total_tokens=token_usage.get("total_tokens", 0),
                     
-                    # Cost tracking
-                    estimated_cost=cost,
-                    actual_cost=None,
+                    # Cost tracking - FIXED: Store LiteLLM calculated cost as actual_cost
+                    estimated_cost=estimated_cost,  # Config-based estimate for comparison
+                    actual_cost=actual_cost,         # LiteLLM calculated cost is the actual cost
                     cost_currency="USD",
                     
                     # Performance metrics
@@ -210,12 +231,13 @@ class UsageService:
                 main_log_created = True
                 main_log = usage_log
                 
-                cost_display = f"${cost:.4f}" if cost is not None else "$0.0000"
+                actual_cost_display = f"${actual_cost:.4f}" if actual_cost is not None else "$0.0000"
+                estimated_cost_display = f"${estimated_cost:.4f}" if estimated_cost is not None else "None"
                 self.logger.info(
-                    f"Usage logged successfully: user={user_email}, provider={provider}, "
+                    f"✅ Usage logged successfully: user={user_email}, provider={provider}, "
                     f"model={model}, tokens={usage_log.total_tokens}, "
-                    f"cost={cost_display}, success={success}, "
-                    f"request_id={request_id}, log_id={usage_log.id}"
+                    f"actual_cost={actual_cost_display}, estimated_cost={estimated_cost_display}, "
+                    f"success={success}, request_id={request_id}, log_id={usage_log.id}"
                 )
                 
                 return usage_log
@@ -715,11 +737,32 @@ class UsageService:
                     model = response_data.get("model", "unknown")
                     provider = response_data.get("provider", "unknown")
                     token_usage = response_data.get("token_usage", {})
-                    cost = response_data.get("cost")
+                    actual_cost = response_data.get("cost")  # LiteLLM calculated cost
                     error_type = response_data.get("error_type")
                     error_message = response_data.get("error_message")
                     http_status_code = response_data.get("http_status_code")
                     raw_metadata = response_data.get("raw_metadata", {})
+                    
+                    # Calculate estimated cost using config pricing for comparison
+                    estimated_cost = None
+                    if llm_config and token_usage.get("total_tokens", 0) > 0:
+                        try:
+                            input_tokens = token_usage.get("input_tokens", 0)
+                            output_tokens = token_usage.get("output_tokens", 0)
+                            
+                            config_input_cost = float(llm_config.cost_per_1k_input_tokens or 0)
+                            config_output_cost = float(llm_config.cost_per_1k_output_tokens or 0)
+                            config_request_cost = float(llm_config.cost_per_request or 0)
+                            
+                            if config_input_cost > 0 or config_output_cost > 0:
+                                estimated_cost = (
+                                    (input_tokens / 1000 * config_input_cost) +
+                                    (output_tokens / 1000 * config_output_cost) +
+                                    config_request_cost
+                                )
+                        except Exception as cost_calc_error:
+                            self.logger.warning(f"[ISOLATED LOG] Failed to calculate estimated cost: {str(cost_calc_error)}")
+                            estimated_cost = None
                     
                     # Parse performance data safely
                     request_started_at = None
@@ -763,8 +806,8 @@ class UsageService:
                         input_tokens=token_usage.get("input_tokens", 0),
                         output_tokens=token_usage.get("output_tokens", 0),
                         total_tokens=token_usage.get("total_tokens", 0),
-                        estimated_cost=cost,
-                        actual_cost=None,
+                        estimated_cost=estimated_cost,  # Config-based estimate for comparison
+                        actual_cost=actual_cost,         # LiteLLM calculated cost is the actual cost
                         cost_currency="USD",
                         response_time_ms=response_time_ms,
                         request_started_at=request_started_at,
@@ -786,10 +829,12 @@ class UsageService:
                     isolated_session.add(usage_log)
                     await isolated_session.commit()
                     
-                    cost_display = f"${cost:.4f}" if cost is not None else "$0.0000"
+                    actual_cost_display = f"${actual_cost:.4f}" if actual_cost is not None else "$0.0000"
+                    estimated_cost_display = f"${estimated_cost:.4f}" if estimated_cost is not None else "None"
                     self.logger.info(
                         f"✅ [ISOLATED LOG] Usage logged successfully: user={user_email}, provider={provider}, "
-                        f"model={model}, tokens={usage_log.total_tokens}, cost={cost_display}, "
+                        f"model={model}, tokens={usage_log.total_tokens}, "
+                        f"actual_cost={actual_cost_display}, estimated_cost={estimated_cost_display}, "
                         f"success={success}, request_id={request_id}, log_id={usage_log.id}"
                     )
                     
@@ -848,11 +893,32 @@ class UsageService:
             model = response_data.get("model", "unknown")
             provider = response_data.get("provider", "unknown")
             token_usage = response_data.get("token_usage", {})
-            cost = response_data.get("cost")
+            actual_cost = response_data.get("cost")  # LiteLLM calculated cost
             error_type = response_data.get("error_type")
             error_message = response_data.get("error_message")
             http_status_code = response_data.get("http_status_code")
             raw_metadata = response_data.get("raw_metadata", {})
+            
+            # Calculate estimated cost using config pricing for comparison
+            estimated_cost = None
+            if llm_config and token_usage.get("total_tokens", 0) > 0:
+                try:
+                    input_tokens = token_usage.get("input_tokens", 0)
+                    output_tokens = token_usage.get("output_tokens", 0)
+                    
+                    config_input_cost = float(llm_config.cost_per_1k_input_tokens or 0)
+                    config_output_cost = float(llm_config.cost_per_1k_output_tokens or 0)
+                    config_request_cost = float(llm_config.cost_per_request or 0)
+                    
+                    if config_input_cost > 0 or config_output_cost > 0:
+                        estimated_cost = (
+                            (input_tokens / 1000 * config_input_cost) +
+                            (output_tokens / 1000 * config_output_cost) +
+                            config_request_cost
+                        )
+                except Exception as cost_calc_error:
+                    self.logger.warning(f"[SYNC LOG] Failed to calculate estimated cost: {str(cost_calc_error)}")
+                    estimated_cost = None
             
             # 🔧 FIX: Parse datetime strings to Python datetime objects
             request_started_at = None
@@ -896,8 +962,8 @@ class UsageService:
                 input_tokens=token_usage.get("input_tokens", 0),
                 output_tokens=token_usage.get("output_tokens", 0),
                 total_tokens=token_usage.get("total_tokens", 0),
-                estimated_cost=cost,
-                actual_cost=None,
+                estimated_cost=estimated_cost,  # Config-based estimate for comparison
+                actual_cost=actual_cost,         # LiteLLM calculated cost is the actual cost
                 cost_currency="USD",
                 response_time_ms=response_time_ms,
                 request_started_at=request_started_at,
@@ -916,7 +982,14 @@ class UsageService:
             )
             db_session.add(usage_log)
             db_session.commit()
-            self.logger.info(f"[SYNC LOG] Usage logged for user={user_email}, provider={provider}, model={model}, tokens={usage_log.total_tokens}, cost={cost}, request_id={request_id}")
+            actual_cost_display = f"${actual_cost:.4f}" if actual_cost is not None else "$0.0000"
+            estimated_cost_display = f"${estimated_cost:.4f}" if estimated_cost is not None else "None"
+            self.logger.info(
+                f"[SYNC LOG] Usage logged for user={user_email}, provider={provider}, "
+                f"model={model}, tokens={usage_log.total_tokens}, "
+                f"actual_cost={actual_cost_display}, estimated_cost={estimated_cost_display}, "
+                f"request_id={request_id}"
+            )
         except Exception as e:
             db_session.rollback()
             self.logger.error(f"[SYNC LOG] Failed to log usage for user {user_id}: {str(e)}")

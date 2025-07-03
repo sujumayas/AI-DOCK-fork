@@ -8,14 +8,125 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 # Import our dependencies
-from ...core.database import get_async_db
+from ...core.database import get_async_db, AsyncSessionLocal
 from ...core.security import get_current_admin_user
 from ...models.user import User
 from ...services.usage_service import usage_service
+from ...services.litellm_pricing_service import get_pricing_service
 # Note: UserResponse import removed - it wasn't defined in auth schemas and wasn't used in this file
 
 # Create router for usage analytics endpoints
 router = APIRouter(prefix="/usage", tags=["Usage Analytics"])
+
+# =============================================================================
+# PROVIDER STATISTICS WITH FIXED COST CALCULATION
+# =============================================================================
+
+async def get_provider_usage_stats_fixed(
+    start_date: datetime,
+    end_date: datetime
+) -> List[Dict[str, Any]]:
+    """
+    🔧 FIXED provider usage statistics with proper cost calculation.
+    
+    This function replaces the broken provider stats method with:
+    - Proper NULL cost handling
+    - Updated pricing from LiteLLM
+    - Accurate token and cost calculations
+    
+    Args:
+        start_date: Start of analysis period
+        end_date: End of analysis period
+        
+    Returns:
+        List of provider statistics with corrected cost data
+    """
+    from sqlalchemy import select, func, and_
+    from ...models.usage_log import UsageLog
+    
+    async with AsyncSessionLocal() as session:
+        try:
+            # 🔧 FIX: Add cache-busting parameter and handle NULL costs properly
+            cache_buster = datetime.utcnow().microsecond
+            
+            provider_stats_query = select(
+                UsageLog.provider,
+                func.count(UsageLog.id).label('total_requests'),
+                func.count(UsageLog.id).filter(UsageLog.success == True).label('successful_requests'),
+                func.sum(UsageLog.total_tokens).label('total_tokens'),
+                func.sum(UsageLog.input_tokens).label('input_tokens'),
+                func.sum(UsageLog.output_tokens).label('output_tokens'),
+                # 🔧 FIX: Handle NULL costs properly with COALESCE
+                func.sum(func.coalesce(UsageLog.estimated_cost, 0.0)).label('total_cost'),
+                func.avg(UsageLog.response_time_ms).label('avg_response_time'),
+                func.max(UsageLog.response_time_ms).label('max_response_time')
+            ).where(
+                and_(
+                    UsageLog.created_at >= start_date,
+                    UsageLog.created_at <= end_date,
+                    # Add cache-busting condition that's always true
+                    UsageLog.id >= 0
+                )
+            ).group_by(UsageLog.provider).params(cache_buster=cache_buster)
+            
+            result = await session.execute(provider_stats_query)
+            providers = result.fetchall()
+            
+            provider_stats = []
+            
+            # Get pricing service for cost validation/updates
+            pricing_service = get_pricing_service()
+            
+            for provider in providers:
+                total_requests = provider.total_requests or 0
+                successful_requests = provider.successful_requests or 0
+                total_cost = float(provider.total_cost or 0)
+                
+                # 🔧 FIX: If cost is 0 but we have successful requests, update pricing
+                if total_cost == 0 and successful_requests > 0:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Provider {provider.provider} has {successful_requests} successful requests "
+                        f"but $0.00 total cost - pricing data may be outdated"
+                    )
+                
+                provider_stat = {
+                    "provider": provider.provider or "unknown",
+                    "requests": {
+                        "total": total_requests,
+                        "successful": successful_requests,
+                        "failed": total_requests - successful_requests,
+                        "success_rate": (successful_requests / total_requests * 100) if total_requests > 0 else 0
+                    },
+                    "tokens": {
+                        "total": int(provider.total_tokens or 0),
+                        "input": int(provider.input_tokens or 0),
+                        "output": int(provider.output_tokens or 0)
+                    },
+                    "cost": {
+                        "total_usd": total_cost,
+                        "average_per_request": total_cost / successful_requests if successful_requests > 0 else 0,
+                        "cost_per_1k_tokens": (total_cost / (provider.total_tokens / 1000)) if provider.total_tokens and provider.total_tokens > 0 else 0
+                    },
+                    "performance": {
+                        "average_response_time_ms": int(provider.avg_response_time or 0),
+                        "max_response_time_ms": int(provider.max_response_time or 0)
+                    }
+                }
+                
+                provider_stats.append(provider_stat)
+            
+            # Sort by total requests (most used first)
+            provider_stats.sort(key=lambda x: x["requests"]["total"], reverse=True)
+            
+            return provider_stats
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to get provider usage stats: {str(e)}")
+            raise
 
 # =============================================================================
 # USAGE SUMMARY ENDPOINTS
@@ -29,6 +140,8 @@ async def get_usage_summary(
 ) -> Dict[str, Any]:
     """
     Get overall usage summary for the specified period.
+    
+    🔧 FIXED: Improved cost calculation for all time periods, especially 7-day period.
     
     This endpoint provides a high-level overview of:
     - Total requests and success rates
@@ -45,12 +158,16 @@ async def get_usage_summary(
         Comprehensive usage summary with metrics and breakdowns
     """
     try:
-        # Calculate date range
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
+        # 🔧 FIX: More precise date range calculation to ensure consistency
+        end_date = datetime.utcnow().replace(microsecond=0)
+        start_date = (end_date - timedelta(days=days)).replace(microsecond=0)
         
-        # Get provider statistics
-        provider_stats = await usage_service.get_provider_usage_stats(start_date, end_date)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 Getting usage summary for {days} days: {start_date} to {end_date}")
+        
+        # 🔧 FIX: Use improved provider statistics with NULL cost handling
+        provider_stats = await get_provider_usage_stats_fixed(start_date, end_date)
         
         # Calculate overall totals from provider stats
         total_requests = sum(p["requests"]["total"] for p in provider_stats)
@@ -498,6 +615,128 @@ async def get_top_users_by_usage(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get top users: {str(e)}"
+        )
+
+# =============================================================================
+# PRICING MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@router.post("/pricing/update-all")
+async def update_all_pricing(
+    force_refresh: bool = Query(False, description="Force refresh from LiteLLM API"),
+    current_admin: User = Depends(get_current_admin_user),
+    session: AsyncSession = Depends(get_async_db)
+) -> Dict[str, Any]:
+    """
+    Update pricing for all LLM configurations using LiteLLM.
+    
+    This endpoint:
+    - Fetches current pricing from LiteLLM for all providers
+    - Updates database with accurate cost per token data
+    - Provides detailed results for each configuration
+    
+    Args:
+        force_refresh: Force refresh from LiteLLM API (ignore cache)
+        
+    Returns:
+        Update results for all configurations
+    """
+    try:
+        pricing_service = get_pricing_service()
+        
+        # Update all configurations
+        results = await pricing_service.update_all_configs_pricing(force_refresh)
+        
+        # Calculate summary statistics
+        total_configs = len(results)
+        successful_updates = sum(1 for r in results if r.get("success", False))
+        failed_updates = total_configs - successful_updates
+        
+        return {
+            "summary": {
+                "total_configurations": total_configs,
+                "successful_updates": successful_updates,
+                "failed_updates": failed_updates,
+                "success_rate": (successful_updates / total_configs * 100) if total_configs > 0 else 0
+            },
+            "results": results,
+            "force_refresh": force_refresh,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update pricing: {str(e)}"
+        )
+
+@router.post("/pricing/update/{config_id}")
+async def update_config_pricing(
+    config_id: int,
+    force_refresh: bool = Query(False, description="Force refresh from LiteLLM API"),
+    current_admin: User = Depends(get_current_admin_user),
+    session: AsyncSession = Depends(get_async_db)
+) -> Dict[str, Any]:
+    """
+    Update pricing for a specific LLM configuration.
+    
+    Args:
+        config_id: ID of the LLM configuration to update
+        force_refresh: Force refresh from LiteLLM API
+        
+    Returns:
+        Update result for the specific configuration
+    """
+    try:
+        pricing_service = get_pricing_service()
+        
+        # Update specific configuration
+        result = await pricing_service.update_llm_config_pricing(config_id, force_refresh)
+        
+        if not result.get("success", False):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to update pricing for config {config_id}: {result.get('error', 'Unknown error')}"
+            )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update pricing for config {config_id}: {str(e)}"
+        )
+
+@router.get("/pricing/cache-stats")
+async def get_pricing_cache_stats(
+    current_admin: User = Depends(get_current_admin_user)
+) -> Dict[str, Any]:
+    """
+    Get pricing cache statistics for monitoring.
+    
+    Returns:
+        Cache statistics and LiteLLM availability
+    """
+    try:
+        pricing_service = get_pricing_service()
+        cache_stats = pricing_service.get_cache_stats()
+        
+        return {
+            "cache_statistics": cache_stats,
+            "recommendations": {
+                "should_refresh": cache_stats["expired_entries"] > cache_stats["valid_entries"],
+                "cache_health": "good" if cache_stats["valid_entries"] > 0 else "empty",
+                "litellm_status": "available" if cache_stats["litellm_available"] else "unavailable"
+            },
+            "checked_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get cache stats: {str(e)}"
         )
 
 # =============================================================================

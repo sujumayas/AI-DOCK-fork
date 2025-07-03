@@ -119,6 +119,7 @@ class StreamingHandler(BaseRequestHandler):
         # Initialize streaming state
         accumulated_content = ""
         accumulated_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        actual_model = chat_request.model or config_data['default_model']  # Track actual model used
         chunk_count = 0
         streaming_start_time = datetime.utcnow()
         
@@ -134,6 +135,10 @@ class StreamingHandler(BaseRequestHandler):
                 if "usage" in chunk_data:
                     accumulated_usage.update(chunk_data["usage"])
                 
+                # Track the actual model from streaming chunks
+                if "model" in chunk_data and chunk_data["model"]:
+                    actual_model = chunk_data["model"]
+                
                 # Handle final chunk
                 if chunk_data.get("is_final"):
                     
@@ -142,9 +147,9 @@ class StreamingHandler(BaseRequestHandler):
                         (datetime.utcnow() - streaming_start_time).total_seconds() * 1000
                     )
                     
-                    # Create final response for logging
-                    final_response = self._create_final_response(
-                        accumulated_content, accumulated_usage, config_data,
+                    # Create final response for logging (FIXED: Added await)
+                    final_response = await self._create_final_response(
+                        accumulated_content, accumulated_usage, actual_model, config_data,
                         provider.provider_name, streaming_duration_ms
                     )
                     
@@ -280,10 +285,11 @@ class StreamingHandler(BaseRequestHandler):
                 if not is_final:
                     await asyncio.sleep(0.05)
     
-    def _create_final_response(
+    async def _create_final_response(
         self,
         accumulated_content: str,
         accumulated_usage: Dict[str, int],
+        actual_model: str,
         config_data: Dict[str, Any],
         provider_name: str,
         streaming_duration_ms: int
@@ -294,6 +300,7 @@ class StreamingHandler(BaseRequestHandler):
         Args:
             accumulated_content: Complete content from streaming
             accumulated_usage: Final usage statistics
+            actual_model: The actual model used (from streaming chunks or request)
             config_data: Configuration data
             provider_name: Name of the provider
             streaming_duration_ms: Total streaming duration
@@ -301,15 +308,15 @@ class StreamingHandler(BaseRequestHandler):
         Returns:
             ChatResponse object for logging
         """
-        # Calculate final cost
-        final_cost = self.cost_calculator.calculate_streaming_cost(accumulated_usage, config_data)
+        # Calculate final cost using LiteLLM (FIXED: Added await)
+        final_cost = await self.cost_calculator.calculate_streaming_cost(accumulated_usage, config_data, actual_model)
         
         return ChatResponse(
             content=accumulated_content,
-            model=config_data['default_model'],
+            model=actual_model,  # FIXED: Use actual model instead of config default
             provider=provider_name,
             usage=accumulated_usage,
-            cost=final_cost,
+            cost=final_cost,  # This is the actual cost from LiteLLM
             response_time_ms=streaming_duration_ms
         )
     

@@ -496,6 +496,7 @@ export const ChatContainer: React.FC = () => {
   
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-blue-950 overflow-hidden">
+
       
       {/* 📁 Unified Sidebar Toggle */}
       <button
@@ -504,7 +505,7 @@ export const ChatContainer: React.FC = () => {
         }}
         disabled={isStreaming}
         className={`fixed top-1/2 translate-y-12 z-50 transition-all duration-300 ${
-          showUnifiedSidebar ? 'left-80' : 'left-2'
+          showUnifiedSidebar ? 'left-[328px]' : 'left-2'
         } bg-white/5 hover:bg-white/10 backdrop-blur-lg border border-white/10 rounded-full p-3 shadow-2xl hover:shadow-3xl group hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
         title={`${showUnifiedSidebar ? 'Hide' : 'Show'} sidebar`}
         aria-label={`${showUnifiedSidebar ? 'Hide' : 'Show'} sidebar`}
@@ -569,11 +570,6 @@ export const ChatContainer: React.FC = () => {
           onModelChange={handleModelChange}
           selectedAssistant={selectedAssistant}
           selectedProject={null} // 🔧 FIXED: Remove project display from active chat
-          onOpenProjectManager={() => {
-            // Open unified sidebar in projects mode
-            setSidebarMode('projects');
-            setShowUnifiedSidebar(true);
-          }}
           messages={messages}
           currentConversationId={currentConversationId}
           conversationTitle={conversationTitle}
@@ -655,7 +651,7 @@ export const ChatContainer: React.FC = () => {
                   : selectedAssistant && currentModelInfo
                   ? `Chatting with ${selectedAssistant.name} via ${currentModelInfo.display_name}...`
                   : currentModelInfo
-                  ? `Chatting with ${currentModelInfo.display_name} - streaming enabled...`
+                  ? `Chatting with ${currentModelInfo.display_name}`
                   : "Type your message here..."
               }
             />
@@ -676,7 +672,7 @@ export const ChatContainer: React.FC = () => {
               </p>
               <button
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white rounded-md transition-all duration-200 shadow-lg hover:shadow-xl"
+                className="px- py-2 bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white rounded-md transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 Retry
               </button>

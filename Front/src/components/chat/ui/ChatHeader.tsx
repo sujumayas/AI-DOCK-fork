@@ -21,6 +21,7 @@ import { ProjectSummary } from '../../../types/project';
 import { getShortProviderName } from '../../../utils/llmUtils';
 import { ModelSelector } from './ModelSelector';
 import { StatusIndicators } from './StatusIndicators';
+import { UnifiedTraversalButtons } from '../../ui/UnifiedTraversalButtons';
 
 export interface ChatHeaderProps {
   // Model selection
@@ -37,7 +38,6 @@ export interface ChatHeaderProps {
   // Assistant and project state
   selectedAssistant: AssistantSummary | null;
   selectedProject: ProjectSummary | null;
-  onOpenProjectManager?: () => void;
   
   // Conversation state
   messages: any[];
@@ -69,7 +69,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onModelChange,
   selectedAssistant,
   selectedProject,
-  onOpenProjectManager,
   messages,
   currentConversationId,
   conversationTitle,
@@ -129,18 +128,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             isMobile={isMobile}
           />
           
-          {/* 📂 Projects button */}
-          {onOpenProjectManager && (
-            <button
-              onClick={onOpenProjectManager}
-              disabled={isStreaming}
-              className="px-3 md:px-4 py-2 text-sm bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 rounded-lg transition-all duration-300 flex items-center backdrop-blur-lg touch-manipulation disabled:opacity-50 hover:scale-105"
-              title="Manage Projects"
-            >
-              <Folder className="w-3 h-3 md:w-4 md:h-4 md:mr-1" />
-              <span className="hidden md:inline ml-1">Projects</span>
-            </button>
-          )}
+
 
           {/* 💾 Save Conversation button */}
           {messages.length > 0 && !currentConversationId && (
@@ -161,15 +149,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </button>
           )}
           
-          {/* 🏠 Back to Dashboard button */}
-          <button
-            onClick={handleBackToDashboard}
-            className="px-3 md:px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-300 flex items-center backdrop-blur-lg touch-manipulation hover:scale-105"
-            title="Back to Dashboard"
-          >
-            <Home className="w-3 h-3 md:w-4 md:h-4 md:mr-1" />
-            <span className="hidden md:inline ml-1">Dashboard</span>
-          </button>
+
           
           {/* 📂 Project indicator - REMOVED per requirements: folder context only in sidebar */}
           
@@ -183,15 +163,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
           )}
           
-          {/* 🆕 New conversation button */}
-          <button
-            onClick={onNewConversation}
-            className="px-2 md:px-3 py-1.5 md:py-1 text-xs md:text-sm bg-white/20 hover:bg-white/30 text-white rounded-md transition-all duration-200 backdrop-blur-sm touch-manipulation whitespace-nowrap"
-            title="Start new conversation"
-          >
-            <span className="md:hidden">New</span>
-            <span className="hidden md:inline">New Chat</span>
-          </button>
+          {/* Integrated Navigation Buttons */}
+          <div className="ml-2 md:ml-4">
+            <UnifiedTraversalButtons 
+              variant="inline" 
+              size="md"
+              onNewChat={onNewConversation}
+            />
+          </div>
         </div>
       </div>
       

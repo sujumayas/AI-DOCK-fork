@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { UsageSummary, HealthStatus } from '../../types/usage';
+import { formatCurrency, formatNumber, formatResponseTime, formatPercentage } from '../../utils/formatUtils';
 
 /**
  * Usage Dashboard Overview Component
@@ -33,54 +34,8 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
 }) => {
 
   // =============================================================================
-  // HELPER FUNCTIONS
+  // HELPER FUNCTIONS (formatting functions now imported from formatUtils)
   // =============================================================================
-
-  /**
-   * Format currency values consistently
-   * 
-   * Learning: Consistent formatting is crucial for professional dashboards.
-   * We format costs to show meaningful precision without overwhelming detail.
-   */
-  const formatCurrency = (amount: number): string => {
-    if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(1)}k`;
-    } else if (amount >= 1) {
-      return `$${amount.toFixed(2)}`;
-    } else {
-      return `$${(amount * 100).toFixed(1)}¢`;
-    }
-  };
-
-  /**
-   * Format large numbers with proper abbreviations
-   * 
-   * Learning: Large numbers are hard to read. We use K/M abbreviations
-   * to make them more digestible in a dashboard context.
-   */
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K`;
-    } else {
-      return num.toLocaleString();
-    }
-  };
-
-  /**
-   * Format response time for display
-   * 
-   * Learning: Performance metrics need context. We show response times
-   * in the most appropriate unit (ms vs seconds).
-   */
-  const formatResponseTime = (ms: number): string => {
-    if (ms >= 1000) {
-      return `${(ms / 1000).toFixed(1)}s`;
-    } else {
-      return `${Math.round(ms)}ms`;
-    }
-  };
 
   /**
    * Get status color for health indicator
@@ -193,7 +148,7 @@ const UsageDashboardOverview: React.FC<UsageDashboardOverviewProps> = ({
             </p>
           </div>
           <div className={`px-2 py-1 rounded-full text-xs font-medium ${getSuccessRateColor(summary.overview.success_rate_percent)}`}>
-            {summary.overview.success_rate_percent.toFixed(1)}% success
+            {formatPercentage(summary.overview.success_rate_percent)} success
           </div>
         </div>
       </div>
