@@ -154,6 +154,7 @@ class UserInfo(BaseModel):
     email: EmailStr = Field(..., description="User's email address")
     username: str = Field(..., description="User's username")
     full_name: str = Field(..., description="User's full name")
+    profile_picture_url: Optional[str] = Field(None, description="User's profile picture URL")
     role: Optional[RoleInfo] = Field(None, description="User's role object")
     department: Optional[DepartmentInfo] = Field(None, description="User's department object")
     is_active: bool = Field(default=True, description="Whether user account is active")
@@ -393,6 +394,11 @@ class UpdateProfileRequest(BaseModel):
         None,
         description="Updated email address"
     )
+    profile_picture_url: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Updated profile picture URL"
+    )
     # Password change fields (optional)
     current_password: Optional[str] = Field(
         None,
@@ -427,6 +433,7 @@ class UpdateProfileRequest(BaseModel):
             "example": {
                 "full_name": "John Updated Doe",
                 "email": "john.updated@company.com",
+                "profile_picture_url": "/profile-pics/avatar1.png",
                 "current_password": "CurrentPassword123",
                 "new_password": "NewSecurePassword456"
             }

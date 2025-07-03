@@ -125,11 +125,19 @@ export const UnifiedTraversalButtons: React.FC<UnifiedTraversalButtonsProps> = (
       {/* User Settings Button */}
       <button
         onClick={handleUserSettings}
-        className={`${baseButtonClass} bg-gray-600/80 hover:bg-gray-500/90 border-gray-400/30`}
+        className={`${baseButtonClass} bg-gray-600/80 hover:bg-gray-500/90 border-gray-400/30 overflow-hidden`}
         title="User Settings"
         aria-label="Go to User Settings"
       >
-        <User className={`${config.icon} group-hover:text-gray-100 transition-colors`} />
+        {user?.profile_picture_url ? (
+          <img
+            src={user.profile_picture_url}
+            alt="Profile"
+            className="w-full h-full object-cover rounded-full"
+          />
+        ) : (
+          <User className={`${config.icon} group-hover:text-gray-100 transition-colors`} />
+        )}
       </button>
     </div>
   );

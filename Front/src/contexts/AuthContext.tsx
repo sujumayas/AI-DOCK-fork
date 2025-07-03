@@ -7,6 +7,8 @@ interface User {
   email: string;
   first_name?: string;
   last_name?: string;
+  full_name?: string;
+  profile_picture_url?: string;
   role?: string;
   department?: string;
   is_admin?: boolean;
@@ -23,6 +25,7 @@ interface AuthContextType {
   // Functions
   login: () => Promise<void>;
   logout: () => void;
+  updateUser: (updatedUserData?: any) => Promise<void>;
   
   // Token utilities
   needsTokenRefresh: () => boolean;
@@ -53,6 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user: auth.user,
     login: auth.login,
     logout: auth.logout,
+    updateUser: auth.updateUser,
     needsTokenRefresh: auth.needsTokenRefresh,
     getTokenInfo: auth.getTokenInfo,
   }
