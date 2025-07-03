@@ -7,6 +7,7 @@ interface User {
   email: string;
   first_name?: string;
   last_name?: string;
+  profile_picture_url?: string;
   role?: string;
   department?: string;
 }
@@ -126,6 +127,24 @@ export const useAuth = () => {
     return authService.needsTokenRefresh()
   }, [])
 
+  // 🔄 Update user data (for profile changes)
+  const updateUser = useCallback(async (updatedUserData?: any) => {
+    console.log('🔄 Updating user data...', updatedUserData)
+    
+    try {
+      // If specific user data is provided, use it
+      if (updatedUserData) {
+        setUser(updatedUserData)
+      } else {
+        // Otherwise, fetch fresh user data from the backend
+        const userData = await authService.getCurrentUser()
+        setUser(userData)
+      }
+    } catch (error) {
+      console.error('❌ Failed to update user data:', error)
+    }
+  }, [])
+
   // ⏰ Get token expiry info
   const getTokenInfo = useCallback(() => {
     return {
@@ -145,6 +164,7 @@ export const useAuth = () => {
     // Functions
     login,            // function: call when user logs in
     logout,           // function: call when user logs out
+    updateUser,       // function: update user data after profile changes
     
     // Token utilities
     needsTokenRefresh, // function: check if token needs refresh
@@ -159,6 +179,7 @@ export const useAuth = () => {
 //   user, 
 //   login, 
 //   logout,
+//   updateUser,
 //   needsTokenRefresh,
 //   getTokenInfo 
 // } = useAuth()

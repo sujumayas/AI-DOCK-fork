@@ -10,7 +10,7 @@ import { UserUsageStats } from '../types/usage'
 // 👤 User Settings Page - Personal Profile Management
 export const UserSettings: React.FC = () => {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, updateUser } = useAuth()
   
   // 👤 User data state
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -23,6 +23,7 @@ export const UserSettings: React.FC = () => {
   const [profileForm, setProfileForm] = useState({
     full_name: '',
     email: '',
+    profile_picture_url: '',
     current_password: '',
     new_password: '',
     confirm_password: ''
@@ -45,6 +46,7 @@ export const UserSettings: React.FC = () => {
         setProfileForm({
           full_name: user.full_name || '',
           email: user.email || '',
+          profile_picture_url: user.profile_picture_url || '',
           current_password: '',
           new_password: '',
           confirm_password: ''
@@ -111,7 +113,8 @@ export const UserSettings: React.FC = () => {
       // Prepare update data
       const updateData: any = {
         full_name: profileForm.full_name,
-        email: profileForm.email
+        email: profileForm.email,
+        profile_picture_url: profileForm.profile_picture_url
       }
 
       // Only include password fields if user wants to change password
@@ -135,11 +138,16 @@ export const UserSettings: React.FC = () => {
       // Update current user data if profile fields changed
       if (result.user) {
         setCurrentUser(result.user)
+        // 🔄 IMMEDIATE UI UPDATE: Update global auth context
+        // This makes the navigation icons update instantly!
+        await updateUser(result.user)
+        
         // Update form with new data
         setProfileForm(prev => ({
           ...prev,
           full_name: result.user.full_name || '',
-          email: result.user.email || ''
+          email: result.user.email || '',
+          profile_picture_url: result.user.profile_picture_url || ''
         }))
       }
       
@@ -242,6 +250,51 @@ export const UserSettings: React.FC = () => {
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:ring-2 focus:ring-blue-400/50 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-lg"
                     placeholder="Enter your email"
                   />
+                </div>
+
+                {/* Profile Picture Selection */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                    <User className="h-5 w-5" />
+                    <span>Profile Picture</span>
+                  </h3>
+                  
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    {[
+                      '/profile-pics/avatar1.svg',
+                      '/profile-pics/avatar2.svg', 
+                      '/profile-pics/avatar3.svg',
+                      '/profile-pics/avatar4.svg',
+                      '/profile-pics/avatar5.svg',
+                      '/profile-pics/avatar6.svg'
+                    ].map((avatarUrl, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleInputChange('profile_picture_url', avatarUrl)}
+                        className={`relative w-16 h-16 rounded-full border-2 transition-all duration-200 hover:scale-110 ${
+                          profileForm.profile_picture_url === avatarUrl
+                            ? 'border-blue-400 ring-2 ring-blue-400/50'
+                            : 'border-white/20 hover:border-blue-400/50'
+                        }`}
+                      >
+                        <img
+                          src={avatarUrl}
+                          alt={`Avatar ${index + 1}`}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                        {profileForm.profile_picture_url === avatarUrl && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="text-sm text-gray-300">
+                    Select a profile picture that will appear in the navigation bar
+                  </div>
                 </div>
 
                 {/* Password Change Section */}
