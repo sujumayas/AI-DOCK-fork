@@ -110,8 +110,11 @@ async def list_conversations(
             user_id=current_user.id
         )
         
+        # Convert conversations to dictionaries for Pydantic validation
+        conversation_dicts = [conv.to_dict() for conv in conversations]
+        
         return ConversationListResponse(
-            conversations=conversations,
+            conversations=conversation_dicts,
             total_count=stats["total_conversations"],
             limit=limit,
             offset=offset,
@@ -218,7 +221,9 @@ async def search_conversations(
             limit=search_data.limit
         )
         
-        return conversations
+        # Convert conversations to dictionaries for Pydantic validation
+        conversation_dicts = [conv.to_dict() for conv in conversations]
+        return conversation_dicts
         
     except Exception as e:
         raise HTTPException(

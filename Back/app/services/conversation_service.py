@@ -83,7 +83,8 @@ class ConversationService:
         """Get conversation with all messages and project information"""
         stmt = select(Conversation).options(
             selectinload(Conversation.messages),
-            selectinload(Conversation.projects)  # Load project relationships for folder functionality
+            selectinload(Conversation.projects),  # Load project relationships for folder functionality
+            selectinload(Conversation.assistant)   # Load assistant relationship for API responses
         ).where(
             and_(
                 Conversation.id == conversation_id,
@@ -104,7 +105,8 @@ class ConversationService:
     ) -> List[Conversation]:
         """Get user's conversations with pagination and project information"""
         base_query = select(Conversation).options(
-            selectinload(Conversation.projects)  # Load project relationships for folder functionality
+            selectinload(Conversation.projects),  # Load project relationships for folder functionality
+            selectinload(Conversation.assistant)   # Load assistant relationship for API responses
         ).where(Conversation.user_id == user_id)
         
         if project_id:
@@ -351,7 +353,10 @@ class ConversationService:
         """Search conversations by title or content"""
         try:
             # Simple title search (can be enhanced with full-text search)
-            stmt = select(Conversation).where(
+            stmt = select(Conversation).options(
+                selectinload(Conversation.projects),  # Load project relationships for folder functionality
+                selectinload(Conversation.assistant)   # Load assistant relationship for API responses
+            ).where(
                 and_(
                     Conversation.user_id == user_id,
                     Conversation.title.ilike(f'%{query}%')

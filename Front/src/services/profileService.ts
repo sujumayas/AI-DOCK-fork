@@ -38,7 +38,6 @@ class ProfileService {
   async updateProfile(updateData: {
     full_name?: string;
     email?: string;
-    profile_picture_url?: string;
     current_password?: string;
     new_password?: string;
   }): Promise<any> {

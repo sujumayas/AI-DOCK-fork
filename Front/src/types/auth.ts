@@ -21,7 +21,6 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  profile_picture_url?: string;
   is_active: boolean;
   is_admin: boolean;
   created_at: string;

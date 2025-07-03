@@ -112,7 +112,7 @@ class ProjectService:
         try:
             # Get the project with all relationships loaded
             query = select(Project).options(
-                selectinload(Project.conversations),
+                selectinload(Project.conversations).selectinload(Conversation.assistant),
                 selectinload(Project.user)
             ).where(
                 and_(
@@ -170,7 +170,7 @@ class ProjectService:
         """
         try:
             query = select(Project).options(
-                selectinload(Project.conversations)
+                selectinload(Project.conversations).selectinload(Conversation.assistant)
             ).where(
                 and_(
                     Project.user_id == user_id,
@@ -648,7 +648,7 @@ class ProjectService:
         """
         try:
             base_query = select(Project).options(
-                selectinload(Project.conversations)
+                selectinload(Project.conversations).selectinload(Conversation.assistant)
             ).where(
                 and_(
                     Project.user_id == user_id,

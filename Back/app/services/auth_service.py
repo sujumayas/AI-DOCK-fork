@@ -368,7 +368,6 @@ def create_user_info(user: User) -> UserInfo:
         email=user.email,
         username=user.username,
         full_name=user.full_name or user.username,
-        profile_picture_url=user.profile_picture_url,
         role=role_info,
         department=department_info,
         is_active=user.is_active,
@@ -533,11 +532,6 @@ async def update_user_profile(user_id: int, profile_data) -> Dict[str, Any]:
             
             user.email = profile_data.email.lower()
             updates_made.append("email")
-        
-        # Update profile picture if provided
-        if profile_data.profile_picture_url is not None:
-            user.profile_picture_url = profile_data.profile_picture_url
-            updates_made.append("profile picture")
         
         # Handle password change if provided
         if profile_data.new_password is not None:

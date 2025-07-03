@@ -166,14 +166,22 @@ class Conversation(Base):
             # Handle cases where projects relationship isn't loaded or is empty
             project_info = None
         
-        # Get assistant name safely
+        # Get assistant information safely
         assistant_name = None
+        assistant_info = None
         try:
             if hasattr(self, 'assistant') and self.assistant:
                 assistant_name = self.assistant.name
+                assistant_info = {
+                    "id": self.assistant.id,
+                    "name": self.assistant.name,
+                    "description": self.assistant.description,
+                    "is_active": self.assistant.is_active
+                }
         except AttributeError:
             # Handle cases where assistant relationship isn't loaded
             assistant_name = None
+            assistant_info = None
         
         return {
             "id": self.id,
@@ -181,6 +189,7 @@ class Conversation(Base):
             "user_id": self.user_id,
             "assistant_id": self.assistant_id,  # NEW: Include assistant reference
             "assistant_name": assistant_name,  # NEW: Include assistant name for UI
+            "assistant": assistant_info,  # NEW: Include full assistant information
             "project_id": project_info["id"] if project_info else None,  # Add project_id for easy access
             "project": project_info,  # Add full project information
             "created_at": self.created_at.isoformat(),
