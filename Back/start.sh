@@ -9,4 +9,4 @@ echo "Port: $PORT"
 echo "Database: $DATABASE_URL"
 
 # Start the FastAPI application
-exec python3.11 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
