@@ -1,0 +1,15 @@
+# Development dependencies
+# These are only needed for local development
+
+# Formatting and linting
+black==23.9.1
+flake8==6.0.0
+isort==5.12.0
+
+# Testing
+pytest==7.4.2
+pytest-asyncio==0.21.1
+httpx==0.25.0  # For testing FastAPI
+
+# Development tools
+python-dotenv==1.0.0
