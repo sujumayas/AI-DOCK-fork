@@ -63,17 +63,17 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     
     # Environment (development, staging, production)
-    environment: str = "development"
+    environment: str = os.getenv("ENVIRONMENT", "development")
     
     # Debug mode - enables detailed error messages
-    debug: bool = True
+    debug: bool = os.getenv("DEBUG", "true").lower() == "true"
     
     # API server configuration
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = int(os.getenv("PORT", 8000))
     
     # Frontend URL for CORS (Cross-Origin Resource Sharing)
-    frontend_url: str = "http://localhost:8080"
+    frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:8080")
     
     # =============================================================================
     # LLM PROVIDER CONFIGURATION
