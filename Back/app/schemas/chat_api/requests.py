@@ -43,7 +43,7 @@ class ChatRequest(BaseModel):
     max_tokens: Optional[int] = Field(None, ge=1, le=32000, description="Maximum response tokens")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "config_id": 1,
                 "messages": [

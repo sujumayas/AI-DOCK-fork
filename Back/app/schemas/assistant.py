@@ -26,7 +26,7 @@ Why separate schemas from models?
 - Security = Control what data can be sent/received
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
@@ -124,7 +124,8 @@ class AssistantBase(BaseModel):
         }
     )
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """
         Validate assistant name format and content.
@@ -148,7 +149,8 @@ class AssistantBase(BaseModel):
         
         return v
     
-    @validator('description')
+    @field_validator('description')
+    @classmethod
     def validate_description(cls, v):
         """Validate description content if provided."""
         if v is not None:
@@ -157,7 +159,8 @@ class AssistantBase(BaseModel):
                 return None  # Convert empty string to None
         return v
     
-    @validator('system_prompt')
+    @field_validator('system_prompt')
+    @classmethod
     def validate_system_prompt(cls, v):
         """
         Validate system prompt content and security.
@@ -191,7 +194,8 @@ class AssistantBase(BaseModel):
         
         return v
     
-    @validator('model_preferences')
+    @field_validator('model_preferences')
+    @classmethod
     def validate_model_preferences(cls, v):
         """
         Validate model preferences structure and values.
@@ -252,7 +256,7 @@ class AssistantCreate(AssistantBase):
     pass  # Inherits all fields from AssistantBase
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "Creative Writing Assistant",
                 "description": "Helps with creative writing, storytelling, character development, and narrative structure.",
@@ -312,13 +316,36 @@ class AssistantUpdate(BaseModel):
     )
     
     # Apply same validators as base schema
-    _validate_name = validator('name', allow_reuse=True)(AssistantBase.validate_name)
-    _validate_description = validator('description', allow_reuse=True)(AssistantBase.validate_description)
-    _validate_system_prompt = validator('system_prompt', allow_reuse=True)(AssistantBase.validate_system_prompt)
-    _validate_model_preferences = validator('model_preferences', allow_reuse=True)(AssistantBase.validate_model_preferences)
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if v is None:
+            return v
+        return AssistantBase.validate_name(v)
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v):
+        if v is None:
+            return v
+        return AssistantBase.validate_description(v)
+    
+    @field_validator('system_prompt')
+    @classmethod
+    def validate_system_prompt(cls, v):
+        if v is None:
+            return v
+        return AssistantBase.validate_system_prompt(v)
+    
+    @field_validator('model_preferences')
+    @classmethod
+    def validate_model_preferences(cls, v):
+        if v is None:
+            return v
+        return AssistantBase.validate_model_preferences(v)
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "Advanced Data Analyst",
                 "description": "Enhanced with statistical analysis and machine learning capabilities.",
@@ -368,7 +395,7 @@ class AssistantResponse(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 123,
                 "name": "Data Analyst Pro",
@@ -459,7 +486,7 @@ class AssistantConversationCreate(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "assistant_id": 123,
                 "title": "Q3 Sales Data Analysis",
@@ -503,7 +530,7 @@ class AssistantConversationResponse(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 789,
                 "title": "Data Analysis Session",
@@ -594,7 +621,7 @@ class AssistantListRequest(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "limit": 20,
                 "offset": 0,
@@ -627,7 +654,7 @@ class AssistantListResponse(BaseModel):
     filters_applied: Dict[str, Any] = Field(..., description="Summary of applied filters")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "assistants": [
                     {
@@ -676,7 +703,7 @@ class AssistantOperationResponse(BaseModel):
     assistant: Optional[AssistantResponse] = Field(None, description="Updated assistant data")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Assistant updated successfully",
@@ -715,7 +742,7 @@ class AssistantStatsResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_assistants": 8,
                 "active_assistants": 6,
@@ -767,7 +794,7 @@ class AssistantErrorResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error_type": "validation_error",
                 "message": "Assistant data contains validation errors",
@@ -797,7 +824,7 @@ class AssistantPermissionError(BaseModel):
     required_permission: str = Field(..., description="Permission that was required")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error_type": "permission_denied",
                 "message": "You don't have permission to modify this assistant",
@@ -836,7 +863,7 @@ class AssistantBulkAction(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "assistant_ids": [123, 124, 125],
                 "action": "deactivate"
@@ -857,7 +884,7 @@ class AssistantBulkResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Bulk deactivation completed",

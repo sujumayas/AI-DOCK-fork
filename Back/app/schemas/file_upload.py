@@ -20,7 +20,7 @@ Why separate schemas from models?
 - They can differ (some fields private, some computed)
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -122,7 +122,8 @@ class FileUploadValidation(BaseModel):
         description="MIME type of the file"
     )
     
-    @validator('filename')
+    @field_validator('filename')
+    @classmethod
     def validate_filename(cls, v):
         """Validate filename format and security."""
         if not v.strip():
@@ -136,7 +137,8 @@ class FileUploadValidation(BaseModel):
         
         return v.strip()
     
-    @validator('file_size')
+    @field_validator('file_size')
+    @classmethod
     def validate_file_size_by_type(cls, v, values):
         """
         Validate file size based on file type.
@@ -167,7 +169,8 @@ class FileUploadValidation(BaseModel):
         
         return v
     
-    @validator('mime_type')
+    @field_validator('mime_type')
+    @classmethod
     def validate_mime_type(cls, v):
         """Validate MIME type is allowed."""
         allowed_types = [e.value for e in AllowedFileType]
@@ -175,7 +178,8 @@ class FileUploadValidation(BaseModel):
             raise ValueError(f'File type {v} not allowed. Allowed types: {", ".join(allowed_types)}')
         return v
     
-    @validator('filename')
+    @field_validator('filename')
+    @classmethod
     def validate_document_filename(cls, v, values):
         """
         Document-specific filename validation for PDFs and Word documents.
@@ -225,7 +229,7 @@ class FileUploadValidation(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "filename": "document.pdf",
                 "file_size": 2097152,  # 2MB
@@ -284,7 +288,7 @@ class FileUploadResponse(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 123,
                 "original_filename": "my_document.txt",
@@ -348,7 +352,7 @@ class FileListResponse(BaseModel):
     has_previous: bool = Field(..., description="Whether there are previous pages")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "files": [
                     {
@@ -430,7 +434,8 @@ class FileSearchRequest(BaseModel):
         description="Sort order: asc or desc"
     )
     
-    @validator('sort_by')
+    @field_validator('sort_by')
+    @classmethod
     def validate_sort_by(cls, v):
         """Validate sort field."""
         allowed_fields = ['upload_date', 'filename', 'file_size', 'access_count']
@@ -438,14 +443,16 @@ class FileSearchRequest(BaseModel):
             raise ValueError(f'Invalid sort field. Allowed: {", ".join(allowed_fields)}')
         return v
     
-    @validator('sort_order')
+    @field_validator('sort_order')
+    @classmethod
     def validate_sort_order(cls, v):
         """Validate sort order."""
         if v not in ['asc', 'desc']:
             raise ValueError('Sort order must be "asc" or "desc"')
         return v
     
-    @validator('date_to')
+    @field_validator('date_to')
+    @classmethod
     def validate_date_range(cls, v, values):
         """Validate date range is logical."""
         if v and values.get('date_from') and v < values['date_from']:
@@ -453,7 +460,7 @@ class FileSearchRequest(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "query": "document",
                 "file_type": "text/plain",
@@ -493,7 +500,7 @@ class FileDeleteRequest(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "file_ids": [123, 124, 125],
                 "permanent": False
@@ -510,7 +517,7 @@ class FileDeleteResponse(BaseModel):
     errors: List[str] = Field(default_factory=list, description="Error messages for failed deletions")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "deleted_count": 3,
                 "failed_count": 0,
@@ -544,7 +551,7 @@ class FileStatistics(BaseModel):
     most_active_users: List[dict] = Field(..., description="Users with most uploads")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_files": 150,
                 "total_size_bytes": 52428800,
@@ -600,7 +607,7 @@ class FileUploadError(BaseModel):
     suggested_action: Optional[str] = Field(None, description="Suggested action for user")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error": "pdf_password_protected",
                 "message": "This PDF is password-protected and cannot be processed",
@@ -682,7 +689,7 @@ class UploadLimits(BaseModel):
     max_total_size_per_user: Optional[int] = Field(None, description="Max total storage per user")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "max_file_size_bytes": 10485760,
                 "max_file_size_human": "10.0 MB",
@@ -711,7 +718,7 @@ class FileHealthCheck(BaseModel):
     errors: List[str] = Field(default_factory=list, description="Any health check errors")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "status": "healthy",
                 "upload_directory_exists": True,

@@ -26,7 +26,7 @@ class UnifiedModelInfo(BaseModel):
     relevance_score: Optional[int] = Field(None, description="Smart filtering relevance score (0-100)")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "gpt-4o",
                 "display_name": "GPT-4o",

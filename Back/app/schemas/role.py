@@ -37,7 +37,7 @@ class RoleDropdownOption(BaseModel):
     class Config:
         """Pydantic configuration for this schema."""
         orm_mode = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "value": 2,
                 "label": "Standard User", 
@@ -71,7 +71,7 @@ class RoleResponse(BaseModel):
     class Config:
         """Allow the schema to work with SQLAlchemy models."""
         orm_mode = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 2,
                 "name": "user",
@@ -139,7 +139,7 @@ class RoleCreateRequest(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "analyst",
                 "display_name": "Data Analyst",
@@ -219,7 +219,7 @@ class RoleListResponse(BaseModel):
     has_previous_page: bool
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "roles": [],  # Would contain RoleResponse objects
                 "total_count": 5,

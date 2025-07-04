@@ -34,7 +34,7 @@ class ChatResponse(BaseModel):
     model_change_reason: Optional[str] = Field(None, description="Reason why model was changed")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "content": "Hello! I'm doing well, thank you for asking. How can I help you today?",
                 "model": "gpt-4",
@@ -99,7 +99,7 @@ class DynamicModelsResponse(BaseModel):
     note: Optional[str] = Field(None, description="Additional information")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "models": ["gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
                 "default_model": "gpt-4-turbo",
@@ -133,7 +133,7 @@ class UnifiedModelsResponse(BaseModel):
     original_total_models: Optional[int] = Field(None, description="Total models before filtering")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "models": [
                     {

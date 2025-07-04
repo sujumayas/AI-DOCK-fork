@@ -14,7 +14,7 @@ Why Pydantic schemas?
 - Clear contracts between frontend and backend
 """
 
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -44,7 +44,7 @@ class LoginRequest(BaseModel):
     
     class Config:
         # Allow JSON schema generation for API docs
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@company.com",
                 "password": "MySecurePassword123!"
@@ -80,7 +80,7 @@ class LoginResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
                 "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
@@ -186,7 +186,7 @@ class RefreshTokenRequest(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
             }
@@ -245,7 +245,8 @@ class UserRegistrationRequest(BaseModel):
         description="User's department"
     )
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         """
         Validate password strength.
@@ -259,7 +260,8 @@ class UserRegistrationRequest(BaseModel):
             raise ValueError('Password must be at least 8 characters long')
         return v
     
-    @validator('full_name')
+    @field_validator('full_name')
+    @classmethod
     def validate_name(cls, v):
         """Validate full name format."""
         if not v.strip():
@@ -282,7 +284,7 @@ class AuthErrorResponse(BaseModel):
     details: Optional[dict] = Field(None, description="Additional error details")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error": "invalid_credentials",
                 "message": "Invalid email or password",
@@ -323,7 +325,7 @@ class LogoutResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Successfully logged out"
             }
@@ -356,7 +358,8 @@ class ChangePasswordRequest(BaseModel):
         description="New password (min 6 characters)"
     )
     
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def validate_new_password(cls, v):
         """Validate new password strength."""
         if len(v) < 6:
@@ -366,7 +369,7 @@ class ChangePasswordRequest(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "current_password": "CurrentPassword123",
                 "new_password": "NewSecurePassword456"
@@ -411,7 +414,8 @@ class UpdateProfileRequest(BaseModel):
         description="New password (optional)"
     )
     
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def validate_password_change(cls, v, values):
         """Validate password change logic."""
         if v is not None:  # If new password provided
@@ -421,7 +425,8 @@ class UpdateProfileRequest(BaseModel):
                 raise ValueError('New password must be at least 6 characters long')
         return v
     
-    @validator('full_name')
+    @field_validator('full_name')
+    @classmethod
     def validate_name(cls, v):
         """Validate full name if provided."""
         if v is not None and not v.strip():
@@ -429,7 +434,7 @@ class UpdateProfileRequest(BaseModel):
         return v.strip() if v else v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "full_name": "John Updated Doe",
                 "email": "john.updated@company.com",
@@ -454,7 +459,7 @@ class UpdateProfileResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Profile updated successfully",
                 "user": {

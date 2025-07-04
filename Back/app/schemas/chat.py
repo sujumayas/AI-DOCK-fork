@@ -19,7 +19,7 @@ Why separate chat schemas from conversation schemas?
 - Different API endpoints can use appropriate schemas
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
@@ -102,7 +102,7 @@ class FileAttachment(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "file_id": 123,
                 "filename": "project_requirements.txt",
@@ -139,7 +139,8 @@ class ProcessedFileContent(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional content metadata")
     processed_at: datetime = Field(..., description="When content was processed")
     
-    @validator('processed_content')
+    @field_validator('processed_content')
+    @classmethod
     def validate_content_length(cls, v):
         """Ensure content isn't too long for LLM context."""
         max_length = 50000  # 50KB limit for LLM processing
@@ -152,7 +153,7 @@ class ProcessedFileContent(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "file_id": 123,
                 "filename": "data.csv",
@@ -200,20 +201,22 @@ class ChatMessageWithFiles(ConversationMessageBase):
         description="Number of attached files"
     )
     
-    @validator('has_files', always=True)
+    @field_validator('has_files')
+    @classmethod
     def set_has_files(cls, v, values):
         """Automatically set has_files based on file_attachments."""
         file_attachments = values.get('file_attachments')
         return file_attachments is not None and len(file_attachments) > 0
     
-    @validator('total_files', always=True)
+    @field_validator('total_files')
+    @classmethod
     def set_total_files(cls, v, values):
         """Automatically set total_files count."""
         file_attachments = values.get('file_attachments')
         return len(file_attachments) if file_attachments else 0
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "role": "user",
                 "content": "Please analyze this CSV data and tell me what insights you can find.",
@@ -307,7 +310,8 @@ class ChatSendRequest(BaseModel):
         description="Whether to include file content in AI context"
     )
     
-    @validator('file_ids')
+    @field_validator('file_ids')
+    @classmethod
     def validate_file_ids(cls, v):
         """Validate file IDs list."""
         if v is not None:
@@ -318,7 +322,7 @@ class ChatSendRequest(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Please analyze this sales data and identify trends.",
                 "file_ids": [123, 124],
@@ -364,7 +368,7 @@ class ChatSendResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "conversation_id": 456,
@@ -437,7 +441,7 @@ class FileContentPreparation(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "processed_files": [
                     {
@@ -490,7 +494,7 @@ class ChatConversationSummary(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 456,
                 "title": "Sales Data Analysis",
@@ -540,7 +544,7 @@ class ChatError(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error_type": "file_processing_failed",
                 "message": "One or more files could not be processed for AI consumption",
@@ -585,7 +589,7 @@ class ChatSystemStatus(BaseModel):
     active_conversations: Optional[int] = Field(None, description="Number of active conversations")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "chat_available": True,
                 "file_upload_available": True,

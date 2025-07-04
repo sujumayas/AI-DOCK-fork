@@ -1,7 +1,7 @@
 # AI Dock LLM Configuration Schemas
 # These define the data validation and serialization for LLM configurations
 
-from pydantic import BaseModel, Field, validator, HttpUrl
+from pydantic import BaseModel, Field, field_validator, HttpUrl
 from typing import Optional, Dict, Any, List
 from decimal import Decimal
 from datetime import datetime
@@ -74,14 +74,16 @@ class LLMConfigurationSimpleCreate(BaseModel):
         example="Primary OpenAI configuration for the team"
     )
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate configuration name format."""
         if not v or not v.strip():
             raise ValueError('Configuration name cannot be empty')
         return v.strip()
     
-    @validator('api_key')
+    @field_validator('api_key')
+    @classmethod
     def validate_api_key(cls, v):
         """Validate API key format (basic check)."""
         if not v or not v.strip():
@@ -96,7 +98,7 @@ class LLMConfigurationSimpleCreate(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "provider": "openai",
                 "name": "OpenAI Production",
@@ -409,14 +411,16 @@ class LLMConfigurationCreate(BaseModel):
     # VALIDATION METHODS
     # =============================================================================
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate configuration name format."""
         if not v or not v.strip():
             raise ValueError('Configuration name cannot be empty')
         return v.strip()
     
-    @validator('api_key')
+    @field_validator('api_key')
+    @classmethod
     def validate_api_key(cls, v):
         """Validate API key format (basic check)."""
         if not v or not v.strip():
@@ -431,14 +435,16 @@ class LLMConfigurationCreate(BaseModel):
             
         return v
     
-    @validator('default_model')
+    @field_validator('default_model')
+    @classmethod
     def validate_default_model(cls, v):
         """Validate default model name."""
         if not v or not v.strip():
             raise ValueError('Default model cannot be empty')
         return v.strip()
     
-    @validator('available_models')
+    @field_validator('available_models')
+    @classmethod
     def validate_available_models(cls, v, values):
         """Validate that default_model is in available_models if provided."""
         if v is None:
@@ -454,7 +460,8 @@ class LLMConfigurationCreate(BaseModel):
             
         return v
     
-    @validator('custom_headers')
+    @field_validator('custom_headers')
+    @classmethod
     def validate_custom_headers(cls, v):
         """Validate custom headers format."""
         if v is None:
@@ -471,7 +478,7 @@ class LLMConfigurationCreate(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "OpenAI GPT-4 Production",
                 "description": "Primary OpenAI configuration for production use",
@@ -571,13 +578,15 @@ class LLMConfigurationUpdate(BaseModel):
     provider_settings: Optional[Dict[str, Any]] = None
     
     # Apply same validators as Create schema
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if v is not None and (not v or not v.strip()):
             raise ValueError('Configuration name cannot be empty')
         return v.strip() if v else v
     
-    @validator('api_key')
+    @field_validator('api_key')
+    @classmethod
     def validate_api_key(cls, v):
         if v is not None:
             if not v or not v.strip():
@@ -587,7 +596,8 @@ class LLMConfigurationUpdate(BaseModel):
                 raise ValueError('API key seems too short')
         return v
     
-    @validator('default_model')
+    @field_validator('default_model')
+    @classmethod
     def validate_default_model(cls, v):
         if v is not None and (not v or not v.strip()):
             raise ValueError('Default model cannot be empty')
@@ -656,7 +666,7 @@ class LLMConfigurationResponse(BaseModel):
         """Allow conversion from SQLAlchemy models."""
         from_attributes = True
         
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 1,
                 "name": "OpenAI GPT-4 Production",
@@ -746,7 +756,7 @@ class LLMProviderInfo(BaseModel):
     documentation_url: Optional[str] = Field(description="Link to provider documentation")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "value": "openai",
                 "name": "OpenAI",

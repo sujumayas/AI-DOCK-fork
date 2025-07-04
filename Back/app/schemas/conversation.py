@@ -1,7 +1,7 @@
 # AI Dock Conversation Schemas
 # Pydantic models for conversation API request/response validation
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -96,7 +96,8 @@ class ConversationSaveFromMessages(BaseModel):
     project_id: Optional[int] = Field(None, description="Project/folder to assign conversation to")
     assistant_id: Optional[int] = Field(None, description="Assistant to use for conversation (overrides project default)")
 
-    @validator('messages')
+    @field_validator('messages')
+    @classmethod
     def validate_messages(cls, v):
         if len(v) < 1:
             raise ValueError('At least one message is required')
@@ -106,7 +107,8 @@ class ConversationBulkDelete(BaseModel):
     """Schema for bulk deleting conversations"""
     conversation_ids: List[int] = Field(..., description="List of conversation IDs to delete")
 
-    @validator('conversation_ids')
+    @field_validator('conversation_ids')
+    @classmethod
     def validate_ids(cls, v):
         if len(v) < 1:
             raise ValueError('At least one conversation ID is required')

@@ -1,7 +1,7 @@
 # AI Dock Quota API Schemas
 # Pydantic models for quota-related API requests and responses
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from decimal import Decimal
 from datetime import datetime
@@ -69,7 +69,8 @@ class QuotaCreateRequest(BaseModel):
         description="Whether to enforce this quota (block requests when exceeded)"
     )
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def name_must_not_be_empty(cls, v):
         """Ensure name is not just whitespace"""
         if not v or not v.strip():
@@ -77,7 +78,7 @@ class QuotaCreateRequest(BaseModel):
         return v.strip()
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "department_id": 1,
                 "llm_config_id": 1,
@@ -133,7 +134,8 @@ class QuotaUpdateRequest(BaseModel):
         description="New reset period"
     )
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def name_must_not_be_empty(cls, v):
         """Ensure name is not just whitespace if provided"""
         if v is not None and (not v or not v.strip()):
@@ -141,7 +143,7 @@ class QuotaUpdateRequest(BaseModel):
         return v.strip() if v else v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "limit_value": 1500.00,
                 "name": "Engineering OpenAI Monthly Budget (Updated)",
@@ -224,7 +226,8 @@ class QuotaFilterRequest(BaseModel):
         description="Sort order: asc or desc"
     )
     
-    @validator('sort_by')
+    @field_validator('sort_by')
+    @classmethod
     def validate_sort_field(cls, v):
         """Ensure sort field is valid"""
         allowed_fields = {'name', 'created_at', 'limit_value', 'usage_percentage', 'department_name'}
@@ -232,7 +235,8 @@ class QuotaFilterRequest(BaseModel):
             raise ValueError(f'Sort field must be one of: {", ".join(allowed_fields)}')
         return v
     
-    @validator('sort_order')
+    @field_validator('sort_order')
+    @classmethod
     def validate_sort_order(cls, v):
         """Ensure sort order is valid"""
         if v and v.lower() not in ['asc', 'desc']:
@@ -282,7 +286,7 @@ class QuotaResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 1,
                 "department_id": 1,
@@ -331,7 +335,7 @@ class QuotaListResponse(BaseModel):
     summary: Dict[str, Any] = Field(description="Summary statistics about the quotas")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "quotas": [
                     # QuotaResponse examples would go here
@@ -383,7 +387,7 @@ class DepartmentQuotaStatusResponse(BaseModel):
     quotas: List[QuotaResponse]
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "department_id": 1,
                 "department_name": "Engineering",
@@ -428,7 +432,7 @@ class QuotaResetResponse(BaseModel):
     new_usage: float = 0.0
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Quota reset successfully",
@@ -451,7 +455,7 @@ class BulkQuotaOperationResponse(BaseModel):
     results: List[Dict[str, Any]]
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Bulk operation completed",
@@ -481,7 +485,7 @@ class QuotaErrorResponse(BaseModel):
     timestamp: datetime = Field(description="When the error occurred")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error": "quota_not_found",
                 "message": "Quota with ID 123 not found",
@@ -502,7 +506,7 @@ class ValidationErrorResponse(BaseModel):
     timestamp: datetime = Field(description="When the error occurred")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error": "validation_error",
                 "message": "Request validation failed",

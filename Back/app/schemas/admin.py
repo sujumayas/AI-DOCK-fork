@@ -1,7 +1,7 @@
 # AI Dock Admin Schemas
 # These define the structure for admin API requests and responses
 
-from pydantic import BaseModel, EmailStr, validator, Field
+from pydantic import BaseModel, EmailStr, field_validator, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -88,7 +88,8 @@ class UserCreateRequest(BaseModel):
         example="Experienced full-stack developer with expertise in Python and React"
     )
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         """
         Custom validation for username format.
@@ -100,7 +101,8 @@ class UserCreateRequest(BaseModel):
             raise ValueError('Username can only contain letters, numbers, hyphens, underscores, and dots')
         return v.lower()  # Store usernames in lowercase
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password_strength(cls, v):
         """
         Validate password meets security requirements.
@@ -127,7 +129,7 @@ class UserCreateRequest(BaseModel):
         Learning: Config classes let us customize how Pydantic behaves.
         """
         # Generate example JSON for API documentation
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "jane.smith@company.com",
                 "username": "jane.smith",
@@ -206,7 +208,8 @@ class UserUpdateRequest(BaseModel):
     # Note: We don't allow password updates here for security
     # Password changes should go through a separate endpoint
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         """Same username validation as create."""
         if v is not None:
@@ -216,7 +219,7 @@ class UserUpdateRequest(BaseModel):
         return v
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "full_name": "Jane Smith-Johnson",
                 "job_title": "Senior Data Analyst",
@@ -247,7 +250,8 @@ class UserPasswordUpdate(BaseModel):
         description="Admin's password for additional security verification"
     )
 
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def validate_password_strength(cls, v):
         """Same password validation as create."""
         if len(v) < 8:
@@ -310,7 +314,7 @@ class UserResponse(BaseModel):
         instead of just dictionaries. This lets us pass User model objects directly.
         """
         orm_mode = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 1,
                 "email": "jane.smith@company.com",
@@ -351,7 +355,7 @@ class UserListResponse(BaseModel):
     has_previous_page: bool
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "users": [
                     # Would contain UserResponse objects
@@ -461,7 +465,8 @@ class UserSearchFilters(BaseModel):
         example="asc"
     )
 
-    @validator('sort_order')
+    @field_validator('sort_order')
+    @classmethod
     def validate_sort_order(cls, v):
         """Ensure sort order is valid."""
         if v is not None and v.lower() not in ['asc', 'desc']:
@@ -469,7 +474,7 @@ class UserSearchFilters(BaseModel):
         return v.lower() if v else v
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "search_query": "john",
                 "role_name": "user",
@@ -529,14 +534,16 @@ class BulkUserOperation(BaseModel):
         description="New department ID (required for change_department action)"
     )
 
-    @validator('new_role_id')
+    @field_validator('new_role_id')
+    @classmethod
     def validate_role_for_change_role(cls, v, values):
         """Ensure role_id is provided for change_role action."""
         if values.get('action') == BulkUserAction.CHANGE_ROLE and v is None:
             raise ValueError('new_role_id is required for change_role action')
         return v
 
-    @validator('new_department_id')
+    @field_validator('new_department_id')
+    @classmethod
     def validate_department_for_change_department(cls, v, values):
         """Ensure department_id is provided for change_department action."""
         if values.get('action') == BulkUserAction.CHANGE_DEPARTMENT and v is None:
@@ -577,7 +584,7 @@ class BulkOperationResult(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_requested": 5,
                 "successful_count": 4,
@@ -610,7 +617,7 @@ class SuccessResponse(BaseModel):
     data: Optional[Dict[str, Any]] = None
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "User created successfully",
@@ -635,7 +642,7 @@ class ErrorResponse(BaseModel):
     error_code: Optional[str] = None
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": False,
                 "error": "User with this email already exists",
@@ -685,7 +692,7 @@ class UserStatsResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_users": 150,
                 "active_users": 142,

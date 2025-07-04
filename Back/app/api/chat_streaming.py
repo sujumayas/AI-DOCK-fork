@@ -73,7 +73,7 @@ class StreamingChatRequest(BaseModel):
     project_id: Optional[int] = Field(None, description="ID of project")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "config_id": 1,
                 "messages": [
@@ -117,7 +117,7 @@ class StreamingChunk(BaseModel):
     timestamp: str = Field(description="Chunk timestamp")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "chunk_id": "chunk_001",
                 "chunk_index": 0,
