@@ -476,7 +476,7 @@ class AssistantConversationCreate(BaseModel):
         description="Optional first message to start the conversation"
     )
     
-    @validator('title')
+    @field_validator('title')
     def validate_title(cls, v):
         """Validate conversation title if provided."""
         if v is not None:
@@ -596,7 +596,7 @@ class AssistantListRequest(BaseModel):
         description="Whether to include inactive assistants"
     )
     
-    @validator('search')
+    @field_validator('search')
     def validate_search(cls, v):
         """Validate search query."""
         if v is not None:
@@ -605,7 +605,7 @@ class AssistantListRequest(BaseModel):
                 return None
         return v
     
-    @validator('sort_by')
+    @field_validator('sort_by')
     def validate_sort_by(cls, v):
         """Validate sort field."""
         allowed_fields = ['name', 'created_at', 'updated_at', 'conversation_count']
@@ -613,7 +613,7 @@ class AssistantListRequest(BaseModel):
             raise ValueError(f'Sort by must be one of: {", ".join(allowed_fields)}')
         return v
     
-    @validator('sort_order')
+    @field_validator('sort_order')
     def validate_sort_order(cls, v):
         """Validate sort order."""
         if v not in ['asc', 'desc']:
@@ -843,7 +843,7 @@ class AssistantBulkAction(BaseModel):
     assistant_ids: List[int] = Field(..., description="List of assistant IDs")
     action: str = Field(..., description="Action to perform (activate, deactivate, delete)")
     
-    @validator('assistant_ids')
+    @field_validator('assistant_ids')
     def validate_assistant_ids(cls, v):
         """Validate assistant IDs list."""
         if len(v) == 0:
@@ -854,7 +854,7 @@ class AssistantBulkAction(BaseModel):
             raise ValueError('Duplicate assistant IDs are not allowed')
         return v
     
-    @validator('action')
+    @field_validator('action')
     def validate_action(cls, v):
         """Validate bulk action type."""
         allowed_actions = ['activate', 'deactivate', 'delete']
@@ -923,10 +923,10 @@ class AssistantImport(BaseModel):
     model_preferences: Optional[Dict[str, Any]] = Field(None, description="Model preferences")
     
     # Apply same validation as creation
-    _validate_name = validator('name', allow_reuse=True)(AssistantBase.validate_name)
-    _validate_description = validator('description', allow_reuse=True)(AssistantBase.validate_description)
-    _validate_system_prompt = validator('system_prompt', allow_reuse=True)(AssistantBase.validate_system_prompt)
-    _validate_model_preferences = validator('model_preferences', allow_reuse=True)(AssistantBase.validate_model_preferences)
+    _validate_name = field_validator('name')(AssistantBase.validate_name)
+    _validate_description = field_validator('description')(AssistantBase.validate_description)
+    _validate_system_prompt = field_validator('system_prompt')(AssistantBase.validate_system_prompt)
+    _validate_model_preferences = field_validator('model_preferences')(AssistantBase.validate_model_preferences)
 
 
 # =============================================================================

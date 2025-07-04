@@ -190,3 +190,8 @@ FRONTEND_URL=https://your-frontend-domain.com
 - `app/core/config.py` updated to use `PORT` environment variable
 - Environment variables properly configured for production
 - Health check endpoint at `/health` for Railway monitoring
+```
+
+## Development Recommendations
+
+- Always use `python3` for any local python call that is not inside a virtual env.
