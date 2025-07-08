@@ -183,6 +183,30 @@ async def create_database_tables():
             file_upload, folder, chat, project, chat_conversation
         )
         
+        # Create PostgreSQL enums first if they don't exist
+        enums_to_create = [
+            ('llmprovider', ['openai', 'anthropic', 'google', 'mistral', 'cohere', 'huggingface', 'azure_openai', 'custom']),
+            ('quotatype', ['cost', 'tokens', 'requests']),
+            ('quotaperiod', ['daily', 'weekly', 'monthly', 'yearly']),
+            ('quotastatus', ['active', 'suspended', 'exceeded', 'inactive'])
+        ]
+        
+        for enum_name, enum_values in enums_to_create:
+            try:
+                # Check if enum exists, if not create it
+                result = await conn.execute(
+                    text("SELECT 1 FROM pg_type WHERE typname = :enum_name"),
+                    {"enum_name": enum_name}
+                )
+                if not result.fetchone():
+                    values_str = "', '".join(enum_values)
+                    await conn.execute(
+                        text(f"CREATE TYPE {enum_name} AS ENUM ('{values_str}')")
+                    )
+                    logger.info(f"✅ PostgreSQL enum '{enum_name}' created")
+            except Exception as e:
+                logger.warning(f"Could not create enum '{enum_name}' (may already exist): {e}")
+        
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
         logger.info("✅ Database tables created successfully")
@@ -198,6 +222,32 @@ def create_database_tables_sync():
         usage_log, quota, conversation, assistant,
         file_upload, folder, chat, project, chat_conversation
     )
+    
+    # Create PostgreSQL enums first if they don't exist
+    enums_to_create = [
+        ('llmprovider', ['openai', 'anthropic', 'google', 'mistral', 'cohere', 'huggingface', 'azure_openai', 'custom']),
+        ('quotatype', ['cost', 'tokens', 'requests']),
+        ('quotaperiod', ['daily', 'weekly', 'monthly', 'yearly']),
+        ('quotastatus', ['active', 'suspended', 'exceeded', 'inactive'])
+    ]
+    
+    try:
+        with sync_engine.connect() as conn:
+            for enum_name, enum_values in enums_to_create:
+                # Check if enum exists, if not create it
+                result = conn.execute(
+                    text("SELECT 1 FROM pg_type WHERE typname = :enum_name"),
+                    {"enum_name": enum_name}
+                )
+                if not result.fetchone():
+                    values_str = "', '".join(enum_values)
+                    conn.execute(
+                        text(f"CREATE TYPE {enum_name} AS ENUM ('{values_str}')")
+                    )
+                    logger.info(f"✅ PostgreSQL enum '{enum_name}' created")
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Could not create enums (may already exist): {e}")
     
     # Create all tables using sync engine
     Base.metadata.create_all(sync_engine)
