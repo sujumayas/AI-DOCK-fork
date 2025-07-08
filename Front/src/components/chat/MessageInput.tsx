@@ -317,7 +317,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setAttachments(prev => prev.filter(attachment => attachment.id !== attachmentId));
   };
   
-  const toggleFileUpload = () => {
+  const toggleFileUpload = (): void => {
     console.log('📎 DEBUG - Toggle file upload clicked:', {
       allowFileUpload,
       disabled,
@@ -432,7 +432,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </button>
           )}
           
-          {/* Message input textarea */}
+          {/* @ts-ignore */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}

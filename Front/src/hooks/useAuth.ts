@@ -10,6 +10,7 @@ interface User {
   profile_picture_url?: string;
   role?: string;
   department?: string;
+  department_name?: string;
 }
 
 // 🎯 Core useAuth Hook (Internal Use Only)

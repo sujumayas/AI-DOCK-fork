@@ -25,11 +25,6 @@ export interface Project {
   last_accessed_at?: string;
 }
 
-export interface ProjectServiceError extends Error {
-  code?: string;
-  status?: number;
-  details?: any;
-}
 
 // =============================================================================
 // API CLIENT CONFIGURATION
@@ -136,12 +131,12 @@ async function apiRequest<T>(
 
     // Handle unexpected errors
     console.error('❌ Unexpected API error:', error);
-    throw new ProjectServiceError(`Unexpected error: ${error.message || 'Unknown error'}`);
+    throw new ProjectServiceError(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 // Custom error class
-class ProjectServiceError extends Error {
+export class ProjectServiceError extends Error {
   code?: string;
   status?: number;
   details?: any;

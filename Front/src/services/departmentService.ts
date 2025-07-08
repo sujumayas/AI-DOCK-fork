@@ -132,6 +132,9 @@ export interface DepartmentService {
   updateDepartment: (id: number, data: DepartmentUpdate) => Promise<Department>;
   deleteDepartment: (id: number) => Promise<void>;
   getDepartmentUsers: (departmentId: number) => Promise<DepartmentUser[]>;
+  getBudgetUtilizationColor: (utilization: number) => string;
+  formatBudget: (amount: number) => string;
+  formatUtilization: (utilization: number) => string;
 }
 
 // =============================================================================

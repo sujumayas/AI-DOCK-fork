@@ -110,6 +110,7 @@ export interface LLMConfigurationSimpleCreate {
 export interface LLMConfigurationUpdate {
   name?: string;
   description?: string;
+  provider?: LLMProvider;
   api_endpoint?: string;
   api_key?: string;
   api_version?: string;
@@ -268,7 +269,7 @@ async function apiRequest<T>(
 
     // Handle unexpected errors
     console.error('❌ Unexpected API error:', error);
-    throw new LLMConfigError(`Unexpected error: ${error.message}`, 500);
+    throw new LLMConfigError(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
   }
 }
 

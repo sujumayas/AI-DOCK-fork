@@ -35,6 +35,8 @@ export interface ProjectDetails {
   created_at: string;
   updated_at: string;
   last_accessed_at?: string;
+  system_prompt?: string;
+  model_preferences?: any;
 }
 
 export interface ProjectCreateRequest {

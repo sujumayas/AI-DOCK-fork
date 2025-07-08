@@ -138,7 +138,7 @@ async function quotaApiRequest<T>(
 
     // Handle unexpected errors
     console.error('❌ Unexpected Error:', error);
-    throw new QuotaApiError(`Unexpected error: ${error.message}`, 500);
+    throw new QuotaApiError(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
   }
 }
 
@@ -301,6 +301,35 @@ class QuotaService {
     return quotaApiRequest<BulkQuotaOperationResponse>('/bulk/reset', {
       method: 'POST',
       body: JSON.stringify(quotaIds),
+    });
+  }
+
+  /**
+   * Bulk delete quotas
+   * 
+   * @param quotaIds - Array of quota IDs to delete
+   * @returns Bulk operation result with detailed feedback
+   */
+  async bulkDeleteQuotas(quotaIds: number[]): Promise<BulkQuotaOperationResponse> {
+    console.log(`🗑️ Bulk deleting ${quotaIds.length} quotas...`);
+    return quotaApiRequest<BulkQuotaOperationResponse>('/bulk/delete', {
+      method: 'POST',
+      body: JSON.stringify(quotaIds),
+    });
+  }
+
+  /**
+   * Bulk update quotas
+   * 
+   * @param quotaIds - Array of quota IDs to update
+   * @param updateData - Data to update for all quotas
+   * @returns Bulk operation result with detailed feedback
+   */
+  async bulkUpdateQuotas(quotaIds: number[], updateData: any): Promise<BulkQuotaOperationResponse> {
+    console.log(`✏️ Bulk updating ${quotaIds.length} quotas...`);
+    return quotaApiRequest<BulkQuotaOperationResponse>('/bulk/update', {
+      method: 'PUT',
+      body: JSON.stringify({ quota_ids: quotaIds, update_data: updateData }),
     });
   }
 

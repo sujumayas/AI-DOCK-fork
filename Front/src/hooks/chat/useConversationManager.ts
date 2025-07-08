@@ -96,7 +96,7 @@ export const useConversationManager = (
       // For existing conversations, use the conversation's original project, not the current selection
       const saveConfig = {
         ...config,
-        projectId: currentConversationId ? conversationProjectId : config?.projectId // Preserve original folder for existing conversations
+        projectId: currentConversationId ? (conversationProjectId || undefined) : config?.projectId // Preserve original folder for existing conversations
       };
       
       const result = await conversationUpdateService.smartSaveConversation(
@@ -198,7 +198,7 @@ export const useConversationManager = (
       // For existing conversations, use the conversation's original project, not the current selection
       const saveConfig = {
         ...config,
-        projectId: currentConversationId ? conversationProjectId : config?.projectId // Preserve original folder for existing conversations
+        projectId: currentConversationId ? (conversationProjectId || undefined) : config?.projectId // Preserve original folder for existing conversations
       };
       
       const result = await conversationUpdateService.smartSaveConversation(

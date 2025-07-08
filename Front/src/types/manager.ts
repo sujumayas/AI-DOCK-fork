@@ -113,16 +113,6 @@ export interface ManagerQuotaUpdateRequest {
   status?: 'active' | 'inactive' | 'suspended';
 }
 
-export interface QuotaResetResponse {
-  success: boolean;
-  message: string;
-  quota_id: number;
-  quota_name: string;
-  reset_at: string;
-  previous_usage: number;
-  new_usage: number;
-  quota_status: string;
-}
 
 export interface DepartmentQuotaStats {
   department: DepartmentInfo;

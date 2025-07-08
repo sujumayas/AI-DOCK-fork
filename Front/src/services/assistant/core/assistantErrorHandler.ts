@@ -97,7 +97,7 @@ export class AssistantErrorHandler {
     if (error instanceof AssistantServiceError) {
       console.error('Error details:', {
         message: error.message,
-        status: error.status,
+        status: error.statusCode,
         assistantId: error.assistantId,
         errorType: error.errorType,
         fieldErrors: error.fieldErrors

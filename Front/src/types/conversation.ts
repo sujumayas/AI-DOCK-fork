@@ -50,6 +50,7 @@ export interface ConversationSummary {
 
 export interface ConversationDetail extends ConversationSummary {
   messages: ConversationMessage[];
+  assistant_id?: number;
   project?: {
     id: number;
     name: string;

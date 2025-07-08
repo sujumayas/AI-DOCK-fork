@@ -56,6 +56,8 @@ export function QuotaCreateModal({ isOpen, onClose, onSuccess, className = '' }:
   const [formState, setFormState] = useState<{
     data: QuotaCreateRequest;
     errors: QuotaFormErrors;
+    isSubmitting: boolean;
+    isDirty: boolean;
   }>({
     data: {
       department_id: 0,

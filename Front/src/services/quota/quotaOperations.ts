@@ -272,7 +272,7 @@ export class QuotaOperations {
    */
   static async bulkToggleEnforcement(
     selectedQuotaIds: number[],
-    quotas: QuotaResponse[],
+    _quotas: QuotaResponse[],
     enforce: boolean,
     handlers: QuotaOperationsHandlers
   ): Promise<void> {

@@ -266,8 +266,8 @@ export function formatFileSize(bytes: number): string {
  * Get file icon based on type
  */
 export function getFileIcon(file: File | FileMetadata): string {
-  const type = 'type' in file ? file.type : file.file.type;
-  const name = 'name' in file ? file.name : file.file.name;
+  const type = file.type;
+  const name = file.name;
   
   // Check by MIME type first
   if (FILE_TYPE_ICONS[type]) {

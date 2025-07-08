@@ -125,7 +125,7 @@ export interface UserUsageStats {
  */
 export interface DepartmentUsageStats {
   department_id: number;
-  department_info: DepartmentInfo;
+  department_info: DepartmentUsageInfo;
   period: TimePeriod;
   requests: RequestStats;
   tokens: TokenStats;
@@ -134,7 +134,7 @@ export interface DepartmentUsageStats {
   budget_analysis: BudgetAnalysis;
 }
 
-export interface DepartmentInfo {
+export interface DepartmentUsageInfo {
   id: number;
   name: string;
   code: string;

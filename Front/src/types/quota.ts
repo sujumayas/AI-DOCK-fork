@@ -477,13 +477,4 @@ export function isQuotaHealthy(quota: QuotaResponse): boolean {
 // EXPORT ALL TYPES
 // =============================================================================
 
-export type {
-  // Core types
-  QuotaResponse,
-  QuotaCreateRequest,
-  QuotaUpdateRequest,
-  QuotaSearchFilters,
-  QuotaListResponse,
-  
-  // Types are already exported inline above
-};
+// All types are already exported inline above, no need to re-export

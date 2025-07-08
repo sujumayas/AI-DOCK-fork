@@ -136,7 +136,7 @@ export class AssistantListService {
   /**
    * Get assistants by status filter
    */
-  async getByStatus(status: string, limit: number = 50): Promise<AssistantSummary[]> {
+  async getByStatus(status: 'active' | 'inactive' | 'draft', limit: number = 50): Promise<AssistantSummary[]> {
     try {
       const response = await this.getAssistants({
         status_filter: status,

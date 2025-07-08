@@ -12,12 +12,11 @@ import {
   ManagerQuotaUpdateRequest,
   ManagerQuotaFilters,
   DepartmentQuotaStats,
-  QuotaResetResponse,
   DepartmentDashboardData,
   ManagerApiResponse
 } from '../types/manager';
 import { UserResponse } from '../types/admin';
-import { QuotaResponse } from '../types/quota';
+import { QuotaResponse, QuotaResetResponse } from '../types/quota';
 
 // Get the API base URL from environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';

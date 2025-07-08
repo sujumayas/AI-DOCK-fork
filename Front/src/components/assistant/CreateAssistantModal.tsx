@@ -359,7 +359,7 @@ export const CreateAssistantModal: React.FC<CreateAssistantModalProps> = ({
     step?: string,
     placeholder?: string
   ) => {
-    const value = formData.model_preferences[key];
+    const value = formData.model_preferences[key as keyof typeof formData.model_preferences];
 
     return (
       <div>
