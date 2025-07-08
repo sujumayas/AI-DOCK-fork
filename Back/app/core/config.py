@@ -63,10 +63,10 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     
     # Environment (development, staging, production)
-    environment: str = os.getenv("ENVIRONMENT", "development")
+    environment: str = os.getenv("ENVIRONMENT", "production")
     
     # Debug mode - enables detailed error messages
-    debug: bool = os.getenv("DEBUG", "true").lower() == "true"
+    debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # API server configuration
     api_host: str = "0.0.0.0"
