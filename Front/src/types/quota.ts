@@ -485,4 +485,5 @@ export type {
   QuotaSearchFilters,
   QuotaListResponse,
   
-// Types are already exported inline above
+  // Types are already exported inline above
+};
