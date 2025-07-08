@@ -53,15 +53,20 @@ app.add_middleware(
 # Without this, browsers block requests between different ports
 # Note: CORS is added AFTER security so security headers are applied to CORS responses
 logger.info(f"🌐 Configuring CORS for frontend: {settings.frontend_url}")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        settings.frontend_url,
+
+# Configure CORS origins based on environment
+cors_origins = [settings.frontend_url]
+if settings.environment.lower() == "development":
+    cors_origins.extend([
         "http://localhost:8080", 
         "http://localhost:3000",
         "http://127.0.0.1:8080",  # Alternative localhost format
         "http://127.0.0.1:3000"   # Alternative localhost format
-    ],  # React dev servers
+    ])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods (includes OPTIONS for preflight)
     allow_headers=["*"],  # Allow all headers for maximum compatibility
@@ -118,16 +123,20 @@ async def cors_test():
     
     Learning: CORS issues often happen during preflight (OPTIONS) requests!
     """
+    # Get the same CORS origins used in middleware
+    cors_origins = [settings.frontend_url]
+    if settings.environment.lower() == "development":
+        cors_origins.extend([
+            "http://localhost:8080",
+            "http://localhost:3000",
+            "http://127.0.0.1:8080",
+            "http://127.0.0.1:3000"
+        ])
+    
     return {
         "message": "CORS is working! 🌍",
         "cors_config": {
-            "allowed_origins": [
-                settings.frontend_url,
-                "http://localhost:8080",
-                "http://localhost:3000",
-                "http://127.0.0.1:8080",
-                "http://127.0.0.1:3000"
-            ],
+            "allowed_origins": cors_origins,
             "methods_allowed": "All methods (*)",
             "headers_allowed": "All headers (*)",
             "credentials_allowed": True
