@@ -371,7 +371,7 @@ const AdminSettings: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white/5 backdrop-blur-lg p-4 rounded-xl border border-white/10">
                       <label className="block text-sm font-medium text-gray-300 mb-1">API Base URL</label>
-                      <div className="text-sm text-blue-200">http://localhost:8000</div>
+                      <div className="text-sm text-blue-200">https://ai-dock-fork-production.up.railway.app</div>
                     </div>
                     <div className="bg-white/5 backdrop-blur-lg p-4 rounded-xl border border-white/10">
                       <label className="block text-sm font-medium text-gray-300 mb-1">Environment</label>

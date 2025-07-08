@@ -19,7 +19,7 @@ import { UserResponse } from '../types/admin';
 import { QuotaResponse, QuotaResetResponse } from '../types/quota';
 
 // Get the API base URL from environment
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-dock-fork-production.up.railway.app';
 
 class ManagerService {
   private apiUrl: string;

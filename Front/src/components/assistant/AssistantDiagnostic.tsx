@@ -26,7 +26,7 @@ export const AssistantDiagnostic: React.FC = () => {
     setResults([...tests]);
 
     try {
-      const response = await fetch('http://localhost:8000/health');
+      const response = await fetch('https://ai-dock-fork-production.up.railway.app/health');
       if (response.ok) {
         const data = await response.json();
         tests[tests.length - 1] = {
@@ -59,7 +59,7 @@ export const AssistantDiagnostic: React.FC = () => {
     setResults([...tests]);
 
     try {
-      const response = await fetch('http://localhost:8000/assistants/health');
+      const response = await fetch('https://ai-dock-fork-production.up.railway.app/assistants/health');
       if (response.ok) {
         tests[tests.length - 1] = {
           test: 'Assistant API',
@@ -94,7 +94,7 @@ export const AssistantDiagnostic: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       if (token) {
         // Try to get current user
-        const response = await fetch('http://localhost:8000/auth/me', {
+        const response = await fetch('https://ai-dock-fork-production.up.railway.app/auth/me', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -151,7 +151,7 @@ export const AssistantDiagnostic: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       if (token) {
         // Try to get user's assistants first
-        const listResponse = await fetch('http://localhost:8000/assistants/', {
+        const listResponse = await fetch('https://ai-dock-fork-production.up.railway.app/assistants/', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

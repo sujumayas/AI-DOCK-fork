@@ -22,7 +22,7 @@ import {
 import { authService } from './authService';
 
 // Configuration - using same base URL as other services
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://ai-dock-fork-production.up.railway.app';
 
 /**
  * 🎓 LEARNING: File upload progress callback

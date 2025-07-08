@@ -6,7 +6,7 @@ import { authService } from '../authService';
 import { createChatServiceError, logChatError } from './errors';
 
 // Configuration - using same base URL as auth service
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://ai-dock-fork-production.up.railway.app';
 
 /**
  * Core Chat Service - handles basic chat operations

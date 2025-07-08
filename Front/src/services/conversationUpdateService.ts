@@ -5,7 +5,7 @@ import { ConversationDetail, ConversationOperationResponse } from '../types/conv
 import { ChatMessage } from '../types/chat';
 import { authService } from './authService';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://ai-dock-fork-production.up.railway.app';
 
 /**
  * State tracker to prevent concurrent saves and race conditions
