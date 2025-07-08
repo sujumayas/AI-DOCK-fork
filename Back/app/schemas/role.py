@@ -36,7 +36,7 @@ class RoleDropdownOption(BaseModel):
 
     class Config:
         """Pydantic configuration for this schema."""
-        orm_mode = True
+        from_attributes = True
         json_schema_extra = {
             "example": {
                 "value": 2,
@@ -70,7 +70,7 @@ class RoleResponse(BaseModel):
 
     class Config:
         """Allow the schema to work with SQLAlchemy models."""
-        orm_mode = True
+        from_attributes = True
         json_schema_extra = {
             "example": {
                 "id": 2,

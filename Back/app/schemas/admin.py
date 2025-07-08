@@ -313,7 +313,7 @@ class UserResponse(BaseModel):
         Learning: orm_mode=True tells Pydantic to read data from object attributes
         instead of just dictionaries. This lets us pass User model objects directly.
         """
-        orm_mode = True
+        from_attributes = True
         json_schema_extra = {
             "example": {
                 "id": 1,

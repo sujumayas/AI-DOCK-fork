@@ -238,7 +238,7 @@ class DepartmentResponse(BaseModel):
     budget_utilization: Optional[float] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
         json_schema_extra = {
             "example": {
                 "id": 1,
@@ -304,7 +304,7 @@ class DepartmentWithStats(BaseModel):
     active_users_today: int = 0
 
     class Config:
-        orm_mode = True
+        from_attributes = True
         json_schema_extra = {
             "example": {
                 "id": 1,
@@ -581,7 +581,7 @@ class DepartmentHierarchy(BaseModel):
     total_budget: Decimal = Decimal('0.00')
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Enable forward references for recursive models

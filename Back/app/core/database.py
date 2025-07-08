@@ -179,7 +179,8 @@ async def create_database_tables():
         # This imports all model files which registers them with SQLAlchemy
         from ..models import (
             user, role, department, llm_config, 
-            usage_log, quota, conversation
+            usage_log, quota, conversation, assistant,
+            file_upload, folder, chat, project, chat_conversation
         )
         
         # Create all tables
@@ -194,7 +195,8 @@ def create_database_tables_sync():
     # This imports all model files which registers them with SQLAlchemy
     from ..models import (
         user, role, department, llm_config, 
-        usage_log, quota, conversation
+        usage_log, quota, conversation, assistant,
+        file_upload, folder, chat, project, chat_conversation
     )
     
     # Create all tables using sync engine
