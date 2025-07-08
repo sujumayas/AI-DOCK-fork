@@ -432,7 +432,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </button>
           )}
           
-          {/* ✍️ Message input textarea */}
+          {/* Message input textarea */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}

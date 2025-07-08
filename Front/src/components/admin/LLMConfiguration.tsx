@@ -72,16 +72,6 @@ const LLMConfiguration: React.FC = () => {
     return { total, active, inactive, providers };
   }, [configurations]);
 
-  /**
-   * Memoized provider options for forms
-   */
-  const providerOptions = useMemo(() => {
-    return providerInfo.map(provider => ({
-      value: provider.value,
-      label: provider.name,
-      description: provider.description
-    }));
-  }, [providerInfo]);
 
   // =============================================================================
   // DATA LOADING

@@ -41,7 +41,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
   error,
   onRefresh,
   onLoadMore,
-  onFilterChange
+  // onFilterChange
 }) => {
 
   // =============================================================================
@@ -194,25 +194,6 @@ const RecentActivity: React.FC<RecentActivityProps> = ({
   // HELPER FUNCTIONS
   // =============================================================================
 
-  /**
-   * Format cost for display
-   * 
-   * Learning: Micro-costs need special formatting to be meaningful.
-   * We show cents for very small amounts and dollars for larger ones.
-   * FIXED: Clearer cost formatting that avoids mixing dollar and cent symbols.
-   */
-  const formatCost = (cost: number | null): string => {
-    if (cost === null || cost === 0) return 'Free';
-    if (cost >= 1) {
-      return `${cost.toFixed(2)}`;
-    } else if (cost >= 0.01) {
-      // Show just cents for small amounts (clear it's currency)
-      return `${(cost * 100).toFixed(1)}¢`;
-    } else {
-      // For very small amounts, show as dollars with more precision
-      return `${cost.toFixed(4)}`;
-    }
-  };
 
   /**
    * Get status styling for success/failure

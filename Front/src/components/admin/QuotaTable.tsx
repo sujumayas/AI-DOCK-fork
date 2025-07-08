@@ -1,7 +1,7 @@
 // 🎯 Quota Table Component
 // Professional data table with progress indicators and actions
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { QuotaResponse } from '../../types/quota';
 import { quotaService } from '../../services/quotaService';
 

@@ -1,7 +1,7 @@
 // 🎯 Quota Management - Refactored Main Admin Interface
 // Clean orchestrator component using modular hooks and atomic components
 
-import React, { useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { QuotaResponse } from '../../types/quota';
 import QuotaTable from './QuotaTable';
 import QuotaCreateModal from './QuotaCreateModal';
@@ -310,7 +310,7 @@ export function QuotaManagement({ onCreateQuota, onEditQuota, className = '' }: 
         hasActiveFilters={hasActiveFilters}
         filterSummary={filterSummary.map(summary => {
           // Enhance filter summary with department names
-          return summary.replace(/Dept: (\d+)/, (match, id) => {
+          return summary.replace(/Dept: (\d+)/, (_, id) => {
             return `Dept: ${getDepartmentName(Number(id))}`;
           });
         })}

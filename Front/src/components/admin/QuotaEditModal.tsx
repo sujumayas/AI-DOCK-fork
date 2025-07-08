@@ -8,7 +8,6 @@ import {
   QuotaResponse,
   QuotaUpdateRequest, 
   QuotaFormErrors,
-  DepartmentOption, 
   LLMConfigOption,
   QuotaPeriod,
   QUOTA_PERIOD_OPTIONS

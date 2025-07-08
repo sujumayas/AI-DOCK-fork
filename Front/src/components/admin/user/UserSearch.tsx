@@ -271,4 +271,3 @@ export default UserSearch;
  * Additional exports for testing and development
  * Learning: Named exports make components easier to test and develop
  */
-export type { UserSearchProps };

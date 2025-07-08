@@ -12,7 +12,6 @@ import {
   LLMConfigurationUpdate,
   LLMConfigurationResponse,
   LLMProviderInfo,
-  LLMProvider,
   LLMConfigError
 } from '../../services/llmConfigService';
 
@@ -59,7 +58,7 @@ const LLMEditModal: React.FC<LLMEditModalProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Selected provider info for dynamic field updates
-  const [selectedProviderInfo, setSelectedProviderInfo] = useState<LLMProviderInfo | null>(null);
+  const [, setSelectedProviderInfo] = useState<LLMProviderInfo | null>(null);
 
   // =============================================================================
   // EFFECTS

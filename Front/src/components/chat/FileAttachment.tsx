@@ -93,7 +93,7 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({
   
   // 📘 Word document specific state
   const isWordDocument = isWordFile(fileUpload.file);
-  const wordMetadata = hasWordMetadata(fileUpload.metadata || {}) ? fileUpload.metadata?.wordMetadata : undefined;
+  const wordMetadata = fileUpload.metadata && hasWordMetadata(fileUpload.metadata) ? fileUpload.metadata.wordMetadata : undefined;
   const hasWordContent = wordMetadata && isWordTextExtractionSuccessful(wordMetadata);
   const wordOutline = wordMetadata ? extractWordOutline(wordMetadata) : [];
   const isComplexWord = wordMetadata ? isWordStructureComplex(wordMetadata) : false;

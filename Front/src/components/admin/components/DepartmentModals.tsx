@@ -48,13 +48,13 @@ const DepartmentModals: React.FC<DepartmentModalsProps> = ({
   // MODAL HANDLERS
   // =============================================================================
   
-  const handleCreateSubmit = async (data: DepartmentCreate) => {
-    await onCreateDepartment(data);
+  const handleCreateSubmit = async (data: DepartmentCreate | DepartmentUpdate) => {
+    await onCreateDepartment(data as DepartmentCreate);
   };
 
-  const handleEditSubmit = async (data: DepartmentUpdate) => {
+  const handleEditSubmit = async (data: DepartmentCreate | DepartmentUpdate) => {
     if (!state.editingDepartment) return;
-    await onUpdateDepartment(state.editingDepartment.id, data);
+    await onUpdateDepartment(state.editingDepartment.id, data as DepartmentUpdate);
   };
 
   const handleDeleteConfirm = async () => {
