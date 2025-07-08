@@ -56,6 +56,11 @@ logger.info(f"🌐 Configuring CORS for frontend: {settings.frontend_url}")
 
 # Configure CORS origins based on environment
 cors_origins = [settings.frontend_url]
+
+# Handle both with and without trailing slash for frontend URL
+frontend_base = settings.frontend_url.rstrip('/')
+cors_origins.extend([frontend_base, f"{frontend_base}/"])
+
 if settings.environment.lower() == "development":
     cors_origins.extend([
         "http://localhost:8080", 
@@ -125,6 +130,11 @@ async def cors_test():
     """
     # Get the same CORS origins used in middleware
     cors_origins = [settings.frontend_url]
+    
+    # Handle both with and without trailing slash for frontend URL
+    frontend_base = settings.frontend_url.rstrip('/')
+    cors_origins.extend([frontend_base, f"{frontend_base}/"])
+    
     if settings.environment.lower() == "development":
         cors_origins.extend([
             "http://localhost:8080",
