@@ -8,6 +8,12 @@ export interface LoginCredentials {
   password: string;
 }
 
+// Alias for compatibility
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 // What the backend sends back after successful login
 export interface LoginResponse {
   access_token: string;
@@ -25,6 +31,20 @@ export interface User {
   is_admin: boolean;
   created_at: string;
   department_id?: number;
+  department?: string;
+}
+
+// Alias for compatibility
+export interface UserInfo {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  is_admin: boolean;
+  created_at: string;
+  department_id?: number;
+  department?: string;
 }
 
 // For handling API errors consistently

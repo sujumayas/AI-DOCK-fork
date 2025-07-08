@@ -6,9 +6,7 @@ import { quotaService } from '../../services/quotaService';
 import { departmentService, DepartmentDropdownOption } from '../../services/departmentService';
 import { 
   QuotaCreateRequest, 
-  QuotaFormState, 
   QuotaFormErrors,
-  DepartmentOption, 
   LLMConfigOption,
   QuotaType,
   QuotaPeriod,
@@ -55,7 +53,10 @@ export function QuotaCreateModal({ isOpen, onClose, onSuccess, className = '' }:
   // =============================================================================
 
   // Form state following our established pattern
-  const [formState, setFormState] = useState<QuotaFormState>({
+  const [formState, setFormState] = useState<{
+    data: QuotaCreateRequest;
+    errors: QuotaFormErrors;
+  }>({
     data: {
       department_id: 0,
       llm_config_id: undefined,

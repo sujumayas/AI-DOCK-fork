@@ -4,7 +4,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { TopUsersResponse, TopUserMetric } from '../../types/usage';
-import { formatCurrency, formatNumber } from '../../utils/formatUtils';
 
 /**
  * Top Users Table Component

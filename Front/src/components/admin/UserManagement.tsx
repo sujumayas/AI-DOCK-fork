@@ -12,7 +12,6 @@ import {
   Trash2, 
   UserCheck, 
   UserX, 
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   Users as UsersIcon,

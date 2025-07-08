@@ -51,7 +51,6 @@ const LLMConfiguration: React.FC = () => {
   const [showSimpleCreateModal, setShowSimpleCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showTestModal, setShowTestModal] = useState(false);
 
   // Form state
   const [isSubmitting, setIsSubmitting] = useState(false);

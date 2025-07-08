@@ -15,8 +15,29 @@ export * from './chat';
 // Conversation management types
 export * from './conversation';
 
-// Admin functionality types
-export * from './admin';
+// Admin functionality types (avoid User duplicate with auth)
+export type {
+  LoadingState,
+  UserResponse,
+  CreateUserRequest,
+  UpdateUserRequest,
+  UserListResponse,
+  UserSearchFilters,
+  UserSearchResult,
+  UserStats,
+  UserRole,
+  UserPermission,
+  RoleResponse,
+  PermissionResponse,
+  DepartmentResponse,
+  DepartmentCreateRequest,
+  DepartmentUpdateRequest,
+  DepartmentListResponse,
+  DepartmentStats,
+  DepartmentWithUsers,
+  AdminApiResponse,
+  AdminApiError
+} from './admin';
 
 // User management types
 export * from './manager';
@@ -42,8 +63,7 @@ export type {
   ChatMessage,
   ChatRequest,
   ChatResponse,
-  ChatUIState,
-  LLMConfigurationSummary
+  ChatUIState
 } from './chat';
 
 // Most commonly used conversation types

@@ -467,21 +467,4 @@ export interface UsageInsights {
   }[];
 }
 
-// =============================================================================
-// EXPORT ALL TYPES
-// =============================================================================
-
-export type {
-  // Re-export key types for convenience
-  UsageSummary,
-  UserUsageStats,
-  DepartmentUsageStats,
-  TopUsersResponse,
-  RecentLogsResponse,
-  UsageSystemHealth,
-  DashboardData,
-  ProviderChartData,
-  DashboardState,
-  UsageFilters,
-  UsageInsights
-};
+// Types are already exported inline above

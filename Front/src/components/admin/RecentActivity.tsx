@@ -11,7 +11,7 @@
 // - Improved empty states with helpful guidance
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { RecentLogsResponse, UsageLogEntry, LogFilters } from '../../types/usage';
+import { RecentLogsResponse, LogFilters } from '../../types/usage';
 import { formatConversationTimestamp } from '../../utils/chatHelpers';
 import { formatCurrency } from '../../utils/formatUtils';
 

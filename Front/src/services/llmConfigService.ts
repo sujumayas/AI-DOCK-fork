@@ -24,6 +24,11 @@ export interface LLMProviderInfo {
   description: string;
   default_endpoint: string;
   documentation_url?: string;
+  default_version?: string;
+  default_model?: string;
+  available_models?: string[];
+  default_input_cost?: number;
+  default_output_cost?: number;
 }
 
 export interface LLMConfigurationSummary {
@@ -661,15 +666,4 @@ class LLMConfigService {
  */
 export const llmConfigService = new LLMConfigService();
 
-// Export types for use in components
-export type {
-  LLMConfigurationSummary,
-  LLMConfigurationResponse,
-  LLMConfigurationCreate,
-  LLMConfigurationSimpleCreate,
-  LLMConfigurationUpdate,
-  LLMConfigurationTest,
-  LLMConfigurationTestResult,
-  LLMProviderInfo,
-  LLMProvider,
-};
+// Types are already exported inline above

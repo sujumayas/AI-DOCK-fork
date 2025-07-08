@@ -5,16 +5,17 @@
 // from users while maintaining full functionality underneath.
 
 import React, { useState } from 'react';
+import { LLMProvider } from '../../services/llmConfigService';
 
 interface LLMProviderInfo {
-  value: string;
+  value: LLMProvider;
   name: string;
   description: string;
   default_endpoint?: string;
 }
 
 interface LLMSimpleCreateData {
-  provider: string;
+  provider: LLMProvider;
   name: string;
   api_key: string;
   description?: string;

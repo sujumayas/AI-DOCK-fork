@@ -3,14 +3,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Plus, 
-  Search, 
-  Edit3, 
-  Trash2, 
-  Building2, 
-  Users, 
-  DollarSign, 
-  BarChart3,
   RefreshCw,
   AlertTriangle
 } from 'lucide-react';

@@ -485,22 +485,4 @@ export type {
   QuotaSearchFilters,
   QuotaListResponse,
   
-  // Status and analytics
-  DepartmentQuotaStatusResponse,
-  QuotaAnalyticsSummary,
-  
-  // Operations
-  QuotaResetResponse,
-  BulkQuotaOperationResponse,
-  
-  // UI helpers
-  QuotaFormState,
-  QuotaFormErrors,
-  DepartmentOption,
-  LLMConfigOption,
-  
-  // Utility types
-  QuotaType,
-  QuotaPeriod,
-  QuotaStatus
-};
+// Types are already exported inline above

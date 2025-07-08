@@ -45,6 +45,11 @@ export interface User {
 }
 
 /**
+ * User response from API - alias for compatibility
+ */
+export interface UserResponse extends User {}
+
+/**
  * Data needed to create a new user
  */
 export interface CreateUserRequest {

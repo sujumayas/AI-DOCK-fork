@@ -4,11 +4,22 @@
 // Export all core types
 export * from './core';
 
-// Export all PDF-specific types
-export * from './pdf';
+// Export all PDF-specific types (avoiding duplicate exports)
+export type {
+  PDFMetadata,
+  PDFTOCEntry,
+  PDFTextQuality
+} from './pdf';
 
-// Export all Word document-specific types
-export * from './word';
+// Export all Word document-specific types (avoiding duplicate exports)
+export type {
+  WordElementType,
+  WordMetadata,
+  WordStructureComplexity,
+  WordStructureElement,
+  WordStyleInfo,
+  WordTextQuality
+} from './word';
 
 // Export all validation types and classes
 export * from './validation';

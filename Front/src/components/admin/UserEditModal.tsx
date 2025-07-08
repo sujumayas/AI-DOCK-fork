@@ -3,7 +3,7 @@
 // Similar to create modal but with update functionality
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Eye, EyeOff, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { X, User, AlertCircle, CheckCircle } from 'lucide-react';
 
 import { adminService } from '../../services/adminService';
 import { departmentService, DepartmentDropdownOption } from '../../services/departmentService';

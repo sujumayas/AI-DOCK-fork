@@ -3,7 +3,7 @@
 // This showcases advanced form patterns and modal UX design
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, User, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 
 import { adminService } from '../../services/adminService';
 import { departmentService, DepartmentDropdownOption } from '../../services/departmentService';

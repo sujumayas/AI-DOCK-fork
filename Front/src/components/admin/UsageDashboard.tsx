@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usageAnalyticsService } from '../../services/usageAnalyticsService';
-import { DashboardData, DashboardState, TopUserMetric } from '../../types/usage';
+import { DashboardState, TopUserMetric } from '../../types/usage';
 
 // Import our dashboard components
 import UsageDashboardOverview from './UsageDashboardOverview';
