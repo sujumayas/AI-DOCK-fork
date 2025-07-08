@@ -71,6 +71,38 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   useEffect(() => {
     adjustTextareaHeight();
   }, [message]);
+
+  // 🎨 Calculate button state and behavior (enhanced for file uploads)
+  const hasContent = message.trim().length > 0 || attachments.length > 0;
+  const hasUploadsInProgress = fileUploadsInProgress.some(upload => 
+    upload.status === 'uploading' || upload.status === 'processing'
+  );
+  
+  // 📊 Calculate character count and limits
+  const characterCount = message.length;
+  const characterLimit = 4000; // Reasonable limit for most LLMs
+  const isNearLimit = characterCount > characterLimit * 0.8; // Warn at 80%
+  const isOverLimit = characterCount > characterLimit;
+  
+  const canSend = hasContent && !isLoading && !disabled && !isOverLimit && !hasUploadsInProgress;
+  const showCancelButton = isStreaming; // Show cancel when streaming
+  const canCancel = isStreaming && onCancel; // Can cancel if streaming and handler provided
+
+  // 🔍 DEBUG: Button state check - moved from JSX to avoid void return type error
+  useEffect(() => {
+    console.log('🔍 DEBUG - Send button state:', {
+      hasUploadsInProgress,
+      canSend,
+      showCancelButton,
+      uploadsInProgressCount: fileUploadsInProgress.length,
+      uploadsInProgressDetails: fileUploadsInProgress.map(u => ({
+        id: u.id,
+        fileName: u.file.name,
+        status: u.status
+      })),
+      buttonWillBeDisabled: !canSend
+    });
+  }, [fileUploadsInProgress, hasContent, isLoading, disabled, isOverLimit, isStreaming, canSend, hasUploadsInProgress, showCancelButton]);
   
   // ✅ Handle sending the message (enhanced with file attachments)
   const handleSend = () => {
@@ -228,11 +260,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     });
   };
   
-  // 📊 Calculate character count and check limits
-  const characterCount = message.length;
-  const characterLimit = 4000; // Reasonable limit for most LLMs
-  const isNearLimit = characterCount > characterLimit * 0.8; // Warn at 80%
-  const isOverLimit = characterCount > characterLimit;
+  // Character count calculations moved to earlier in the component to avoid duplication
   
   // 📁 NEW: File upload handlers
   const handleFilesAdded = (newUploads: FileUploadType[]) => {
@@ -328,14 +356,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setShowFileUpload(prev => !prev);
   };
   
-  // 🎨 NEW: Determine button state and behavior (enhanced for file uploads)
-  const hasContent = message.trim().length > 0 || attachments.length > 0;
-  const hasUploadsInProgress = fileUploadsInProgress.some(upload => 
-    upload.status === 'uploading' || upload.status === 'processing'
-  );
-  const canSend = hasContent && !isLoading && !disabled && !isOverLimit && !hasUploadsInProgress;
-  const showCancelButton = isStreaming; // Show cancel when streaming
-  const canCancel = isStreaming && onCancel; // Can cancel if streaming and handler provided
+  // Button state calculations moved to earlier in the component to avoid duplication
   
   return (
     <div className={`border-t border-white/20 bg-white/10 backdrop-blur-sm ${className}`}>
@@ -432,7 +453,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </button>
           )}
           
-          {/* @ts-ignore */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -486,19 +506,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </div>
           </div>
           
-          {/* 🔍 DEBUG: Button state check */}
-          {console.log('🔍 DEBUG - Send button state:', {
-            hasUploadsInProgress,
-            canSend,
-            showCancelButton,
-            uploadsInProgressCount: fileUploadsInProgress.length,
-            uploadsInProgressDetails: fileUploadsInProgress.map(u => ({
-              id: u.id,
-              fileName: u.file.name,
-              status: u.status
-            })),
-            buttonWillBeDisabled: !canSend
-          })}
+          {/* 🔍 DEBUG: Button state check moved to useEffect to avoid JSX void return */}
           
           {/* 📤 Send/Cancel Button with Conditional Rendering */}
           {showCancelButton ? (
